@@ -216,7 +216,7 @@ export default function LeadDetailPage() {
     }
   }
 
-  const fetchQuotes = async () => {
+  const fetchQuotes = useCallback(async () => {
     try {
       const response = await fetch(`/api/quotes?leadId=${leadId}`)
       if (!response.ok) throw new Error("Failed to fetch quotes")
