@@ -1,0 +1,171 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SALES_REP
+}
+
+enum SourceType {
+  CALL_IN
+  WALK_IN
+  REFERRAL
+}
+
+enum LeadType {
+  FLOOR
+  KITCHEN
+  BATH
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  ASSIGNED
+  APPOINTMENT_SET
+  QUOTED
+  WON
+  LOST
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  role      UserRole @default(SALES_REP)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  assignedLeads Lead[] @relation("AssignedSalesRep")
+  appointments Appointment[]
+  quotes Quote[]
+  uploadedQuoteFiles QuoteFile[]
+
+  @@map("users")
+}
+
+model Customer {
+  id           String     @id @default(cuid())
+  firstName    String
+  lastName     String
+  phone        String?
+  email        String?
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  zip          String?
+  sourceType   SourceType
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  leads Lead[]
+
+  @@map("customers")
+}
+
+model Lead {
+  id                String     @id @default(cuid())
+  customerId        String
+  leadType          LeadType
+  description       String?
+  status           LeadStatus @default(NEW)
+  assignedSalesRepId String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  // Relations
+  customer          Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assignedSalesRep  User?      @relation("AssignedSalesRep", fields: [assignedSalesRepId], references: [id])
+  appointments      Appointment[]
+  quotes            Quote[]
+
+  @@map("leads")
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  leadId          String
+  salesRepId      String
+  scheduledFor    DateTime
+  siteAddressLine1 String?
+  siteAddressLine2 String?
+  city            String?
+  state           String?
+  zip             String?
+  status          AppointmentStatus @default(SCHEDULED)
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  lead            Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  salesRep        User              @relation(fields: [salesRepId], references: [id])
+  quotes          Quote[]
+
+  @@map("appointments")
+}
+
+model Quote {
+  id            String      @id @default(cuid())
+  leadId        String
+  appointmentId String?
+  salesRepId    String
+  amount        Float
+  currency      String      @default("USD")
+  sentAt        DateTime?
+  expiresAt     DateTime?
+  status        QuoteStatus @default(DRAFT)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  lead          Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  salesRep      User        @relation(fields: [salesRepId], references: [id])
+  files         QuoteFile[]
+
+  @@map("quotes")
+}
+
+model QuoteFile {
+  id            String   @id @default(cuid())
+  quoteId       String
+  fileUrl       String
+  fileType      String?
+  uploadedByUserId String
+  uploadedAt    DateTime @default(now())
+
+  // Relations
+  quote         Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  uploadedBy    User     @relation(fields: [uploadedByUserId], references: [id])
+
+  @@map("quote_files")
+}
+
