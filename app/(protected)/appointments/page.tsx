@@ -108,10 +108,10 @@ export default function AppointmentsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Appointments</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl md:text-3xl font-bold">Appointments</h1>
+        <p className="text-sm md:text-base text-muted-foreground">
           Manage your scheduled appointments
         </p>
       </div>
@@ -122,7 +122,7 @@ export default function AppointmentsPage() {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Status</label>
               <Select
@@ -166,10 +166,10 @@ export default function AppointmentsPage() {
         <div className="space-y-4">
           {appointments.map((appointment) => (
             <Card key={appointment.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-3">
                       <Calendar className="h-5 w-5 text-muted-foreground" />
                       <div>
                         <div className="font-semibold text-lg">

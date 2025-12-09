@@ -84,14 +84,14 @@ export default function LeadsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Leads</h1>
-          <p className="text-muted-foreground">Manage and track your leads</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Leads</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Manage and track your leads</p>
         </div>
-        <Link href="/leads/new">
-          <Button>
+        <Link href="/leads/new" className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             New Lead
           </Button>
@@ -104,7 +104,7 @@ export default function LeadsPage() {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Status</label>
               <Select
@@ -153,13 +153,13 @@ export default function LeadsPage() {
         <div className="space-y-4">
           {leads.map((lead) => (
             <Card key={lead.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2">
                       <Link
                         href={`/leads/${lead.id}`}
-                        className="text-lg font-semibold hover:underline"
+                        className="text-base md:text-lg font-semibold hover:underline"
                       >
                         {lead.customer.firstName} {lead.customer.lastName}
                       </Link>
@@ -191,7 +191,7 @@ export default function LeadsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="text-right text-sm text-muted-foreground">
+                  <div className="text-left sm:text-right text-sm text-muted-foreground">
                     <div>
                       {new Date(lead.createdAt).toLocaleDateString()}
                     </div>

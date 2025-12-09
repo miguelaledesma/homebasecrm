@@ -79,10 +79,10 @@ export default function QuotesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Quotes</h1>
-        <p className="text-muted-foreground">Manage your quotes</p>
+        <h1 className="text-2xl md:text-3xl font-bold">Quotes</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Manage your quotes</p>
       </div>
 
       {/* Filters */}
@@ -91,7 +91,7 @@ export default function QuotesPage() {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Status</label>
               <Select
@@ -126,8 +126,8 @@ export default function QuotesPage() {
           {quotes.map((quote) => (
             <Link key={quote.id} href={`/quotes/${quote.id}`}>
               <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
+                <CardContent className="p-4 md:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <DollarSign className="h-5 w-5 text-muted-foreground" />

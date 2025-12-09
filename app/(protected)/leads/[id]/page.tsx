@@ -333,7 +333,7 @@ export default function LeadDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <Link href="/leads">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
@@ -507,7 +507,7 @@ export default function LeadDetailPage() {
           {/* New Appointment Form */}
           {showAppointmentForm && canCreateAppointment && (
             <form onSubmit={handleCreateAppointment} className="space-y-4 p-4 border rounded-md bg-muted/50">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="scheduledFor">Date & Time *</Label>
                   <Input
@@ -553,7 +553,7 @@ export default function LeadDetailPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="city">City</Label>
                   <Input
@@ -718,7 +718,7 @@ export default function LeadDetailPage() {
           {/* New Quote Form */}
           {showQuoteForm && canCreateQuote && (
             <form onSubmit={handleCreateQuote} className="space-y-4 p-4 border rounded-md bg-muted/50">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="amount">Amount *</Label>
                   <Input
@@ -755,7 +755,7 @@ export default function LeadDetailPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="expiresAt">Expires At</Label>
                   <Input
