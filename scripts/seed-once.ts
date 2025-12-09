@@ -1,0 +1,57 @@
+import { PrismaClient, UserRole } from "@prisma/client"
+
+const prisma = new PrismaClient()
+
+async function main() {
+  console.log("Checking if database needs seeding...")
+
+  // Check if admin user already exists
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: "admin@homebasecrm.com" },
+  })
+
+  if (existingAdmin) {
+    console.log("✅ Database already seeded. Admin user exists.")
+    console.log("Skipping seed process.")
+    return
+  }
+
+  console.log("Database not seeded yet. Starting seed process...")
+
+  // Create an admin user
+  const admin = await prisma.user.upsert({
+    where: { email: "admin@homebasecrm.com" },
+    update: {},
+    create: {
+      email: "admin@homebasecrm.com",
+      name: "Admin User",
+      role: UserRole.ADMIN,
+    },
+  })
+
+  console.log("✅ Created admin user:", admin.email)
+
+  // Create a sales rep user
+  const salesRep = await prisma.user.upsert({
+    where: { email: "sales@homebasecrm.com" },
+    update: {},
+    create: {
+      email: "sales@homebasecrm.com",
+      name: "Sales Rep",
+      role: UserRole.SALES_REP,
+    },
+  })
+
+  console.log("✅ Created sales rep user:", salesRep.email)
+  console.log("🎉 Seeding completed successfully!")
+}
+
+main()
+  .catch((e) => {
+    console.error("❌ Error seeding database:", e)
+    process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })
+
