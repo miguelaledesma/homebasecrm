@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
@@ -117,18 +117,7 @@ export default function LeadDetailPage() {
 
   const leadId = params.id as string
 
-  useEffect(() => {
-    if (leadId) {
-      fetchLead()
-      fetchAppointments()
-      fetchQuotes()
-    }
-    if (session?.user.role === "ADMIN") {
-      fetchSalesReps()
-    }
-  }, [leadId, session])
-
-  const fetchLead = async () => {
+  const fetchLead = useCallback(async () => {
     try {
       const response = await fetch(`/api/leads/${leadId}`)
       if (!response.ok) {
@@ -147,9 +136,9 @@ export default function LeadDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [leadId, router])
 
-  const fetchSalesReps = async () => {
+  const fetchSalesReps = useCallback(async () => {
     try {
       const response = await fetch("/api/users")
       if (!response.ok) throw new Error("Failed to fetch sales reps")
@@ -158,9 +147,9 @@ export default function LeadDetailPage() {
     } catch (error) {
       console.error("Error fetching sales reps:", error)
     }
-  }
+  }, [])
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     try {
       const response = await fetch(`/api/appointments?leadId=${leadId}`)
       if (!response.ok) throw new Error("Failed to fetch appointments")
@@ -169,7 +158,7 @@ export default function LeadDetailPage() {
     } catch (error) {
       console.error("Error fetching appointments:", error)
     }
-  }
+  }, [leadId])
 
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -236,7 +225,18 @@ export default function LeadDetailPage() {
     } catch (error) {
       console.error("Error fetching quotes:", error)
     }
-  }
+  }, [leadId])
+
+  useEffect(() => {
+    if (leadId) {
+      fetchLead()
+      fetchAppointments()
+      fetchQuotes()
+    }
+    if (session?.user.role === "ADMIN") {
+      fetchSalesReps()
+    }
+  }, [leadId, session, fetchLead, fetchAppointments, fetchQuotes, fetchSalesReps])
 
   const handleCreateQuote = async (e: React.FormEvent) => {
     e.preventDefault()

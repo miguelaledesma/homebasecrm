@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -37,7 +37,7 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [myLeadsOnly, setMyLeadsOnly] = useState(false)
 
-  const fetchLeads = async () => {
+  const fetchLeads = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -58,11 +58,11 @@ export default function LeadsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [statusFilter, myLeadsOnly])
 
   useEffect(() => {
     fetchLeads()
-  }, [statusFilter, myLeadsOnly])
+  }, [fetchLeads])
 
   const getStatusColor = (status: LeadStatus) => {
     switch (status) {

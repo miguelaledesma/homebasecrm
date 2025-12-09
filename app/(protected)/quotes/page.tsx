@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -37,7 +37,7 @@ export default function QuotesPage() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
 
-  const fetchQuotes = async () => {
+  const fetchQuotes = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -55,11 +55,11 @@ export default function QuotesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [statusFilter])
 
   useEffect(() => {
     fetchQuotes()
-  }, [statusFilter])
+  }, [fetchQuotes])
 
   const getStatusColor = (status: QuoteStatus) => {
     switch (status) {

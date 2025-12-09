@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -46,7 +46,7 @@ export default function AppointmentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [upcomingOnly, setUpcomingOnly] = useState(true)
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -67,11 +67,11 @@ export default function AppointmentsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [statusFilter, upcomingOnly])
 
   useEffect(() => {
     fetchAppointments()
-  }, [statusFilter, upcomingOnly])
+  }, [fetchAppointments])
 
   const getStatusColor = (status: AppointmentStatus) => {
     switch (status) {

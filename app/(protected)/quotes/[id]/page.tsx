@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
@@ -63,13 +63,7 @@ export default function QuoteDetailPage() {
 
   const quoteId = params.id as string
 
-  useEffect(() => {
-    if (quoteId) {
-      fetchQuote()
-    }
-  }, [quoteId])
-
-  const fetchQuote = async () => {
+  const fetchQuote = useCallback(async () => {
     try {
       const response = await fetch(`/api/quotes/${quoteId}`)
       if (!response.ok) {
@@ -87,7 +81,13 @@ export default function QuoteDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [quoteId])
+
+  useEffect(() => {
+    if (quoteId) {
+      fetchQuote()
+    }
+  }, [quoteId, fetchQuote])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
