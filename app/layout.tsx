@@ -6,8 +6,8 @@ import { Providers } from "./providers"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "HomebaseCRM",
-  description: "CRM for home-improvement businesses",
+  title: "A1 Interior & Exterior Designing | EZ FLOORS & MORE",
+  description: "CRM for A1 Interior & Exterior Designing and EZ FLOORS & MORE",
 }
 
 export default function RootLayout({

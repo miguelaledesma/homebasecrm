@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
+import { Logo } from "@/components/logo"
 import {
   LayoutDashboard,
   Users,
@@ -45,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
-            <h1 className="text-lg md:text-xl font-bold">HomebaseCRM</h1>
+            <Logo />
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             {session?.user && (

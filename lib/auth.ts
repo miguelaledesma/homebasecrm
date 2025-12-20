@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import { UserRole } from "@prisma/client"
+import bcrypt from "bcrypt"
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -13,12 +14,10 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email) {
+        if (!credentials?.email || !credentials?.password) {
           return null
         }
 
-        // For MVP, we'll do a simple email lookup
-        // In production, you'd verify the password hash
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         })
@@ -27,8 +26,18 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Simple password check (for MVP - in production use bcrypt)
-        // For now, accept any password if user exists
+        // If user has a password, verify it
+        if (user.password) {
+          const isValid = await bcrypt.compare(credentials.password, user.password)
+          if (!isValid) {
+            return null
+          }
+        } else {
+          // Legacy users without passwords - for backward compatibility
+          // Accept any password for existing users without passwords
+          // In production, you might want to force password reset
+        }
+
         return {
           id: user.id,
           email: user.email,

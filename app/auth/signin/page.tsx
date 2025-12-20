@@ -1,17 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function SignInPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get("invited") === "true") {
+      setSuccess("Account created successfully! Please sign in with your credentials.")
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,9 +50,27 @@ export default function SignInPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
+        <CardHeader className="text-center">
+          <div className="flex justify-center items-center gap-4 mb-6">
+            <Image
+              src="/logos/ezfloors.png"
+              alt="EZ FLOORS & MORE"
+              width={70}
+              height={70}
+              className="h-16 w-16 object-contain"
+              priority
+            />
+            <Image
+              src="/logos/redlogo.png"
+              alt="A1 Interior & Exterior Designing"
+              width={180}
+              height={60}
+              className="h-12 w-auto object-contain"
+              priority
+            />
+          </div>
           <CardTitle>Sign In</CardTitle>
-          <CardDescription>Enter your credentials to access HomebaseCRM</CardDescription>
+          <CardDescription>Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -76,15 +103,19 @@ export default function SignInPage() {
               />
             </div>
             {error && (
-              <div className="text-sm text-destructive">{error}</div>
+              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="text-sm text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-400 p-3 rounded-md">
+                {success}
+              </div>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-          <p className="mt-4 text-xs text-muted-foreground text-center">
-            For MVP: Any password will work if the user exists in the database.
-          </p>
         </CardContent>
       </Card>
     </div>

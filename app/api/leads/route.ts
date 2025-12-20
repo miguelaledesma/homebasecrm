@@ -23,14 +23,27 @@ export async function POST(request: NextRequest) {
       state,
       zip,
       sourceType,
-      leadType,
+      leadTypes,
       description,
+      // Referral fields
+      referrerFirstName,
+      referrerLastName,
+      referrerPhone,
+      referrerEmail,
     } = body
 
     // Validate required fields
-    if (!firstName || !lastName || !sourceType || !leadType) {
+    if (!firstName || !lastName || !sourceType || !leadTypes || leadTypes.length === 0) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      )
+    }
+    
+    // Validate: if OTHER is selected, description is required
+    if (leadTypes.includes("OTHER") && !description?.trim()) {
+      return NextResponse.json(
+        { error: "Description is required when 'Other' is selected" },
         { status: 400 }
       )
     }
@@ -84,17 +97,54 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Handle referral information if sourceType is REFERRAL
+    let referrerCustomerId: string | null = null
+    let referrerIsCustomer = false
+
+    if (sourceType === "REFERRAL" && (referrerPhone || referrerEmail)) {
+      // Check if referrer is an existing customer
+      const referrerCustomer = await prisma.customer.findFirst({
+        where: {
+          OR: [
+            ...(referrerPhone ? [{ phone: referrerPhone }] : []),
+            ...(referrerEmail ? [{ email: referrerEmail }] : []),
+          ],
+        },
+      })
+
+      if (referrerCustomer) {
+        referrerCustomerId = referrerCustomer.id
+        referrerIsCustomer = true
+      }
+    }
+
     // Create lead
     const lead = await prisma.lead.create({
       data: {
         customerId: customer.id,
-        leadType: leadType as LeadType,
+        leadTypes: leadTypes as LeadType[],
         description: description || null,
         status: "NEW",
+        // Referral fields
+        referrerFirstName: sourceType === "REFERRAL" ? referrerFirstName || null : null,
+        referrerLastName: sourceType === "REFERRAL" ? referrerLastName || null : null,
+        referrerPhone: sourceType === "REFERRAL" ? referrerPhone || null : null,
+        referrerEmail: sourceType === "REFERRAL" ? referrerEmail || null : null,
+        referrerCustomerId: referrerCustomerId,
+        referrerIsCustomer: referrerIsCustomer,
       },
       include: {
         customer: true,
         assignedSalesRep: true,
+        referrerCustomer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+          },
+        },
       },
     })
 
@@ -144,6 +194,15 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
+            email: true,
+          },
+        },
+        referrerCustomer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
             email: true,
           },
         },

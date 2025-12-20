@@ -1,17 +1,27 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus } from "lucide-react"
 import { LeadStatus } from "@prisma/client"
+import { AgGridReact } from "ag-grid-react"
+import { ColDef, ModuleRegistry, AllCommunityModule } from "ag-grid-community"
+import { formatLeadTypes, formatLeadType } from "@/lib/utils"
+
+import "ag-grid-community/styles/ag-grid.css"
+import "ag-grid-community/styles/ag-theme-alpine.css"
+
+// Register AG Grid modules
+ModuleRegistry.registerModules([AllCommunityModule])
 
 type Lead = {
   id: string
-  leadType: string
+  leadTypes: string[]
   description: string | null
   status: LeadStatus
   assignedSalesRepId: string | null
@@ -32,6 +42,7 @@ type Lead = {
 
 export default function LeadsPage() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -82,6 +93,121 @@ export default function LeadsPage() {
         return "bg-gray-100 text-gray-800"
     }
   }
+
+  const columnDefs: ColDef[] = useMemo(
+    () => [
+      {
+        field: "customer.name",
+        headerName: "Customer",
+        valueGetter: (params) => {
+          return `${params.data.customer.firstName} ${params.data.customer.lastName}`
+        },
+        flex: 1,
+        minWidth: 150,
+        cellRenderer: (params: any) => {
+          return (
+            <Link
+              href={`/leads/${params.data.id}`}
+              className="text-primary hover:underline font-medium transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {params.value}
+            </Link>
+          )
+        },
+      },
+      {
+        field: "customer.phone",
+        headerName: "Phone",
+        valueGetter: (params) => params.data.customer.phone || "-",
+        flex: 1,
+        minWidth: 120,
+      },
+      {
+        field: "customer.email",
+        headerName: "Email",
+        valueGetter: (params) => params.data.customer.email || "-",
+        flex: 1,
+        minWidth: 180,
+      },
+      {
+        field: "leadTypes",
+        headerName: "Type",
+        flex: 1,
+        minWidth: 100,
+        valueGetter: (params) => formatLeadTypes(params.data.leadTypes || []),
+        cellRenderer: (params: any) => {
+          const types = params.data.leadTypes || []
+          return (
+            <div className="flex flex-wrap gap-1">
+              {types.map((type: string, idx: number) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground"
+                >
+                  {formatLeadType(type)}
+                </span>
+              ))}
+            </div>
+          )
+        },
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        flex: 1,
+        minWidth: 140,
+        cellRenderer: (params: any) => {
+          const status = params.value as LeadStatus
+          return (
+            <span
+              className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(
+                status
+              )}`}
+            >
+              {status.replace("_", " ")}
+            </span>
+          )
+        },
+      },
+      {
+        field: "assignedSalesRep.name",
+        headerName: "Assigned To",
+        valueGetter: (params) => {
+          if (!params.data.assignedSalesRep) return "-"
+          return (
+            params.data.assignedSalesRep.name ||
+            params.data.assignedSalesRep.email
+          )
+        },
+        flex: 1,
+        minWidth: 150,
+      },
+      {
+        field: "createdAt",
+        headerName: "Created",
+        valueGetter: (params) => {
+          return new Date(params.data.createdAt).toLocaleDateString()
+        },
+        flex: 1,
+        minWidth: 100,
+      },
+    ],
+    []
+  )
+
+  const defaultColDef = useMemo(
+    () => ({
+      sortable: true,
+      filter: true,
+      resizable: true,
+      cellStyle: {
+        display: "flex",
+        alignItems: "center",
+      },
+    }),
+    []
+  )
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -137,9 +263,11 @@ export default function LeadsPage() {
         </CardContent>
       </Card>
 
-      {/* Leads List */}
+      {/* Leads Table */}
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Loading leads...</div>
+        <div className="text-center py-8 text-muted-foreground">
+          Loading leads...
+        </div>
       ) : leads.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
@@ -150,57 +278,33 @@ export default function LeadsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {leads.map((lead) => (
-            <Card key={lead.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2">
-                      <Link
-                        href={`/leads/${lead.id}`}
-                        className="text-base md:text-lg font-semibold hover:underline"
-                      >
-                        {lead.customer.firstName} {lead.customer.lastName}
-                      </Link>
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(
-                          lead.status
-                        )}`}
-                      >
-                        {lead.status}
-                      </span>
-                      <span className="px-2 py-1 rounded text-xs font-medium bg-secondary text-secondary-foreground">
-                        {lead.leadType}
-                      </span>
-                    </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      {lead.customer.phone && (
-                        <div>Phone: {lead.customer.phone}</div>
-                      )}
-                      {lead.customer.email && (
-                        <div>Email: {lead.customer.email}</div>
-                      )}
-                      {lead.description && (
-                        <div className="mt-2">{lead.description}</div>
-                      )}
-                    </div>
-                    {lead.assignedSalesRep && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        Assigned to: {lead.assignedSalesRep.name || lead.assignedSalesRep.email}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-left sm:text-right text-sm text-muted-foreground">
-                    <div>
-                      {new Date(lead.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardContent className="p-4">
+            <div
+              className="ag-theme-alpine rounded-lg overflow-hidden"
+              style={{ height: "650px", width: "100%" }}
+            >
+              <AgGridReact
+                rowData={leads}
+                columnDefs={columnDefs}
+                defaultColDef={defaultColDef}
+                onRowClicked={(event) => {
+                  router.push(`/leads/${event.data.id}`)
+                }}
+                rowStyle={{ cursor: "pointer" }}
+                pagination={true}
+                paginationPageSize={20}
+                suppressCellFocus={true}
+                animateRows={true}
+                rowHeight={56}
+                headerHeight={48}
+                suppressRowClickSelection={false}
+                enableCellTextSelection={true}
+                ensureDomOrder={true}
+              />
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

@@ -25,6 +25,13 @@ enum LeadType {
   FLOOR
   KITCHEN
   BATH
+  CARPET
+  PAINTING
+  LANDSCAPING
+  MONTHLY_YARD_MAINTENANCE
+  ROOFING
+  STUCCO
+  ADUS
   OTHER
 }
 
@@ -56,17 +63,32 @@ model User {
   id        String   @id @default(cuid())
   name      String?
   email     String   @unique
+  password  String? // Hashed password (nullable for existing users, required for new invites)
   role      UserRole @default(SALES_REP)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  assignedLeads Lead[] @relation("AssignedSalesRep")
-  appointments Appointment[]
-  quotes Quote[]
+  assignedLeads      Lead[]        @relation("AssignedSalesRep")
+  appointments       Appointment[]
+  quotes             Quote[]
   uploadedQuoteFiles QuoteFile[]
 
   @@map("users")
+}
+
+model UserInvitation {
+  id        String   @id @default(cuid())
+  email     String
+  role      UserRole
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  createdBy String? // ID of admin who created the invitation
+
+  @@index([email])
+  @@map("user_invitations")
 }
 
 model Customer {
@@ -85,50 +107,71 @@ model Customer {
   updatedAt    DateTime   @updatedAt
 
   // Relations
-  leads Lead[]
+  leads           Lead[] @relation("CustomerLeads")
+  referredLeads  Lead[] @relation("ReferrerCustomer")
 
+  @@index([phone])
+  @@index([email])
   @@map("customers")
 }
 
 model Lead {
-  id                String     @id @default(cuid())
-  customerId        String
-  leadType          LeadType
-  description       String?
-  status           LeadStatus @default(NEW)
+  id                 String     @id @default(cuid())
+  customerId         String
+  leadTypes          LeadType[]
+  description        String?
+  status             LeadStatus @default(NEW)
   assignedSalesRepId String?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  // Referral tracking
+  referrerFirstName   String?
+  referrerLastName    String?
+  referrerPhone       String?
+  referrerEmail       String?
+  referrerCustomerId  String?  // Link to existing customer if referrer is in system
+  referrerIsCustomer  Boolean  @default(false)
 
   // Relations
-  customer          Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  assignedSalesRep  User?      @relation("AssignedSalesRep", fields: [assignedSalesRepId], references: [id])
-  appointments      Appointment[]
-  quotes            Quote[]
+  customer         Customer      @relation("CustomerLeads", fields: [customerId], references: [id], onDelete: Cascade)
+  assignedSalesRep User?         @relation("AssignedSalesRep", fields: [assignedSalesRepId], references: [id])
+  referrerCustomer Customer?     @relation("ReferrerCustomer", fields: [referrerCustomerId], references: [id], onDelete: SetNull)
+  appointments     Appointment[]
+  quotes           Quote[]
 
+  @@index([status])
+  @@index([assignedSalesRepId])
+  @@index([createdAt(sort: Desc)])
+  @@index([status, assignedSalesRepId])
   @@map("leads")
 }
 
 model Appointment {
-  id              String            @id @default(cuid())
-  leadId          String
-  salesRepId      String
-  scheduledFor    DateTime
+  id               String            @id @default(cuid())
+  leadId           String
+  salesRepId       String
+  scheduledFor     DateTime
   siteAddressLine1 String?
   siteAddressLine2 String?
-  city            String?
-  state           String?
-  zip             String?
-  status          AppointmentStatus @default(SCHEDULED)
-  notes           String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  city             String?
+  state            String?
+  zip              String?
+  status           AppointmentStatus @default(SCHEDULED)
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   // Relations
-  lead            Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  salesRep        User              @relation(fields: [salesRepId], references: [id])
-  quotes          Quote[]
+  lead     Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  salesRep User    @relation(fields: [salesRepId], references: [id])
+  quotes   Quote[]
 
+  @@index([salesRepId])
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([leadId])
+  @@index([salesRepId, status, scheduledFor])
   @@map("appointments")
 }
 
@@ -146,26 +189,28 @@ model Quote {
   updatedAt     DateTime    @updatedAt
 
   // Relations
-  lead          Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
-  salesRep      User        @relation(fields: [salesRepId], references: [id])
-  files         QuoteFile[]
+  lead        Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  salesRep    User         @relation(fields: [salesRepId], references: [id])
+  files       QuoteFile[]
 
+  @@index([salesRepId])
+  @@index([status])
+  @@index([leadId])
   @@map("quotes")
 }
 
 model QuoteFile {
-  id            String   @id @default(cuid())
-  quoteId       String
-  fileUrl       String
-  fileType      String?
+  id               String   @id @default(cuid())
+  quoteId          String
+  fileUrl          String
+  fileType         String?
   uploadedByUserId String
-  uploadedAt    DateTime @default(now())
+  uploadedAt       DateTime @default(now())
 
   // Relations
-  quote         Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  uploadedBy    User     @relation(fields: [uploadedByUserId], references: [id])
+  quote      Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  uploadedBy User  @relation(fields: [uploadedByUserId], references: [id])
 
   @@map("quote_files")
 }
-

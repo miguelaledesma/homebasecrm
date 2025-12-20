@@ -12,15 +12,22 @@ import { LeadStatus, AppointmentStatus, QuoteStatus } from "@prisma/client"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { formatLeadTypes, formatLeadType } from "@/lib/utils"
 
 type Lead = {
   id: string
-  leadType: string
+  leadTypes: string[]
   description: string | null
   status: LeadStatus
   assignedSalesRepId: string | null
   createdAt: string
   updatedAt: string
+  referrerFirstName: string | null
+  referrerLastName: string | null
+  referrerPhone: string | null
+  referrerEmail: string | null
+  referrerCustomerId: string | null
+  referrerIsCustomer: boolean
   customer: {
     id: string
     firstName: string
@@ -38,6 +45,13 @@ type Lead = {
     id: string
     name: string | null
     email: string
+  } | null
+  referrerCustomer: {
+    id: string
+    firstName: string
+    lastName: string
+    phone: string | null
+    email: string | null
   } | null
 }
 
@@ -417,8 +431,17 @@ export default function LeadDetailPage() {
             </div>
 
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Lead Type</p>
-              <p className="mt-1">{lead.leadType}</p>
+              <p className="text-sm font-medium text-muted-foreground">Lead Types</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {(lead.leadTypes || []).map((type: string, idx: number) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground"
+                  >
+                    {formatLeadType(type)}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {session?.user.role === "ADMIN" && (
@@ -455,6 +478,53 @@ export default function LeadDetailPage() {
                 <p className="mt-1 whitespace-pre-wrap">{lead.description}</p>
               </div>
             )}
+
+            {lead.customer.sourceType === "REFERRAL" &&
+              (lead.referrerFirstName ||
+                lead.referrerLastName ||
+                lead.referrerPhone ||
+                lead.referrerEmail) && (
+                <div className="pt-4 border-t">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">
+                    Referred By
+                  </p>
+                  <div className="space-y-1">
+                    {(lead.referrerFirstName || lead.referrerLastName) && (
+                      <p className="text-sm font-semibold">
+                        {lead.referrerFirstName} {lead.referrerLastName}
+                      </p>
+                    )}
+                    {lead.referrerPhone && (
+                      <p className="text-sm text-muted-foreground">
+                        Phone: {lead.referrerPhone}
+                      </p>
+                    )}
+                    {lead.referrerEmail && (
+                      <p className="text-sm text-muted-foreground">
+                        Email: {lead.referrerEmail}
+                      </p>
+                    )}
+                    {lead.referrerIsCustomer && lead.referrerCustomer && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950 px-2 py-1 rounded">
+                          ✓ Existing Customer
+                        </span>
+                        <Link
+                          href={`/customers/${lead.referrerCustomer.id}`}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          View Customer Profile
+                        </Link>
+                      </div>
+                    )}
+                    {lead.referrerIsCustomer === false && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Not in system
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
             <div className="pt-4 border-t">
               <div className="flex justify-between items-center">

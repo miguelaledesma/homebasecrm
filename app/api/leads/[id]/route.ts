@@ -25,6 +25,15 @@ export async function GET(
             email: true,
           },
         },
+        referrerCustomer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+          },
+        },
       },
     })
 
@@ -118,6 +127,15 @@ export async function PATCH(
           select: {
             id: true,
             name: true,
+            email: true,
+          },
+        },
+        referrerCustomer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
             email: true,
           },
         },

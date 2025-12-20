@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, FileText } from "lucide-react"
 import { QuoteStatus } from "@prisma/client"
+import { formatLeadTypes } from "@/lib/utils"
 
 type Quote = {
   id: string
@@ -19,7 +20,7 @@ type Quote = {
   createdAt: string
   lead: {
     id: string
-    leadType: string
+    leadTypes: string[]
     customer: {
       id: string
       firstName: string
@@ -157,7 +158,7 @@ export default function QuotesPage() {
                             {quote.lead.customer.firstName}{" "}
                             {quote.lead.customer.lastName}
                           </Link>
-                          <span className="ml-2">({quote.lead.leadType})</span>
+                          <span className="ml-2">({formatLeadTypes(quote.lead.leadTypes || [])})</span>
                         </div>
                         <div>
                           Created: {new Date(quote.createdAt).toLocaleString()}

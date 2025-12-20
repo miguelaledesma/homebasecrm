@@ -1,13 +1,22 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, MapPin, User } from "lucide-react"
 import { AppointmentStatus } from "@prisma/client"
+import { AgGridReact } from "ag-grid-react"
+import { ColDef, ModuleRegistry, AllCommunityModule } from "ag-grid-community"
+
+import "ag-grid-community/styles/ag-grid.css"
+import "ag-grid-community/styles/ag-theme-alpine.css"
+
+// Register AG Grid modules
+ModuleRegistry.registerModules([AllCommunityModule])
 
 type Appointment = {
   id: string
@@ -22,7 +31,7 @@ type Appointment = {
   createdAt: string
   lead: {
     id: string
-    leadType: string
+    leadTypes: string[]
     status: string
     customer: {
       id: string
@@ -41,10 +50,10 @@ type Appointment = {
 
 export default function AppointmentsPage() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [upcomingOnly, setUpcomingOnly] = useState(true)
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true)
@@ -52,9 +61,6 @@ export default function AppointmentsPage() {
       const params = new URLSearchParams()
       if (statusFilter !== "all") {
         params.append("status", statusFilter)
-      }
-      if (upcomingOnly) {
-        params.append("upcoming", "true")
       }
 
       const response = await fetch(`/api/appointments?${params.toString()}`)
@@ -67,7 +73,7 @@ export default function AppointmentsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, upcomingOnly])
+  }, [statusFilter])
 
   useEffect(() => {
     fetchAppointments()
@@ -88,7 +94,14 @@ export default function AppointmentsPage() {
     }
   }
 
-  const handleStatusUpdate = async (appointmentId: string, newStatus: AppointmentStatus) => {
+  const handleStatusUpdate = async (
+    appointmentId: string,
+    newStatus: AppointmentStatus,
+    event?: React.MouseEvent
+  ) => {
+    if (event) {
+      event.stopPropagation()
+    }
     try {
       const response = await fetch(`/api/appointments/${appointmentId}`, {
         method: "PATCH",
@@ -106,6 +119,156 @@ export default function AppointmentsPage() {
       alert(error.message || "Failed to update appointment")
     }
   }
+
+  const columnDefs: ColDef[] = useMemo(
+    () => [
+      {
+        field: "scheduledFor",
+        headerName: "Date & Time",
+        flex: 1,
+        minWidth: 180,
+        valueGetter: (params) => {
+          const date = new Date(params.data.scheduledFor)
+          return date.toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })
+        },
+        sort: "asc",
+      },
+      {
+        field: "customer.name",
+        headerName: "Customer",
+        valueGetter: (params) => {
+          return `${params.data.lead.customer.firstName} ${params.data.lead.customer.lastName}`
+        },
+        flex: 1,
+        minWidth: 150,
+        cellRenderer: (params: any) => {
+          return (
+            <Link
+              href={`/leads/${params.data.lead.id}`}
+              className="text-primary hover:underline font-medium transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {params.value}
+            </Link>
+          )
+        },
+      },
+      {
+        field: "customer.phone",
+        headerName: "Phone",
+        valueGetter: (params) => {
+          return params.data.lead.customer.phone || "-"
+        },
+        flex: 1,
+        minWidth: 120,
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        flex: 1,
+        minWidth: 140,
+        cellRenderer: (params: any) => {
+          const status = params.value as AppointmentStatus
+          return (
+            <span
+              className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(
+                status
+              )}`}
+            >
+              {status.replace("_", " ")}
+            </span>
+          )
+        },
+      },
+      ...(session?.user.role === "ADMIN"
+        ? [
+            {
+              field: "salesRep.name",
+              headerName: "Sales Rep",
+              valueGetter: (params) => {
+                return (
+                  params.data.salesRep.name || params.data.salesRep.email
+                )
+              },
+              flex: 1,
+              minWidth: 150,
+            },
+          ]
+        : []),
+      {
+        field: "actions",
+        headerName: "Actions",
+        flex: 1,
+        minWidth: 200,
+        cellRenderer: (params: any) => {
+          if (params.data.status !== "SCHEDULED") {
+            return (
+              <span className="text-muted-foreground text-sm">-</span>
+            )
+          }
+          return (
+            <div
+              className="flex gap-1.5 flex-wrap"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={(e) =>
+                  handleStatusUpdate(params.data.id, "COMPLETED", e)
+                }
+              >
+                Complete
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={(e) =>
+                  handleStatusUpdate(params.data.id, "CANCELLED", e)
+                }
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={(e) =>
+                  handleStatusUpdate(params.data.id, "NO_SHOW", e)
+                }
+              >
+                No Show
+              </Button>
+            </div>
+          )
+        },
+        sortable: false,
+        filter: false,
+      },
+    ],
+    [session?.user.role]
+  )
+
+  const defaultColDef = useMemo(
+    () => ({
+      sortable: true,
+      filter: true,
+      resizable: true,
+      cellStyle: {
+        display: "flex",
+        alignItems: "center",
+      },
+    }),
+    []
+  )
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -136,22 +299,11 @@ export default function AppointmentsPage() {
                 <option value="NO_SHOW">No Show</option>
               </Select>
             </div>
-            <div className="flex items-end">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={upcomingOnly}
-                  onChange={(e) => setUpcomingOnly(e.target.checked)}
-                  className="rounded"
-                />
-                <span className="text-sm font-medium">Upcoming Only</span>
-              </label>
-            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Appointments List */}
+      {/* Appointments Table */}
       {loading ? (
         <div className="text-center py-8 text-muted-foreground">
           Loading appointments...
@@ -163,125 +315,33 @@ export default function AppointmentsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {appointments.map((appointment) => (
-            <Card key={appointment.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-3">
-                      <Calendar className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <div className="font-semibold text-lg">
-                          {new Date(appointment.scheduledFor).toLocaleDateString("en-US", {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {new Date(appointment.scheduledFor).toLocaleTimeString("en-US", {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </div>
-                      </div>
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(
-                          appointment.status
-                        )}`}
-                      >
-                        {appointment.status}
-                      </span>
-                    </div>
-
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <Link
-                          href={`/leads/${appointment.lead.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {appointment.lead.customer.firstName}{" "}
-                          {appointment.lead.customer.lastName}
-                        </Link>
-                        <span className="text-sm text-muted-foreground">
-                          ({appointment.lead.leadType})
-                        </span>
-                      </div>
-
-                      {(appointment.siteAddressLine1 || appointment.city) && (
-                        <div className="flex items-start gap-2">
-                          <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                          <div className="text-sm">
-                            {appointment.siteAddressLine1}
-                            {appointment.siteAddressLine2 && (
-                              <>, {appointment.siteAddressLine2}</>
-                            )}
-                            {appointment.city && (
-                              <>
-                                <br />
-                                {appointment.city}
-                                {appointment.state && <>, {appointment.state}</>}{" "}
-                                {appointment.zip}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {appointment.notes && (
-                        <div className="text-sm text-muted-foreground mt-2">
-                          {appointment.notes}
-                        </div>
-                      )}
-
-                      {session?.user.role === "ADMIN" && (
-                        <div className="text-xs text-muted-foreground">
-                          Sales Rep: {appointment.salesRep.name || appointment.salesRep.email}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Status Update Actions */}
-                    {appointment.status === "SCHEDULED" && (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleStatusUpdate(appointment.id, "COMPLETED")
-                          }
-                        >
-                          Mark Completed
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleStatusUpdate(appointment.id, "CANCELLED")
-                          }
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleStatusUpdate(appointment.id, "NO_SHOW")
-                          }
-                        >
-                          Mark No Show
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardContent className="p-4">
+            <div
+              className="ag-theme-alpine rounded-lg overflow-hidden"
+              style={{ height: "650px", width: "100%" }}
+            >
+              <AgGridReact
+                rowData={appointments}
+                columnDefs={columnDefs}
+                defaultColDef={defaultColDef}
+                onRowClicked={(event) => {
+                  router.push(`/leads/${event.data.lead.id}`)
+                }}
+                rowStyle={{ cursor: "pointer" }}
+                pagination={true}
+                paginationPageSize={20}
+                suppressCellFocus={true}
+                animateRows={true}
+                rowHeight={56}
+                headerHeight={48}
+                suppressRowClickSelection={false}
+                enableCellTextSelection={true}
+                ensureDomOrder={true}
+              />
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )
