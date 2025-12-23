@@ -94,7 +94,7 @@ export default function AppointmentsPage() {
     }
   }
 
-  const handleStatusUpdate = async (
+  const handleStatusUpdate = useCallback(async (
     appointmentId: string,
     newStatus: AppointmentStatus,
     event?: React.MouseEvent
@@ -118,7 +118,7 @@ export default function AppointmentsPage() {
     } catch (error: any) {
       alert(error.message || "Failed to update appointment")
     }
-  }
+  }, [fetchAppointments])
 
   const columnDefs: ColDef[] = useMemo(
     () => [
@@ -127,7 +127,7 @@ export default function AppointmentsPage() {
         headerName: "Date & Time",
         flex: 1,
         minWidth: 180,
-        valueGetter: (params) => {
+        valueGetter: (params: any) => {
           const date = new Date(params.data.scheduledFor)
           return date.toLocaleString("en-US", {
             month: "short",
@@ -142,7 +142,7 @@ export default function AppointmentsPage() {
       {
         field: "customer.name",
         headerName: "Customer",
-        valueGetter: (params) => {
+        valueGetter: (params: any) => {
           return `${params.data.lead.customer.firstName} ${params.data.lead.customer.lastName}`
         },
         flex: 1,
@@ -162,7 +162,7 @@ export default function AppointmentsPage() {
       {
         field: "customer.phone",
         headerName: "Phone",
-        valueGetter: (params) => {
+        valueGetter: (params: any) => {
           return params.data.lead.customer.phone || "-"
         },
         flex: 1,
@@ -191,7 +191,7 @@ export default function AppointmentsPage() {
             {
               field: "salesRep.name",
               headerName: "Sales Rep",
-              valueGetter: (params) => {
+              valueGetter: (params: any) => {
                 return (
                   params.data.salesRep.name || params.data.salesRep.email
                 )
