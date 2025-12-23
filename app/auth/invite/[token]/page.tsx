@@ -134,7 +134,7 @@ export default function InviteAcceptPage() {
         <CardHeader>
           <CardTitle>Create Your Account</CardTitle>
           <CardDescription>
-            You've been invited to join as a{" "}
+            You&apos;ve been invited to join as a{" "}
             {invitation.role === "ADMIN" ? "Admin" : "Sales Person"}
           </CardDescription>
         </CardHeader>

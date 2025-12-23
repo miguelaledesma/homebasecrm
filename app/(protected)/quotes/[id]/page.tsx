@@ -82,7 +82,7 @@ export default function QuoteDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [quoteId])
+  }, [quoteId, router])
 
   useEffect(() => {
     if (quoteId) {

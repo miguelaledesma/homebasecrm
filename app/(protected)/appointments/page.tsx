@@ -254,7 +254,7 @@ export default function AppointmentsPage() {
         filter: false,
       },
     ],
-    [session?.user.role]
+    [session?.user.role, handleStatusUpdate]
   )
 
   const defaultColDef = useMemo(
