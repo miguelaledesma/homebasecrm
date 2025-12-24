@@ -73,6 +73,7 @@ model User {
   appointments       Appointment[]
   quotes             Quote[]
   uploadedQuoteFiles QuoteFile[]
+  leadNotes          LeadNote[]    @relation("LeadNoteCreator")
 
   @@map("users")
 }
@@ -139,6 +140,7 @@ model Lead {
   referrerCustomer Customer?     @relation("ReferrerCustomer", fields: [referrerCustomerId], references: [id], onDelete: SetNull)
   appointments     Appointment[]
   quotes           Quote[]
+  notes            LeadNote[]
 
   @@index([status])
   @@index([assignedSalesRepId])
@@ -213,4 +215,21 @@ model QuoteFile {
   uploadedBy User  @relation(fields: [uploadedByUserId], references: [id])
 
   @@map("quote_files")
+}
+
+model LeadNote {
+  id        String   @id @default(cuid())
+  leadId    String
+  content   String
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdByUser User @relation("LeadNoteCreator", fields: [createdBy], references: [id])
+
+  @@index([leadId])
+  @@index([createdAt(sort: Desc)])
+  @@map("lead_notes")
 }

@@ -49,7 +49,9 @@ async function main() {
 main()
   .catch((e) => {
     console.error("❌ Error seeding database:", e)
-    process.exit(1)
+    console.error("⚠️  Continuing anyway - dev server will start...")
+    // Don't exit - allow dev server to start even if seeding fails
+    return Promise.resolve() // Ensure promise resolves
   })
   .finally(async () => {
     await prisma.$disconnect()

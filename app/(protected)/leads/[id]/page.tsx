@@ -7,7 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Plus, Calendar, DollarSign, FileText } from "lucide-react"
+import { ArrowLeft, Plus, Calendar, DollarSign, FileText, MessageSquare } from "lucide-react"
 import { LeadStatus, AppointmentStatus, QuoteStatus } from "@prisma/client"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -128,6 +128,18 @@ export default function LeadDetailPage() {
     appointmentId: "",
     status: "DRAFT" as QuoteStatus,
   })
+  const [notes, setNotes] = useState<Array<{
+    id: string
+    content: string
+    createdAt: string
+    createdByUser: {
+      id: string
+      name: string | null
+      email: string
+    }
+  }>>([])
+  const [newNote, setNewNote] = useState("")
+  const [addingNote, setAddingNote] = useState(false)
 
   const leadId = params.id as string
 
@@ -241,16 +253,56 @@ export default function LeadDetailPage() {
     }
   }, [leadId])
 
+  const fetchNotes = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/leads/${leadId}/notes`)
+      if (!response.ok) throw new Error("Failed to fetch notes")
+      const data = await response.json()
+      setNotes(data.notes)
+    } catch (error) {
+      console.error("Error fetching notes:", error)
+    }
+  }, [leadId])
+
+  const handleAddNote = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newNote.trim()) return
+
+    setAddingNote(true)
+    try {
+      const response = await fetch(`/api/leads/${leadId}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newNote }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to add note")
+      }
+
+      const data = await response.json()
+      setNotes([data.note, ...notes])
+      setNewNote("")
+    } catch (error: any) {
+      console.error("Error adding note:", error)
+      alert(error.message || "Failed to add note")
+    } finally {
+      setAddingNote(false)
+    }
+  }
+
   useEffect(() => {
     if (leadId) {
       fetchLead()
       fetchAppointments()
       fetchQuotes()
+      fetchNotes()
     }
     if (session?.user.role === "ADMIN") {
       fetchSalesReps()
     }
-  }, [leadId, session, fetchLead, fetchAppointments, fetchQuotes, fetchSalesReps])
+  }, [leadId, session, fetchLead, fetchAppointments, fetchQuotes, fetchNotes, fetchSalesReps])
 
   const handleCreateQuote = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -963,6 +1015,69 @@ export default function LeadDetailPage() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Notes Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Notes
+          </CardTitle>
+          <CardDescription>
+            Add notes and comments about this lead. All notes are timestamped.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Add Note Form */}
+          <form onSubmit={handleAddNote} className="space-y-3">
+            <div>
+              <Label htmlFor="newNote">Add a Note</Label>
+              <Textarea
+                id="newNote"
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Enter your note here..."
+                rows={3}
+                required
+              />
+            </div>
+            <Button type="submit" disabled={addingNote || !newNote.trim()}>
+              {addingNote ? "Adding..." : "Add Note"}
+            </Button>
+          </form>
+
+          {/* Notes List */}
+          <div className="space-y-4 mt-6">
+            {notes.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No notes yet. Add one to get started.
+              </div>
+            ) : (
+              notes.map((note) => (
+                <div
+                  key={note.id}
+                  className="border rounded-lg p-4 bg-card space-y-2"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
+                    <span className="font-medium">
+                      {note.createdByUser.name || note.createdByUser.email}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {new Date(note.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
