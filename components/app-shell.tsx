@@ -32,6 +32,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  // Filter navigation based on user role - only show Admin for admins
+  const filteredNavigation = navigation.filter(
+    (item) => item.name !== "Admin" || session?.user?.role === "ADMIN"
+  )
+
   return (
     <div className="min-h-screen bg-background">
       {/* Topbar */}
@@ -90,7 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             />
             <aside className="fixed left-0 top-16 bottom-0 w-64 bg-background border-r">
               <nav className="p-4 space-y-1">
-                {navigation.map((item) => {
+                {filteredNavigation.map((item) => {
                   const Icon = item.icon
                   const isActive =
                     pathname === item.href || pathname?.startsWith(item.href + "/")
@@ -118,7 +123,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Desktop Sidebar */}
         <aside className="hidden md:block w-64 border-r min-h-[calc(100vh-4rem)]">
           <nav className="p-4 space-y-1">
-            {navigation.map((item) => {
+            {filteredNavigation.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href || pathname?.startsWith(item.href + "/")
               return (
