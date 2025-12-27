@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status")
-    const myLeads = searchParams.get("myLeads") === "true"
+    const myLeads = searchParams.get("myLeads") === "true" || false
 
     const where: any = {}
 
@@ -185,9 +185,7 @@ export async function GET(request: NextRequest) {
     // No filtering needed for sales reps - they can see all leads in read-only mode
 
     const includeObj: any = {
-      customer: session.user.role === "SALES_REP" && !myLeads
-        ? { select: { id: true, firstName: true, lastName: true } }
-        : true,
+      customer: true, // Always include full customer, we'll filter in response
       assignedSalesRep: {
         select: {
           id: true,
@@ -220,19 +218,31 @@ export async function GET(request: NextRequest) {
 
     // For sales reps viewing all leads (not just their own), strip out sensitive data
     if (session.user.role === "SALES_REP" && !myLeads) {
-      const limitedLeads = leads.map((lead) => ({
-        id: lead.id,
-        customer: {
-          id: lead.customer.id,
-          firstName: lead.customer.firstName,
-          lastName: lead.customer.lastName,
-        },
-        assignedSalesRep: lead.assignedSalesRep,
-        // Include status and created date for context
-        status: lead.status,
-        createdAt: lead.createdAt,
-      }))
-      return NextResponse.json({ leads: limitedLeads }, { status: 200 })
+      const limitedLeads = leads.map((lead) => {
+        // Type assertion: customer is always included as a single object (not an array)
+        // Prisma's include returns customer as a single relation object
+        const leadWithCustomer = lead as typeof lead & {
+          customer: {
+            id: string;
+            firstName: string;
+            lastName: string;
+          };
+        };
+        const customer = leadWithCustomer.customer;
+        return {
+          id: lead.id,
+          customer: {
+            id: customer.id,
+            firstName: customer.firstName,
+            lastName: customer.lastName,
+          },
+          assignedSalesRep: lead.assignedSalesRep,
+          // Include status and created date for context
+          status: lead.status,
+          createdAt: lead.createdAt,
+        };
+      });
+      return NextResponse.json({ leads: limitedLeads }, { status: 200 });
     }
 
     return NextResponse.json({ leads }, { status: 200 })
