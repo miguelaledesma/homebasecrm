@@ -3,6 +3,16 @@ import { PrismaClient, UserRole } from "@prisma/client"
 const prisma = new PrismaClient()
 
 async function main() {
+  // Prevent seeding in production
+  const isProduction = process.env.NODE_ENV === "production" || 
+                       process.env.RAILWAY_ENVIRONMENT === "production" ||
+                       process.env.VERCEL_ENV === "production"
+  
+  if (isProduction) {
+    console.log("⚠️  Skipping seed in production environment")
+    return
+  }
+
   console.log("Checking if database needs seeding...")
 
   // Check if admin user already exists

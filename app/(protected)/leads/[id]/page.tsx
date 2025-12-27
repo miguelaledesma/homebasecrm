@@ -7,12 +7,22 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Plus, Calendar, DollarSign, FileText, MessageSquare } from "lucide-react"
+import { ArrowLeft, Plus, Calendar, DollarSign, FileText, MessageSquare, Trash2 } from "lucide-react"
 import { LeadStatus, AppointmentStatus, QuoteStatus } from "@prisma/client"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { formatLeadTypes, formatLeadType } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type Lead = {
   id: string
@@ -140,6 +150,8 @@ export default function LeadDetailPage() {
   }>>([])
   const [newNote, setNewNote] = useState("")
   const [addingNote, setAddingNote] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const leadId = params.id as string
 
@@ -385,6 +397,29 @@ export default function LeadDetailPage() {
     }
   }
 
+  const handleDeleteLead = async () => {
+    if (!lead) return
+
+    try {
+      setDeleting(true)
+      const response = await fetch(`/api/leads/${leadId}`, {
+        method: "DELETE",
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete lead")
+      }
+
+      // Redirect to leads list
+      router.push("/leads")
+    } catch (error: any) {
+      alert(error.message || "Failed to delete lead")
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-8">Loading...</div>
   }
@@ -397,20 +432,62 @@ export default function LeadDetailPage() {
     status !== lead.status ||
     assignedSalesRepId !== (lead.assignedSalesRepId || "")
 
+  // Check if user can delete this lead (admin can delete any, sales rep can delete their own)
+  const canDelete = session?.user?.role === "ADMIN" || 
+    (session?.user?.role === "SALES_REP" && lead.assignedSalesRepId === session?.user?.id)
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <Link href="/leads">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold">Lead Details</h1>
-          <p className="text-muted-foreground">
-            {lead.customer.firstName} {lead.customer.lastName}
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link href="/leads">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Lead Details</h1>
+            <p className="text-muted-foreground">
+              {lead.customer.firstName} {lead.customer.lastName}
+            </p>
+          </div>
         </div>
+        {canDelete && (
+          <>
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={deleting}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Lead
+            </Button>
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Lead</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this lead for{" "}
+                    <strong>{lead.customer.firstName} {lead.customer.lastName}</strong>?
+                    <br />
+                    <br />
+                    <strong className="text-destructive">This action cannot be undone.</strong> This will also delete all associated appointments, quotes, and notes.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteLead}
+                    disabled={deleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleting ? "Deleting..." : "Delete Lead"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

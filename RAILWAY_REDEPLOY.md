@@ -78,14 +78,15 @@ In your Railway dashboard:
 Your `package.json` build script runs:
 
 ```bash
-prisma migrate deploy && tsx scripts/seed-once.ts && next build
+prisma migrate deploy && next build
 ```
 
 This will:
 
 1. ✅ Run `prisma migrate deploy` - Applies all pending migrations (including the new referral tracking migration)
-2. ✅ Run `tsx scripts/seed-once.ts` - Seeds initial data if needed
-3. ✅ Run `next build` - Builds your Next.js app
+2. ✅ Run `next build` - Builds your Next.js app
+
+**Note:** The seed script (`seed-once.ts`) is configured to skip running in production environments to protect live data. It only runs in development mode.
 
 ### Step 4: Verify Migration Success
 

@@ -152,3 +152,51 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!lead) {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 })
+    }
+
+    // SALES_REP can only delete their own leads, ADMIN can delete any lead
+    if (
+      session.user.role === "SALES_REP" &&
+      lead.assignedSalesRepId !== session.user.id
+    ) {
+      return NextResponse.json(
+        { error: "You can only delete leads assigned to you" },
+        { status: 403 }
+      )
+    }
+
+    // Delete the lead (cascading deletes will handle related records)
+    // Based on schema: appointments, quotes, and notes will be deleted via onDelete: Cascade
+    await prisma.lead.delete({
+      where: { id: params.id },
+    })
+
+    return NextResponse.json(
+      { message: "Lead deleted successfully" },
+      { status: 200 }
+    )
+  } catch (error: any) {
+    console.error("Error deleting lead:", error)
+    return NextResponse.json(
+      { error: error.message || "Failed to delete lead" },
+      { status: 500 }
+    )
+  }
+}
+

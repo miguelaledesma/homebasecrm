@@ -9,8 +9,10 @@ Railway's PostgreSQL database is a **persistent service** - it doesn't need to b
 Migrations run **automatically** when you deploy your app because your `package.json` build script includes:
 
 ```json
-"build": "prisma migrate deploy && tsx scripts/seed-once.ts && next build"
+"build": "prisma migrate deploy && next build"
 ```
+
+**Note:** The seed script is not included in the production build to protect live data. Seeding only happens in development mode.
 
 ### How It Works:
 

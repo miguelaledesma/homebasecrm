@@ -10,6 +10,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const allUsers = searchParams.get("all") === "true"
+
+    // If admin requests all users, return all users; otherwise return only sales reps
+    if (allUsers && session.user.role === "ADMIN") {
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      })
+      return NextResponse.json({ users }, { status: 200 })
+    }
+
     // Only return sales reps for assignment dropdowns
     const salesReps = await prisma.user.findMany({
       where: {
