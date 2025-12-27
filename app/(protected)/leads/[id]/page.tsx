@@ -277,13 +277,25 @@ export default function LeadDetailPage() {
         throw new Error("No sales rep assigned to this lead")
       }
 
+      // Convert datetime-local string to ISO string with timezone
+      // datetime-local gives us "YYYY-MM-DDTHH:mm" (local time, no timezone)
+      // We need to convert it to a proper Date object and then to ISO string
+      let scheduledForISO = appointmentForm.scheduledFor
+      if (appointmentForm.scheduledFor) {
+        // Create a Date object from the local datetime string
+        // This interprets it as local time
+        const localDate = new Date(appointmentForm.scheduledFor)
+        // Convert to ISO string which includes timezone info
+        scheduledForISO = localDate.toISOString()
+      }
+
       const response = await fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leadId,
           salesRepId,
-          scheduledFor: appointmentForm.scheduledFor,
+          scheduledFor: scheduledForISO,
           siteAddressLine1: appointmentForm.siteAddressLine1 || null,
           siteAddressLine2: appointmentForm.siteAddressLine2 || null,
           city: appointmentForm.city || null,
@@ -321,7 +333,9 @@ export default function LeadDetailPage() {
 
   const handleStartEditAppointment = (appointment: Appointment) => {
     // Format scheduledFor for datetime-local input (YYYY-MM-DDTHH:mm)
+    // The date from the server is in UTC, we need to convert it to local time
     const scheduledDate = new Date(appointment.scheduledFor)
+    // Use local time methods to get the correct local time values
     const year = scheduledDate.getFullYear()
     const month = String(scheduledDate.getMonth() + 1).padStart(2, "0")
     const day = String(scheduledDate.getDate()).padStart(2, "0")
@@ -359,11 +373,21 @@ export default function LeadDetailPage() {
     setUpdatingAppointment(true)
 
     try {
+      // Convert datetime-local string to ISO string with timezone
+      let scheduledForISO = appointmentEditForm.scheduledFor
+      if (appointmentEditForm.scheduledFor) {
+        // Create a Date object from the local datetime string
+        // This interprets it as local time
+        const localDate = new Date(appointmentEditForm.scheduledFor)
+        // Convert to ISO string which includes timezone info
+        scheduledForISO = localDate.toISOString()
+      }
+
       const response = await fetch(`/api/appointments/${appointmentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          scheduledFor: appointmentEditForm.scheduledFor,
+          scheduledFor: scheduledForISO,
           siteAddressLine1: appointmentEditForm.siteAddressLine1 || null,
           siteAddressLine2: appointmentEditForm.siteAddressLine2 || null,
           city: appointmentEditForm.city || null,
