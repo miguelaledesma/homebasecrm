@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const upcoming = searchParams.get("upcoming") === "true"
     const leadId = searchParams.get("leadId")
-    const myAppointments = searchParams.get("myAppointments") === "true"
+    const myAppointments = searchParams.get("myAppointments") === "true" || false
 
     const where: any = {}
 
@@ -155,9 +155,7 @@ export async function GET(request: NextRequest) {
     const includeObj: any = {
       lead: {
         include: {
-          customer: session.user.role === "SALES_REP" && !myAppointments
-            ? { select: { id: true, firstName: true, lastName: true } }
-            : true,
+          customer: true, // Always include full customer, we'll filter in response
         },
       },
       salesRep: {
@@ -179,22 +177,38 @@ export async function GET(request: NextRequest) {
 
     // For sales reps viewing all appointments (not just their own), strip out sensitive data
     if (session.user.role === "SALES_REP" && !myAppointments) {
-      const limitedAppointments = appointments.map((appointment) => ({
-        id: appointment.id,
-        scheduledFor: appointment.scheduledFor,
-        status: appointment.status,
-        lead: {
-          id: appointment.lead.id,
-          customer: {
-            id: appointment.lead.customer.id,
-            firstName: appointment.lead.customer.firstName,
-            lastName: appointment.lead.customer.lastName,
+      const limitedAppointments = appointments.map((appointment) => {
+        // Type assertion: lead is always included as a single object (not an array)
+        // Prisma's include returns lead as a single relation object
+        const appointmentWithLead = appointment as typeof appointment & {
+          lead: {
+            id: string;
+            customer: {
+              id: string;
+              firstName: string;
+              lastName: string;
+            };
+          };
+        };
+        const lead = appointmentWithLead.lead;
+        const customer = lead.customer;
+        return {
+          id: appointment.id,
+          scheduledFor: appointment.scheduledFor,
+          status: appointment.status,
+          lead: {
+            id: lead.id,
+            customer: {
+              id: customer.id,
+              firstName: customer.firstName,
+              lastName: customer.lastName,
+            },
           },
-        },
-        salesRep: appointment.salesRep,
-        _readOnly: true,
-      }))
-      return NextResponse.json({ appointments: limitedAppointments }, { status: 200 })
+          salesRep: appointment.salesRep,
+          _readOnly: true,
+        };
+      });
+      return NextResponse.json({ appointments: limitedAppointments }, { status: 200 });
     }
 
     return NextResponse.json({ appointments }, { status: 200 })
