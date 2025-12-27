@@ -123,6 +123,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const upcoming = searchParams.get("upcoming") === "true"
     const leadId = searchParams.get("leadId")
+    const myAppointments = searchParams.get("myAppointments") === "true"
 
     const where: any = {}
 
@@ -136,10 +137,13 @@ export async function GET(request: NextRequest) {
       where.status = status as AppointmentStatus
     }
 
-    // Filter by sales rep: SALES_REP only sees their appointments
-    if (session.user.role === "SALES_REP") {
+    // Filter by sales rep if user is SALES_REP and myAppointments is true
+    if (myAppointments && session.user.role === "SALES_REP") {
       where.salesRepId = session.user.id
     }
+
+    // ADMIN can see all appointments, SALES_REP can see all appointments (with limited data)
+    // No filtering needed for sales reps when viewing all appointments
 
     // Filter upcoming appointments (scheduledFor >= now)
     if (upcoming) {
@@ -148,26 +152,50 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const appointments = await prisma.appointment.findMany({
-      where,
-      include: {
-        lead: {
-          include: {
-            customer: true,
-          },
-        },
-        salesRep: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+    const includeObj: any = {
+      lead: {
+        include: {
+          customer: session.user.role === "SALES_REP" && !myAppointments
+            ? { select: { id: true, firstName: true, lastName: true } }
+            : true,
         },
       },
+      salesRep: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where,
+      include: includeObj,
       orderBy: {
         scheduledFor: "asc",
       },
     })
+
+    // For sales reps viewing all appointments (not just their own), strip out sensitive data
+    if (session.user.role === "SALES_REP" && !myAppointments) {
+      const limitedAppointments = appointments.map((appointment) => ({
+        id: appointment.id,
+        scheduledFor: appointment.scheduledFor,
+        status: appointment.status,
+        lead: {
+          id: appointment.lead.id,
+          customer: {
+            id: appointment.lead.customer.id,
+            firstName: appointment.lead.customer.firstName,
+            lastName: appointment.lead.customer.lastName,
+          },
+        },
+        salesRep: appointment.salesRep,
+        _readOnly: true,
+      }))
+      return NextResponse.json({ appointments: limitedAppointments }, { status: 200 })
+    }
 
     return NextResponse.json({ appointments }, { status: 200 })
   } catch (error: any) {

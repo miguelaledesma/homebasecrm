@@ -94,106 +94,148 @@ export default function LeadsPage() {
     }
   }
 
+  const isSalesRep = session?.user.role === "SALES_REP"
+  const isViewingAllLeads = isSalesRep && !myLeadsOnly
+
   const columnDefs: ColDef[] = useMemo(
-    () => [
-      {
-        field: "customer.name",
-        headerName: "Customer",
-        valueGetter: (params) => {
-          return `${params.data.customer.firstName} ${params.data.customer.lastName}`
-        },
-        flex: 1,
-        minWidth: 150,
-        cellRenderer: (params: any) => {
-          return (
-            <Link
-              href={`/leads/${params.data.id}`}
-              className="text-primary hover:underline font-medium transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {params.value}
-            </Link>
-          )
-        },
-      },
-      {
-        field: "customer.phone",
-        headerName: "Phone",
-        valueGetter: (params) => params.data.customer.phone || "-",
-        flex: 1,
-        minWidth: 120,
-      },
-      {
-        field: "customer.email",
-        headerName: "Email",
-        valueGetter: (params) => params.data.customer.email || "-",
-        flex: 1,
-        minWidth: 180,
-      },
-      {
-        field: "leadTypes",
-        headerName: "Type",
-        flex: 1,
-        minWidth: 100,
-        valueGetter: (params) => formatLeadTypes(params.data.leadTypes || []),
-        cellRenderer: (params: any) => {
-          const types = params.data.leadTypes || []
-          return (
-            <div className="flex flex-wrap gap-1">
-              {types.map((type: string, idx: number) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground"
-                >
-                  {formatLeadType(type)}
+    () => {
+      // For sales reps viewing all leads, show only name and assigned to
+      if (isViewingAllLeads) {
+        return [
+          {
+            field: "customer.name",
+            headerName: "Customer",
+            valueGetter: (params) => {
+              return `${params.data.customer.firstName} ${params.data.customer.lastName}`
+            },
+            flex: 1,
+            minWidth: 200,
+            cellRenderer: (params: any) => {
+              // Don't make it clickable for sales reps viewing all leads
+              return (
+                <span className="font-medium">
+                  {params.value}
                 </span>
-              ))}
-            </div>
-          )
+              )
+            },
+          },
+          {
+            field: "assignedSalesRep.name",
+            headerName: "Assigned To",
+            valueGetter: (params) => {
+              if (!params.data.assignedSalesRep) return "-"
+              return (
+                params.data.assignedSalesRep.name ||
+                params.data.assignedSalesRep.email
+              )
+            },
+            flex: 1,
+            minWidth: 200,
+          },
+        ]
+      }
+
+      // Full columns for admins or sales reps viewing their own leads
+      return [
+        {
+          field: "customer.name",
+          headerName: "Customer",
+          valueGetter: (params) => {
+            return `${params.data.customer.firstName} ${params.data.customer.lastName}`
+          },
+          flex: 1,
+          minWidth: 150,
+          cellRenderer: (params: any) => {
+            return (
+              <Link
+                href={`/leads/${params.data.id}`}
+                className="text-primary hover:underline font-medium transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {params.value}
+              </Link>
+            )
+          },
         },
-      },
-      {
-        field: "status",
-        headerName: "Status",
-        flex: 1,
-        minWidth: 140,
-        cellRenderer: (params: any) => {
-          const status = params.value as LeadStatus
-          return (
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(
-                status
-              )}`}
-            >
-              {status.replace("_", " ")}
-            </span>
-          )
+        {
+          field: "customer.phone",
+          headerName: "Phone",
+          valueGetter: (params) => params.data.customer.phone || "-",
+          flex: 1,
+          minWidth: 120,
         },
-      },
-      {
-        field: "assignedSalesRep.name",
-        headerName: "Assigned To",
-        valueGetter: (params) => {
-          if (!params.data.assignedSalesRep) return "-"
-          return (
-            params.data.assignedSalesRep.name ||
-            params.data.assignedSalesRep.email
-          )
+        {
+          field: "customer.email",
+          headerName: "Email",
+          valueGetter: (params) => params.data.customer.email || "-",
+          flex: 1,
+          minWidth: 180,
         },
-        flex: 1,
-        minWidth: 150,
-      },
-      {
-        field: "createdAt",
-        headerName: "Created",
-        valueGetter: (params) => {
-          return new Date(params.data.createdAt).toLocaleDateString()
+        {
+          field: "leadTypes",
+          headerName: "Type",
+          flex: 1,
+          minWidth: 100,
+          valueGetter: (params) => formatLeadTypes(params.data.leadTypes || []),
+          cellRenderer: (params: any) => {
+            const types = params.data.leadTypes || []
+            return (
+              <div className="flex flex-wrap gap-1">
+                {types.map((type: string, idx: number) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground"
+                  >
+                    {formatLeadType(type)}
+                  </span>
+                ))}
+              </div>
+            )
+          },
         },
-        flex: 1,
-        minWidth: 100,
-      },
-    ],
-    []
+        {
+          field: "status",
+          headerName: "Status",
+          flex: 1,
+          minWidth: 140,
+          cellRenderer: (params: any) => {
+            const status = params.value as LeadStatus
+            return (
+              <span
+                className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(
+                  status
+                )}`}
+              >
+                {status.replace("_", " ")}
+              </span>
+            )
+          },
+        },
+        {
+          field: "assignedSalesRep.name",
+          headerName: "Assigned To",
+          valueGetter: (params) => {
+            if (!params.data.assignedSalesRep) return "-"
+            return (
+              params.data.assignedSalesRep.name ||
+              params.data.assignedSalesRep.email
+            )
+          },
+          flex: 1,
+          minWidth: 150,
+        },
+        {
+          field: "createdAt",
+          headerName: "Created",
+          valueGetter: (params) => {
+            return new Date(params.data.createdAt).toLocaleDateString()
+          },
+          flex: 1,
+          minWidth: 100,
+        },
+      ]
+    },
+    [isViewingAllLeads]
   )
 
   const defaultColDef = useMemo(
@@ -259,6 +301,11 @@ export default function LeadsPage() {
                 </label>
               </div>
             )}
+            {isViewingAllLeads && (
+              <div className="text-sm text-muted-foreground">
+                Viewing all leads (read-only) - showing only customer name and assignment
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -289,9 +336,12 @@ export default function LeadsPage() {
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
                 onRowClicked={(event) => {
-                  router.push(`/leads/${event.data.id}`)
+                  // Only allow navigation if not viewing all leads as sales rep
+                  if (!isViewingAllLeads) {
+                    router.push(`/leads/${event.data.id}`)
+                  }
                 }}
-                rowStyle={{ cursor: "pointer" }}
+                rowStyle={{ cursor: isViewingAllLeads ? "default" : "pointer" }}
                 pagination={true}
                 paginationPageSize={20}
                 suppressCellFocus={true}

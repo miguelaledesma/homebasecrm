@@ -181,36 +181,59 @@ export async function GET(request: NextRequest) {
       where.assignedSalesRepId = session.user.id
     }
 
-    // ADMIN can see all leads, SALES_REP only sees their assigned leads
-    if (session.user.role === "SALES_REP" && !myLeads) {
-      where.assignedSalesRepId = session.user.id
+    // ADMIN can see all leads, SALES_REP can see all leads (with limited data)
+    // No filtering needed for sales reps - they can see all leads in read-only mode
+
+    const includeObj: any = {
+      customer: session.user.role === "SALES_REP" && !myLeads
+        ? { select: { id: true, firstName: true, lastName: true } }
+        : true,
+      assignedSalesRep: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    }
+
+    // Only include referrer info for admins or when viewing own leads
+    if (session.user.role === "ADMIN" || (session.user.role === "SALES_REP" && myLeads)) {
+      includeObj.referrerCustomer = {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          email: true,
+        },
+      }
     }
 
     const leads = await prisma.lead.findMany({
       where,
-      include: {
-        customer: true,
-        assignedSalesRep: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        referrerCustomer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-            email: true,
-          },
-        },
-      },
+      include: includeObj,
       orderBy: {
         createdAt: "desc",
       },
     })
+
+    // For sales reps viewing all leads (not just their own), strip out sensitive data
+    if (session.user.role === "SALES_REP" && !myLeads) {
+      const limitedLeads = leads.map((lead) => ({
+        id: lead.id,
+        customer: {
+          id: lead.customer.id,
+          firstName: lead.customer.firstName,
+          lastName: lead.customer.lastName,
+        },
+        assignedSalesRep: lead.assignedSalesRep,
+        // Include status and created date for context
+        status: lead.status,
+        createdAt: lead.createdAt,
+      }))
+      return NextResponse.json({ leads: limitedLeads }, { status: 200 })
+    }
 
     return NextResponse.json({ leads }, { status: 200 })
   } catch (error: any) {

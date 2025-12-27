@@ -54,6 +54,7 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [myAppointmentsOnly, setMyAppointmentsOnly] = useState(false)
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true)
@@ -61,6 +62,9 @@ export default function AppointmentsPage() {
       const params = new URLSearchParams()
       if (statusFilter !== "all") {
         params.append("status", statusFilter)
+      }
+      if (myAppointmentsOnly) {
+        params.append("myAppointments", "true")
       }
 
       const response = await fetch(`/api/appointments?${params.toString()}`)
@@ -73,7 +77,7 @@ export default function AppointmentsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter])
+  }, [statusFilter, myAppointmentsOnly])
 
   useEffect(() => {
     fetchAppointments()
@@ -120,141 +124,181 @@ export default function AppointmentsPage() {
     }
   }, [fetchAppointments])
 
+  const isSalesRep = session?.user.role === "SALES_REP"
+  const isViewingAllAppointments = isSalesRep && !myAppointmentsOnly
+
   const columnDefs: ColDef[] = useMemo(
-    () => [
-      {
-        field: "scheduledFor",
-        headerName: "Date & Time",
-        flex: 1,
-        minWidth: 180,
-        valueGetter: (params: any) => {
-          const date = new Date(params.data.scheduledFor)
-          return date.toLocaleString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          })
-        },
-        sort: "asc",
-      },
-      {
-        field: "customer.name",
-        headerName: "Customer",
-        valueGetter: (params: any) => {
-          return `${params.data.lead.customer.firstName} ${params.data.lead.customer.lastName}`
-        },
-        flex: 1,
-        minWidth: 150,
-        cellRenderer: (params: any) => {
-          return (
-            <Link
-              href={`/leads/${params.data.lead.id}`}
-              className="text-primary hover:underline font-medium transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {params.value}
-            </Link>
-          )
-        },
-      },
-      {
-        field: "customer.phone",
-        headerName: "Phone",
-        valueGetter: (params: any) => {
-          return params.data.lead.customer.phone || "-"
-        },
-        flex: 1,
-        minWidth: 120,
-      },
-      {
-        field: "status",
-        headerName: "Status",
-        flex: 1,
-        minWidth: 140,
-        cellRenderer: (params: any) => {
-          const status = params.value as AppointmentStatus
-          return (
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(
-                status
-              )}`}
-            >
-              {status.replace("_", " ")}
-            </span>
-          )
-        },
-      },
-      ...(session?.user.role === "ADMIN"
-        ? [
-            {
-              field: "salesRep.name",
-              headerName: "Sales Rep",
-              valueGetter: (params: any) => {
-                return (
-                  params.data.salesRep.name || params.data.salesRep.email
-                )
-              },
-              flex: 1,
-              minWidth: 150,
+    () => {
+      // For sales reps viewing all appointments, show only customer name and sales rep
+      if (isViewingAllAppointments) {
+        return [
+          {
+            field: "customer.name",
+            headerName: "Customer",
+            valueGetter: (params: any) => {
+              return `${params.data.lead.customer.firstName} ${params.data.lead.customer.lastName}`
             },
-          ]
-        : []),
-      {
-        field: "actions",
-        headerName: "Actions",
-        flex: 1,
-        minWidth: 200,
-        cellRenderer: (params: any) => {
-          if (params.data.status !== "SCHEDULED") {
-            return (
-              <span className="text-muted-foreground text-sm">-</span>
-            )
-          }
-          return (
-            <div
-              className="flex gap-1.5 flex-wrap"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={(e) =>
-                  handleStatusUpdate(params.data.id, "COMPLETED", e)
-                }
-              >
-                Complete
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={(e) =>
-                  handleStatusUpdate(params.data.id, "CANCELLED", e)
-                }
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={(e) =>
-                  handleStatusUpdate(params.data.id, "NO_SHOW", e)
-                }
-              >
-                No Show
-              </Button>
-            </div>
-          )
+            flex: 1,
+            minWidth: 200,
+            cellRenderer: (params: any) => {
+              // Don't make it clickable for sales reps viewing all appointments
+              return (
+                <span className="font-medium">
+                  {params.value}
+                </span>
+              )
+            },
+          },
+          {
+            field: "salesRep.name",
+            headerName: "Assigned To",
+            valueGetter: (params: any) => {
+              return (
+                params.data.salesRep.name || params.data.salesRep.email
+              )
+            },
+            flex: 1,
+            minWidth: 200,
+          },
+        ]
+      }
+
+      // Full columns for admins or sales reps viewing their own appointments
+      return [
+        {
+          field: "scheduledFor",
+          headerName: "Date & Time",
+          flex: 1,
+          minWidth: 180,
+          valueGetter: (params: any) => {
+            const date = new Date(params.data.scheduledFor)
+            return date.toLocaleString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            })
+          },
+          sort: "asc",
         },
-        sortable: false,
-        filter: false,
-      },
-    ],
-    [session?.user.role, handleStatusUpdate]
+        {
+          field: "customer.name",
+          headerName: "Customer",
+          valueGetter: (params: any) => {
+            return `${params.data.lead.customer.firstName} ${params.data.lead.customer.lastName}`
+          },
+          flex: 1,
+          minWidth: 150,
+          cellRenderer: (params: any) => {
+            return (
+              <Link
+                href={`/leads/${params.data.lead.id}`}
+                className="text-primary hover:underline font-medium transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {params.value}
+              </Link>
+            )
+          },
+        },
+        {
+          field: "customer.phone",
+          headerName: "Phone",
+          valueGetter: (params: any) => {
+            return params.data.lead.customer.phone || "-"
+          },
+          flex: 1,
+          minWidth: 120,
+        },
+        {
+          field: "status",
+          headerName: "Status",
+          flex: 1,
+          minWidth: 140,
+          cellRenderer: (params: any) => {
+            const status = params.value as AppointmentStatus
+            return (
+              <span
+                className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(
+                  status
+                )}`}
+              >
+                {status.replace("_", " ")}
+              </span>
+            )
+          },
+        },
+        ...(session?.user.role === "ADMIN"
+          ? [
+              {
+                field: "salesRep.name",
+                headerName: "Sales Rep",
+                valueGetter: (params: any) => {
+                  return (
+                    params.data.salesRep.name || params.data.salesRep.email
+                  )
+                },
+                flex: 1,
+                minWidth: 150,
+              },
+            ]
+          : []),
+        {
+          field: "actions",
+          headerName: "Actions",
+          flex: 1,
+          minWidth: 200,
+          cellRenderer: (params: any) => {
+            if (params.data.status !== "SCHEDULED") {
+              return (
+                <span className="text-muted-foreground text-sm">-</span>
+              )
+            }
+            return (
+              <div
+                className="flex gap-1.5 flex-wrap"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={(e) =>
+                    handleStatusUpdate(params.data.id, "COMPLETED", e)
+                  }
+                >
+                  Complete
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={(e) =>
+                    handleStatusUpdate(params.data.id, "CANCELLED", e)
+                  }
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={(e) =>
+                    handleStatusUpdate(params.data.id, "NO_SHOW", e)
+                  }
+                >
+                  No Show
+                </Button>
+              </div>
+            )
+          },
+          sortable: false,
+          filter: false,
+        },
+      ]
+    },
+    [session?.user.role, handleStatusUpdate, isViewingAllAppointments]
   )
 
   const defaultColDef = useMemo(
@@ -299,7 +343,25 @@ export default function AppointmentsPage() {
                 <option value="NO_SHOW">No Show</option>
               </Select>
             </div>
+            {session?.user.role === "SALES_REP" && (
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={myAppointmentsOnly}
+                    onChange={(e) => setMyAppointmentsOnly(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm font-medium">My Appointments Only</span>
+                </label>
+              </div>
+            )}
           </div>
+          {isViewingAllAppointments && (
+            <div className="mt-2 text-sm text-muted-foreground">
+              Viewing all appointments (read-only) - showing only customer name and assignment
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -326,9 +388,12 @@ export default function AppointmentsPage() {
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
                 onRowClicked={(event) => {
-                  router.push(`/leads/${event.data.lead.id}`)
+                  // Only allow navigation if not viewing all appointments as sales rep
+                  if (!isViewingAllAppointments) {
+                    router.push(`/leads/${event.data.lead.id}`)
+                  }
                 }}
-                rowStyle={{ cursor: "pointer" }}
+                rowStyle={{ cursor: isViewingAllAppointments ? "default" : "pointer" }}
                 pagination={true}
                 paginationPageSize={20}
                 suppressCellFocus={true}

@@ -7,12 +7,15 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Plus, Calendar, DollarSign, FileText, MessageSquare, Trash2 } from "lucide-react"
+import { ArrowLeft, Plus, Calendar, DollarSign, FileText, MessageSquare, Trash2, Edit, X } from "lucide-react"
 import { LeadStatus, AppointmentStatus, QuoteStatus } from "@prisma/client"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import { formatLeadTypes, formatLeadType } from "@/lib/utils"
+
+type LeadType = "FLOOR" | "KITCHEN" | "BATH" | "CARPET" | "PAINTING" | "LANDSCAPING" | "MONTHLY_YARD_MAINTENANCE" | "ROOFING" | "STUCCO" | "ADUS" | "OTHER"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,6 +119,21 @@ export default function LeadDetailPage() {
   const [salesReps, setSalesReps] = useState<User[]>([])
   const [status, setStatus] = useState<LeadStatus>("NEW")
   const [assignedSalesRepId, setAssignedSalesRepId] = useState<string>("")
+  const [description, setDescription] = useState<string>("")
+  const [selectedLeadTypes, setSelectedLeadTypes] = useState<string[]>([])
+  const [isEditMode, setIsEditMode] = useState(false)
+  
+  // Customer fields
+  const [customerFirstName, setCustomerFirstName] = useState<string>("")
+  const [customerLastName, setCustomerLastName] = useState<string>("")
+  const [customerPhone, setCustomerPhone] = useState<string>("")
+  const [customerEmail, setCustomerEmail] = useState<string>("")
+  const [customerAddressLine1, setCustomerAddressLine1] = useState<string>("")
+  const [customerAddressLine2, setCustomerAddressLine2] = useState<string>("")
+  const [customerCity, setCustomerCity] = useState<string>("")
+  const [customerState, setCustomerState] = useState<string>("")
+  const [customerZip, setCustomerZip] = useState<string>("")
+  const [customerSourceType, setCustomerSourceType] = useState<string>("CALL_IN")
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const [creatingAppointment, setCreatingAppointment] = useState(false)
@@ -155,6 +173,28 @@ export default function LeadDetailPage() {
 
   const leadId = params.id as string
 
+  const leadTypeOptions: { value: LeadType; label: string }[] = [
+    { value: "FLOOR", label: "Floor" },
+    { value: "KITCHEN", label: "Kitchen" },
+    { value: "BATH", label: "Bath" },
+    { value: "CARPET", label: "Carpet" },
+    { value: "PAINTING", label: "Painting" },
+    { value: "LANDSCAPING", label: "Landscaping" },
+    { value: "MONTHLY_YARD_MAINTENANCE", label: "Monthly Yard Maintenance" },
+    { value: "ROOFING", label: "Roofing" },
+    { value: "STUCCO", label: "Stucco" },
+    { value: "ADUS", label: "ADU's" },
+    { value: "OTHER", label: "Other" },
+  ]
+
+  const handleLeadTypeChange = (leadType: LeadType, checked: boolean) => {
+    if (checked) {
+      setSelectedLeadTypes([...selectedLeadTypes, leadType])
+    } else {
+      setSelectedLeadTypes(selectedLeadTypes.filter((type) => type !== leadType))
+    }
+  }
+
   const fetchLead = useCallback(async () => {
     try {
       const response = await fetch(`/api/leads/${leadId}`)
@@ -169,6 +209,20 @@ export default function LeadDetailPage() {
       setLead(data.lead)
       setStatus(data.lead.status)
       setAssignedSalesRepId(data.lead.assignedSalesRepId || "")
+      setDescription(data.lead.description || "")
+      setSelectedLeadTypes(data.lead.leadTypes || [])
+      
+      // Set customer fields
+      setCustomerFirstName(data.lead.customer.firstName || "")
+      setCustomerLastName(data.lead.customer.lastName || "")
+      setCustomerPhone(data.lead.customer.phone || "")
+      setCustomerEmail(data.lead.customer.email || "")
+      setCustomerAddressLine1(data.lead.customer.addressLine1 || "")
+      setCustomerAddressLine2(data.lead.customer.addressLine2 || "")
+      setCustomerCity(data.lead.customer.city || "")
+      setCustomerState(data.lead.customer.state || "")
+      setCustomerZip(data.lead.customer.zip || "")
+      setCustomerSourceType(data.lead.customer.sourceType || "CALL_IN")
     } catch (error) {
       console.error("Error fetching lead:", error)
     } finally {
@@ -379,6 +433,19 @@ export default function LeadDetailPage() {
         body: JSON.stringify({
           status,
           assignedSalesRepId: assignedSalesRepId || null,
+          description: description || null,
+          leadTypes: selectedLeadTypes,
+          // Customer fields
+          firstName: customerFirstName,
+          lastName: customerLastName,
+          phone: customerPhone || null,
+          email: customerEmail || null,
+          addressLine1: customerAddressLine1 || null,
+          addressLine2: customerAddressLine2 || null,
+          city: customerCity || null,
+          state: customerState || null,
+          zip: customerZip || null,
+          sourceType: customerSourceType,
         }),
       })
 
@@ -389,12 +456,34 @@ export default function LeadDetailPage() {
 
       const data = await response.json()
       setLead(data.lead)
+      setIsEditMode(false)
       router.refresh()
     } catch (error: any) {
       alert(error.message || "Failed to update lead")
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleCancelEdit = () => {
+    // Reset to original values
+    if (lead) {
+      setStatus(lead.status)
+      setAssignedSalesRepId(lead.assignedSalesRepId || "")
+      setDescription(lead.description || "")
+      setSelectedLeadTypes(lead.leadTypes || [])
+      setCustomerFirstName(lead.customer.firstName || "")
+      setCustomerLastName(lead.customer.lastName || "")
+      setCustomerPhone(lead.customer.phone || "")
+      setCustomerEmail(lead.customer.email || "")
+      setCustomerAddressLine1(lead.customer.addressLine1 || "")
+      setCustomerAddressLine2(lead.customer.addressLine2 || "")
+      setCustomerCity(lead.customer.city || "")
+      setCustomerState(lead.customer.state || "")
+      setCustomerZip(lead.customer.zip || "")
+      setCustomerSourceType(lead.customer.sourceType || "CALL_IN")
+    }
+    setIsEditMode(false)
   }
 
   const handleDeleteLead = async () => {
@@ -428,13 +517,29 @@ export default function LeadDetailPage() {
     return <div className="text-center py-8">Lead not found</div>
   }
 
+  // Check if this is a read-only view for sales rep
+  const isReadOnly = (lead as any)._readOnly || 
+    (session?.user?.role === "SALES_REP" && lead.assignedSalesRepId !== session?.user?.id)
+
   const hasChanges =
     status !== lead.status ||
-    assignedSalesRepId !== (lead.assignedSalesRepId || "")
+    assignedSalesRepId !== (lead.assignedSalesRepId || "") ||
+    description !== (lead.description || "") ||
+    JSON.stringify(selectedLeadTypes.sort()) !== JSON.stringify((lead.leadTypes || []).sort()) ||
+    customerFirstName !== (lead.customer.firstName || "") ||
+    customerLastName !== (lead.customer.lastName || "") ||
+    customerPhone !== (lead.customer.phone || "") ||
+    customerEmail !== (lead.customer.email || "") ||
+    customerAddressLine1 !== (lead.customer.addressLine1 || "") ||
+    customerAddressLine2 !== (lead.customer.addressLine2 || "") ||
+    customerCity !== (lead.customer.city || "") ||
+    customerState !== (lead.customer.state || "") ||
+    customerZip !== (lead.customer.zip || "") ||
+    customerSourceType !== lead.customer.sourceType
 
   // Check if user can delete this lead (admin can delete any, sales rep can delete their own)
-  const canDelete = session?.user?.role === "ADMIN" || 
-    (session?.user?.role === "SALES_REP" && lead.assignedSalesRepId === session?.user?.id)
+  const canDelete = !isReadOnly && (session?.user?.role === "ADMIN" || 
+    (session?.user?.role === "SALES_REP" && lead.assignedSalesRepId === session?.user?.id))
 
   return (
     <div className="space-y-6">
@@ -452,89 +557,261 @@ export default function LeadDetailPage() {
             </p>
           </div>
         </div>
-        {canDelete && (
-          <>
-            <Button
-              variant="destructive"
-              onClick={() => setShowDeleteDialog(true)}
-              disabled={deleting}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Lead
-            </Button>
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Lead</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete this lead for{" "}
-                    <strong>{lead.customer.firstName} {lead.customer.lastName}</strong>?
-                    <br />
-                    <br />
-                    <strong className="text-destructive">This action cannot be undone.</strong> This will also delete all associated appointments, quotes, and notes.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteLead}
-                    disabled={deleting}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+        <div className="flex gap-2">
+          {isReadOnly ? (
+            <div className="text-sm text-muted-foreground flex items-center">
+              Read-only view - You can only view customer name and assignment
+            </div>
+          ) : (
+            <>
+              {!isEditMode ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditMode(true)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    disabled={saving}
                   >
-                    {deleting ? "Deleting..." : "Delete Lead"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </>
-        )}
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
+                  {hasChanges && (
+                    <Button onClick={handleSave} disabled={saving}>
+                      {saving ? "Saving..." : "Save Changes"}
+                    </Button>
+                  )}
+                </>
+              )}
+            </>
+          )}
+          {canDelete && (
+            <>
+              <Button
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+                disabled={deleting || isEditMode}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Lead
+              </Button>
+              <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Lead</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this lead for{" "}
+                      <strong>{lead.customer.firstName} {lead.customer.lastName}</strong>?
+                      <br />
+                      <br />
+                      <strong className="text-destructive">This action cannot be undone.</strong> This will also delete all associated appointments, quotes, and notes.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteLead}
+                      disabled={deleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {deleting ? "Deleting..." : "Delete Lead"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Customer Information */}
+      {isReadOnly ? (
+        // Read-only view for sales reps viewing non-assigned leads
         <Card>
           <CardHeader>
-            <CardTitle>Customer Information</CardTitle>
+            <CardTitle>Lead Information (Read-Only)</CardTitle>
+            <CardDescription>
+              You can view this lead to check who it's assigned to, but cannot edit it.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Name</p>
+              <p className="text-sm font-medium text-muted-foreground">Customer Name</p>
               <p className="text-lg">
                 {lead.customer.firstName} {lead.customer.lastName}
               </p>
             </div>
-            {lead.customer.phone && (
+            {lead.assignedSalesRep && (
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                <p>{lead.customer.phone}</p>
-              </div>
-            )}
-            {lead.customer.email && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Email</p>
-                <p>{lead.customer.email}</p>
-              </div>
-            )}
-            {(lead.customer.addressLine1 ||
-              lead.customer.city ||
-              lead.customer.state) && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Address</p>
-                <p>
-                  {lead.customer.addressLine1}
-                  {lead.customer.addressLine2 && (
-                    <>, {lead.customer.addressLine2}</>
-                  )}
-                  <br />
-                  {lead.customer.city && <>{lead.customer.city}, </>}
-                  {lead.customer.state} {lead.customer.zip}
+                <p className="text-sm font-medium text-muted-foreground">
+                  Assigned To
                 </p>
+                <p>{lead.assignedSalesRep.name || lead.assignedSalesRep.email}</p>
               </div>
             )}
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Source</p>
-              <p>{lead.customer.sourceType.replace("_", " ")}</p>
-            </div>
+            {!lead.assignedSalesRep && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Assigned To
+                </p>
+                <p className="text-muted-foreground">Unassigned</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Customer Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Customer Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isEditMode ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="customerFirstName">First Name *</Label>
+                    <Input
+                      id="customerFirstName"
+                      value={customerFirstName}
+                      onChange={(e) => setCustomerFirstName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="customerLastName">Last Name *</Label>
+                    <Input
+                      id="customerLastName"
+                      value={customerLastName}
+                      onChange={(e) => setCustomerLastName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="customerPhone">Phone</Label>
+                    <Input
+                      id="customerPhone"
+                      type="tel"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="customerEmail">Email</Label>
+                    <Input
+                      id="customerEmail"
+                      type="email"
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="customerAddressLine1">Address Line 1</Label>
+                  <Input
+                    id="customerAddressLine1"
+                    value={customerAddressLine1}
+                    onChange={(e) => setCustomerAddressLine1(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="customerAddressLine2">Address Line 2</Label>
+                  <Input
+                    id="customerAddressLine2"
+                    value={customerAddressLine2}
+                    onChange={(e) => setCustomerAddressLine2(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="customerCity">City</Label>
+                    <Input
+                      id="customerCity"
+                      value={customerCity}
+                      onChange={(e) => setCustomerCity(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="customerState">State</Label>
+                    <Input
+                      id="customerState"
+                      value={customerState}
+                      onChange={(e) => setCustomerState(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="customerZip">ZIP</Label>
+                    <Input
+                      id="customerZip"
+                      value={customerZip}
+                      onChange={(e) => setCustomerZip(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="customerSourceType">Source Type *</Label>
+                  <Select
+                    id="customerSourceType"
+                    value={customerSourceType}
+                    onChange={(e) => setCustomerSourceType(e.target.value)}
+                    required
+                  >
+                    <option value="CALL_IN">Call In</option>
+                    <option value="WALK_IN">Walk In</option>
+                    <option value="REFERRAL">Referral</option>
+                  </Select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Name</p>
+                  <p className="text-lg">
+                    {lead.customer.firstName} {lead.customer.lastName}
+                  </p>
+                </div>
+                {lead.customer.phone && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Phone</p>
+                    <p>{lead.customer.phone}</p>
+                  </div>
+                )}
+                {lead.customer.email && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Email</p>
+                    <p>{lead.customer.email}</p>
+                  </div>
+                )}
+                {(lead.customer.addressLine1 ||
+                  lead.customer.city ||
+                  lead.customer.state) && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Address</p>
+                    <p>
+                      {lead.customer.addressLine1}
+                      {lead.customer.addressLine2 && (
+                        <>, {lead.customer.addressLine2}</>
+                      )}
+                      <br />
+                      {lead.customer.city && <>{lead.customer.city}, </>}
+                      {lead.customer.state} {lead.customer.zip}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Source</p>
+                  <p>{lead.customer.sourceType.replace("_", " ")}</p>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -544,68 +821,124 @@ export default function LeadDetailPage() {
             <CardTitle>Lead Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2">Status</p>
-              <Select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as LeadStatus)}
-              >
-                <option value="NEW">New</option>
-                <option value="ASSIGNED">Assigned</option>
-                <option value="APPOINTMENT_SET">Appointment Set</option>
-                <option value="QUOTED">Quoted</option>
-                <option value="WON">Won</option>
-                <option value="LOST">Lost</option>
-              </Select>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Lead Types</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {(lead.leadTypes || []).map((type: string, idx: number) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground"
+            {isEditMode ? (
+              <>
+                <div>
+                  <Label htmlFor="status" className="text-sm font-medium text-muted-foreground mb-2">Status</Label>
+                  <Select
+                    id="status"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as LeadStatus)}
                   >
-                    {formatLeadType(type)}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {session?.user.role === "ADMIN" && (
+                    <option value="NEW">New</option>
+                    <option value="ASSIGNED">Assigned</option>
+                    <option value="APPOINTMENT_SET">Appointment Set</option>
+                    <option value="QUOTED">Quoted</option>
+                    <option value="WON">Won</option>
+                    <option value="LOST">Lost</option>
+                  </Select>
+                </div>
+              </>
+            ) : (
               <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">
-                  Assigned Sales Rep
-                </p>
-                <Select
-                  value={assignedSalesRepId}
-                  onChange={(e) => setAssignedSalesRepId(e.target.value)}
-                >
-                  <option value="">Unassigned</option>
-                  {salesReps.map((rep) => (
-                    <option key={rep.id} value={rep.id}>
-                      {rep.name || rep.email}
-                    </option>
+                <p className="text-sm font-medium text-muted-foreground">Status</p>
+                <p>{status.replace("_", " ")}</p>
+              </div>
+            )}
+
+            {isEditMode ? (
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground mb-2">Lead Types</Label>
+                <div className="mt-2 space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {leadTypeOptions.map((option) => (
+                      <div key={option.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`leadType-${option.value}`}
+                          checked={selectedLeadTypes.includes(option.value)}
+                          onChange={(e) =>
+                            handleLeadTypeChange(option.value, e.target.checked)
+                          }
+                        />
+                        <Label
+                          htmlFor={`leadType-${option.value}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {option.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Lead Types</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {(lead.leadTypes || []).map((type: string, idx: number) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground"
+                    >
+                      {formatLeadType(type)}
+                    </span>
                   ))}
-                </Select>
+                </div>
               </div>
             )}
 
-            {lead.assignedSalesRep && session?.user.role !== "ADMIN" && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Assigned To
-                </p>
-                <p>{lead.assignedSalesRep.name || lead.assignedSalesRep.email}</p>
-              </div>
-            )}
-
-            {lead.description && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Description</p>
-                <p className="mt-1 whitespace-pre-wrap">{lead.description}</p>
-              </div>
+            {isEditMode ? (
+              <>
+                {session?.user.role === "ADMIN" && (
+                  <div>
+                    <Label htmlFor="assignedSalesRep" className="text-sm font-medium text-muted-foreground mb-2">
+                      Assigned Sales Rep
+                    </Label>
+                    <Select
+                      id="assignedSalesRep"
+                      value={assignedSalesRepId}
+                      onChange={(e) => setAssignedSalesRepId(e.target.value)}
+                    >
+                      <option value="">Unassigned</option>
+                      {salesReps.map((rep) => (
+                        <option key={rep.id} value={rep.id}>
+                          {rep.name || rep.email}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="description" className="text-sm font-medium text-muted-foreground mb-2">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Enter lead description..."
+                    rows={4}
+                    className="mt-1"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {lead.assignedSalesRep && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Assigned To
+                    </p>
+                    <p>{lead.assignedSalesRep.name || lead.assignedSalesRep.email}</p>
+                  </div>
+                )}
+                {lead.description && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Description</p>
+                    <p className="mt-1 whitespace-pre-wrap">{lead.description}</p>
+                  </div>
+                )}
+              </>
             )}
 
             {lead.customer.sourceType === "REFERRAL" &&
@@ -672,16 +1005,13 @@ export default function LeadDetailPage() {
               </div>
             </div>
 
-            {hasChanges && (
-              <Button onClick={handleSave} disabled={saving} className="w-full">
-                {saving ? "Saving..." : "Save Changes"}
-              </Button>
-            )}
           </CardContent>
         </Card>
-      </div>
+        </div>
+      )}
 
-      {/* Appointments Section */}
+      {/* Appointments Section - Only show if not read-only */}
+      {!isReadOnly && (
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -891,8 +1221,10 @@ export default function LeadDetailPage() {
           )}
         </CardContent>
       </Card>
+      )}
 
-      {/* Quotes Section */}
+      {/* Quotes Section - Only show if not read-only */}
+      {!isReadOnly && (
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -1094,8 +1426,10 @@ export default function LeadDetailPage() {
           )}
         </CardContent>
       </Card>
+      )}
 
-      {/* Notes Section */}
+      {/* Notes Section - Only show if not read-only */}
+      {!isReadOnly && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1157,6 +1491,7 @@ export default function LeadDetailPage() {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   )
 }

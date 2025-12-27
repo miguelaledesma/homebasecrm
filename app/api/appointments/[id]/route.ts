@@ -39,12 +39,30 @@ export async function GET(
       )
     }
 
-    // Check permissions: SALES_REP can only see their appointments
+    // SALES_REP can view any appointment, but with limited data if not their own
     if (
       session.user.role === "SALES_REP" &&
       appointment.salesRepId !== session.user.id
     ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      // Return limited appointment data for read-only viewing
+      const limitedAppointment = {
+        id: appointment.id,
+        salesRepId: appointment.salesRepId,
+        scheduledFor: appointment.scheduledFor,
+        status: appointment.status,
+        lead: {
+          id: appointment.lead.id,
+          customer: {
+            id: appointment.lead.customer.id,
+            firstName: appointment.lead.customer.firstName,
+            lastName: appointment.lead.customer.lastName,
+          },
+        },
+        salesRep: appointment.salesRep,
+        // Mark as read-only for frontend
+        _readOnly: true,
+      }
+      return NextResponse.json({ appointment: limitedAppointment }, { status: 200 })
     }
 
     return NextResponse.json({ appointment }, { status: 200 })
