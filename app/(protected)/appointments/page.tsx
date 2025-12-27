@@ -7,7 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, MapPin, User } from "lucide-react"
+import { Calendar, MapPin, User, Filter } from "lucide-react"
 import { AppointmentStatus } from "@prisma/client"
 import { AgGridReact } from "ag-grid-react"
 import { ColDef, ModuleRegistry, AllCommunityModule } from "ag-grid-community"
@@ -324,46 +324,41 @@ export default function AppointmentsPage() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Status</label>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Statuses</option>
-                <option value="SCHEDULED">Scheduled</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-                <option value="NO_SHOW">No Show</option>
-              </Select>
-            </div>
-            {session?.user.role === "SALES_REP" && (
-              <div className="flex items-end">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={myAppointmentsOnly}
-                    onChange={(e) => setMyAppointmentsOnly(e.target.checked)}
-                    className="rounded"
-                  />
-                  <span className="text-sm font-medium">My Appointments Only</span>
-                </label>
-              </div>
-            )}
-          </div>
-          {isViewingAllAppointments && (
-            <div className="mt-2 text-sm text-muted-foreground">
-              Viewing all appointments (read-only) - showing only customer name and assignment
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border rounded-lg bg-muted/30">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Filter className="h-4 w-4" />
+          <span>Filters:</span>
+        </div>
+        <div className="flex-1 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="sm:max-w-[200px]"
+          >
+            <option value="all">All Statuses</option>
+            <option value="SCHEDULED">Scheduled</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+            <option value="NO_SHOW">No Show</option>
+          </Select>
+          {session?.user.role === "SALES_REP" && (
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <input
+                type="checkbox"
+                checked={myAppointmentsOnly}
+                onChange={(e) => setMyAppointmentsOnly(e.target.checked)}
+                className="rounded"
+              />
+              <span>My Appointments Only</span>
+            </label>
           )}
-        </CardContent>
-      </Card>
+        </div>
+        {isViewingAllAppointments && (
+          <div className="text-xs text-muted-foreground sm:ml-auto">
+            Read-only view
+          </div>
+        )}
+      </div>
 
       {/* Appointments Table */}
       {loading ? (

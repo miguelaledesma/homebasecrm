@@ -146,6 +146,17 @@ export default function LeadDetailPage() {
     zip: "",
     notes: "",
   })
+  const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null)
+  const [updatingAppointment, setUpdatingAppointment] = useState(false)
+  const [appointmentEditForm, setAppointmentEditForm] = useState({
+    scheduledFor: "",
+    siteAddressLine1: "",
+    siteAddressLine2: "",
+    city: "",
+    state: "",
+    zip: "",
+    notes: "",
+  })
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [showQuoteForm, setShowQuoteForm] = useState(false)
   const [creatingQuote, setCreatingQuote] = useState(false)
@@ -183,7 +194,7 @@ export default function LeadDetailPage() {
     { value: "MONTHLY_YARD_MAINTENANCE", label: "Monthly Yard Maintenance" },
     { value: "ROOFING", label: "Roofing" },
     { value: "STUCCO", label: "Stucco" },
-    { value: "ADUS", label: "ADU's" },
+    { value: "ADUS", label: "ADU&apos;s" },
     { value: "OTHER", label: "Other" },
   ]
 
@@ -305,6 +316,76 @@ export default function LeadDetailPage() {
       alert(error.message || "Failed to create appointment")
     } finally {
       setCreatingAppointment(false)
+    }
+  }
+
+  const handleStartEditAppointment = (appointment: Appointment) => {
+    // Format scheduledFor for datetime-local input (YYYY-MM-DDTHH:mm)
+    const scheduledDate = new Date(appointment.scheduledFor)
+    const year = scheduledDate.getFullYear()
+    const month = String(scheduledDate.getMonth() + 1).padStart(2, "0")
+    const day = String(scheduledDate.getDate()).padStart(2, "0")
+    const hours = String(scheduledDate.getHours()).padStart(2, "0")
+    const minutes = String(scheduledDate.getMinutes()).padStart(2, "0")
+    const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`
+
+    setAppointmentEditForm({
+      scheduledFor: formattedDateTime,
+      siteAddressLine1: appointment.siteAddressLine1 || "",
+      siteAddressLine2: appointment.siteAddressLine2 || "",
+      city: appointment.city || "",
+      state: appointment.state || "",
+      zip: appointment.zip || "",
+      notes: appointment.notes || "",
+    })
+    setEditingAppointmentId(appointment.id)
+  }
+
+  const handleCancelEditAppointment = () => {
+    setEditingAppointmentId(null)
+    setAppointmentEditForm({
+      scheduledFor: "",
+      siteAddressLine1: "",
+      siteAddressLine2: "",
+      city: "",
+      state: "",
+      zip: "",
+      notes: "",
+    })
+  }
+
+  const handleUpdateAppointment = async (e: React.FormEvent, appointmentId: string) => {
+    e.preventDefault()
+    setUpdatingAppointment(true)
+
+    try {
+      const response = await fetch(`/api/appointments/${appointmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheduledFor: appointmentEditForm.scheduledFor,
+          siteAddressLine1: appointmentEditForm.siteAddressLine1 || null,
+          siteAddressLine2: appointmentEditForm.siteAddressLine2 || null,
+          city: appointmentEditForm.city || null,
+          state: appointmentEditForm.state || null,
+          zip: appointmentEditForm.zip || null,
+          notes: appointmentEditForm.notes || null,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to update appointment")
+      }
+
+      // Reset form and refresh
+      handleCancelEditAppointment()
+      fetchAppointments()
+      router.refresh()
+    } catch (error: any) {
+      alert(error.message || "Failed to update appointment")
+    } finally {
+      setUpdatingAppointment(false)
     }
   }
 
@@ -636,7 +717,7 @@ export default function LeadDetailPage() {
           <CardHeader>
             <CardTitle>Lead Information (Read-Only)</CardTitle>
             <CardDescription>
-              You can view this lead to check who it's assigned to, but cannot edit it.
+              You can view this lead to check who it&apos;s assigned to, but cannot edit it.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -1162,61 +1243,207 @@ export default function LeadDetailPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {appointments.map((appointment) => (
-                <div
-                  key={appointment.id}
-                  className="p-4 border rounded-md hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-semibold">
-                          {new Date(appointment.scheduledFor).toLocaleString()}
-                        </span>
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${
-                            appointment.status === "COMPLETED"
-                              ? "bg-green-100 text-green-800"
-                              : appointment.status === "CANCELLED"
-                              ? "bg-red-100 text-red-800"
-                              : appointment.status === "NO_SHOW"
-                              ? "bg-orange-100 text-orange-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {appointment.status}
-                        </span>
-                      </div>
-                      {(appointment.siteAddressLine1 ||
-                        appointment.city) && (
-                        <div className="text-sm text-muted-foreground mb-2">
-                          {appointment.siteAddressLine1}
-                          {appointment.siteAddressLine2 && (
-                            <>, {appointment.siteAddressLine2}</>
-                          )}
-                          {appointment.city && (
-                            <>
-                              <br />
-                              {appointment.city}
-                              {appointment.state && <>, {appointment.state}</>}{" "}
-                              {appointment.zip}
-                            </>
-                          )}
+              {appointments.map((appointment) => {
+                const isEditing = editingAppointmentId === appointment.id
+                const canEdit = session?.user.role === "ADMIN" || 
+                  (session?.user.role === "SALES_REP" && appointment.salesRep.id === session.user.id)
+
+                return (
+                  <div
+                    key={appointment.id}
+                    className="p-4 border rounded-md hover:bg-muted/50 transition-colors"
+                  >
+                    {isEditing ? (
+                      <form
+                        onSubmit={(e) => handleUpdateAppointment(e, appointment.id)}
+                        className="space-y-4"
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor={`edit-scheduledFor-${appointment.id}`}>
+                              Date & Time *
+                            </Label>
+                            <Input
+                              id={`edit-scheduledFor-${appointment.id}`}
+                              type="datetime-local"
+                              value={appointmentEditForm.scheduledFor}
+                              onChange={(e) =>
+                                setAppointmentEditForm({
+                                  ...appointmentEditForm,
+                                  scheduledFor: e.target.value,
+                                })
+                              }
+                              required
+                            />
+                          </div>
                         </div>
-                      )}
-                      {appointment.notes && (
-                        <div className="text-sm text-muted-foreground">
-                          {appointment.notes}
+
+                        <div>
+                          <Label htmlFor={`edit-siteAddressLine1-${appointment.id}`}>
+                            Site Address Line 1
+                          </Label>
+                          <Input
+                            id={`edit-siteAddressLine1-${appointment.id}`}
+                            value={appointmentEditForm.siteAddressLine1}
+                            onChange={(e) =>
+                              setAppointmentEditForm({
+                                ...appointmentEditForm,
+                                siteAddressLine1: e.target.value,
+                              })
+                            }
+                          />
                         </div>
-                      )}
-                      <div className="text-xs text-muted-foreground mt-2">
-                        Sales Rep: {appointment.salesRep.name || appointment.salesRep.email}
+
+                        <div>
+                          <Label htmlFor={`edit-siteAddressLine2-${appointment.id}`}>
+                            Site Address Line 2
+                          </Label>
+                          <Input
+                            id={`edit-siteAddressLine2-${appointment.id}`}
+                            value={appointmentEditForm.siteAddressLine2}
+                            onChange={(e) =>
+                              setAppointmentEditForm({
+                                ...appointmentEditForm,
+                                siteAddressLine2: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <Label htmlFor={`edit-city-${appointment.id}`}>City</Label>
+                            <Input
+                              id={`edit-city-${appointment.id}`}
+                              value={appointmentEditForm.city}
+                              onChange={(e) =>
+                                setAppointmentEditForm({
+                                  ...appointmentEditForm,
+                                  city: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`edit-state-${appointment.id}`}>State</Label>
+                            <Input
+                              id={`edit-state-${appointment.id}`}
+                              value={appointmentEditForm.state}
+                              onChange={(e) =>
+                                setAppointmentEditForm({
+                                  ...appointmentEditForm,
+                                  state: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`edit-zip-${appointment.id}`}>ZIP</Label>
+                            <Input
+                              id={`edit-zip-${appointment.id}`}
+                              value={appointmentEditForm.zip}
+                              onChange={(e) =>
+                                setAppointmentEditForm({
+                                  ...appointmentEditForm,
+                                  zip: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label htmlFor={`edit-notes-${appointment.id}`}>Notes</Label>
+                          <Textarea
+                            id={`edit-notes-${appointment.id}`}
+                            value={appointmentEditForm.notes}
+                            onChange={(e) =>
+                              setAppointmentEditForm({
+                                ...appointmentEditForm,
+                                notes: e.target.value,
+                              })
+                            }
+                            rows={3}
+                          />
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button type="submit" disabled={updatingAppointment}>
+                            {updatingAppointment ? "Updating..." : "Save Changes"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleCancelEditAppointment}
+                            disabled={updatingAppointment}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-semibold">
+                              {new Date(appointment.scheduledFor).toLocaleString()}
+                            </span>
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-medium ${
+                                appointment.status === "COMPLETED"
+                                  ? "bg-green-100 text-green-800"
+                                  : appointment.status === "CANCELLED"
+                                  ? "bg-red-100 text-red-800"
+                                  : appointment.status === "NO_SHOW"
+                                  ? "bg-orange-100 text-orange-800"
+                                  : "bg-blue-100 text-blue-800"
+                              }`}
+                            >
+                              {appointment.status}
+                            </span>
+                          </div>
+                          {(appointment.siteAddressLine1 ||
+                            appointment.city) && (
+                            <div className="text-sm text-muted-foreground mb-2">
+                              {appointment.siteAddressLine1}
+                              {appointment.siteAddressLine2 && (
+                                <>, {appointment.siteAddressLine2}</>
+                              )}
+                              {appointment.city && (
+                                <>
+                                  <br />
+                                  {appointment.city}
+                                  {appointment.state && <>, {appointment.state}</>}{" "}
+                                  {appointment.zip}
+                                </>
+                              )}
+                            </div>
+                          )}
+                          {appointment.notes && (
+                            <div className="text-sm text-muted-foreground">
+                              {appointment.notes}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground mt-2">
+                            Sales Rep: {appointment.salesRep.name || appointment.salesRep.email}
+                          </div>
+                        </div>
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleStartEditAppointment(appointment)}
+                            className="ml-2"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-                    </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>

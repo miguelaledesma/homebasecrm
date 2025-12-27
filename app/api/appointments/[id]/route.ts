@@ -86,7 +86,16 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { status, notes } = body
+    const {
+      status,
+      notes,
+      scheduledFor,
+      siteAddressLine1,
+      siteAddressLine2,
+      city,
+      state,
+      zip,
+    } = body
 
     // Check if appointment exists and user has permission
     const existingAppointment = await prisma.appointment.findUnique({
@@ -114,6 +123,24 @@ export async function PATCH(
     }
     if (notes !== undefined) {
       updateData.notes = notes || null
+    }
+    if (scheduledFor !== undefined) {
+      updateData.scheduledFor = scheduledFor ? new Date(scheduledFor) : null
+    }
+    if (siteAddressLine1 !== undefined) {
+      updateData.siteAddressLine1 = siteAddressLine1 || null
+    }
+    if (siteAddressLine2 !== undefined) {
+      updateData.siteAddressLine2 = siteAddressLine2 || null
+    }
+    if (city !== undefined) {
+      updateData.city = city || null
+    }
+    if (state !== undefined) {
+      updateData.state = state || null
+    }
+    if (zip !== undefined) {
+      updateData.zip = zip || null
     }
 
     const appointment = await prisma.appointment.update({
