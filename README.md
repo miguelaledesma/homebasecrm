@@ -10,9 +10,19 @@ A CRM system for home-improvement businesses (flooring, kitchens, etc.).
 - **NextAuth.js** for authentication
 - **Railway** (target hosting for app + Postgres + Redis)
 
-## Deployment
+## Documentation
 
-See [RAILWAY_DEPLOY.md](./RAILWAY_DEPLOY.md) for detailed instructions on deploying to Railway.
+All documentation files are located in the [`docs/`](./docs/) folder:
+
+- [Railway Deployment Guide](./docs/RAILWAY_DEPLOY.md) - Detailed deployment instructions
+- [Feature Breakdown](./docs/FEATURE_BREAKDOWN.md) - Complete feature list
+- [User Guide](./docs/USER_GUIDE.md) - End-user documentation
+- [Setup Guide](./docs/SETUP.md) - Development setup instructions
+- [Capacity Analysis](./docs/CAPACITY_ANALYSIS.md) - Performance and scaling information
+
+## License
+
+This software is proprietary and confidential. See [LICENSE](./LICENSE) for details.
 
 ## Getting Started
 
