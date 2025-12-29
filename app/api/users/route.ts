@@ -30,22 +30,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ users }, { status: 200 })
     }
 
-    // Only return sales reps for assignment dropdowns
-    const salesReps = await prisma.user.findMany({
+    // Return both ADMIN and SALES_REP users for assignment dropdowns
+    const assignableUsers = await prisma.user.findMany({
       where: {
-        role: "SALES_REP",
+        role: {
+          in: ["ADMIN", "SALES_REP"],
+        },
       },
       select: {
         id: true,
         name: true,
         email: true,
+        role: true,
       },
       orderBy: {
         name: "asc",
       },
     })
 
-    return NextResponse.json({ users: salesReps }, { status: 200 })
+    return NextResponse.json({ users: assignableUsers }, { status: 200 })
   } catch (error: any) {
     console.error("Error fetching users:", error)
     return NextResponse.json(

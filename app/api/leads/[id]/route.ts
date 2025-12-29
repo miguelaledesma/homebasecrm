@@ -128,14 +128,19 @@ export async function PATCH(
       );
     }
 
-    // Verify assigned sales rep exists if provided
+    // Verify assigned user exists and is either ADMIN or SALES_REP
     if (assignedSalesRepId) {
-      const salesRep = await prisma.user.findUnique({
+      const assignedUser = await prisma.user.findUnique({
         where: { id: assignedSalesRepId },
       });
-      if (!salesRep || salesRep.role !== "SALES_REP") {
+      if (
+        !assignedUser ||
+        (assignedUser.role !== "SALES_REP" && assignedUser.role !== "ADMIN")
+      ) {
         return NextResponse.json(
-          { error: "Invalid sales rep" },
+          {
+            error: "Invalid user - can only assign to Admin or Sales Rep users",
+          },
           { status: 400 }
         );
       }

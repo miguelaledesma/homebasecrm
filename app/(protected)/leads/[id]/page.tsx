@@ -72,6 +72,7 @@ type User = {
   id: string
   name: string | null
   email: string
+  role?: string
 }
 
 type Appointment = {
@@ -997,7 +998,7 @@ export default function LeadDetailPage() {
                 {session?.user.role === "ADMIN" && (
                   <div>
                     <Label htmlFor="assignedSalesRep" className="text-sm font-medium text-muted-foreground mb-2">
-                      Assigned Sales Rep
+                      Assigned To
                     </Label>
                     <Select
                       id="assignedSalesRep"
@@ -1007,7 +1008,7 @@ export default function LeadDetailPage() {
                       <option value="">Unassigned</option>
                       {salesReps.map((rep) => (
                         <option key={rep.id} value={rep.id}>
-                          {rep.name || rep.email}
+                          {rep.name || rep.email} {rep.role === "ADMIN" ? "(Admin)" : "(Sales Rep)"}
                         </option>
                       ))}
                     </Select>
