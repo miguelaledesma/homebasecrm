@@ -59,6 +59,11 @@ type Lead = {
     name: string | null
     email: string
   } | null
+  createdByUser: {
+    id: string
+    name: string | null
+    email: string
+  } | null
   referrerCustomer: {
     id: string
     firstName: string
@@ -1036,6 +1041,14 @@ export default function LeadDetailPage() {
                       Assigned To
                     </p>
                     <p>{lead.assignedSalesRep.name || lead.assignedSalesRep.email}</p>
+                  </div>
+                )}
+                {lead.createdByUser && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Created By
+                    </p>
+                    <p>{lead.createdByUser.name || lead.createdByUser.email}</p>
                   </div>
                 )}
                 {lead.description && (

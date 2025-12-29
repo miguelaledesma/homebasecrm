@@ -70,6 +70,7 @@ model User {
 
   // Relations
   assignedLeads      Lead[]        @relation("AssignedSalesRep")
+  createdLeads        Lead[]        @relation("LeadCreator")
   appointments       Appointment[]
   quotes             Quote[]
   uploadedQuoteFiles QuoteFile[]
@@ -123,6 +124,7 @@ model Lead {
   description        String?
   status             LeadStatus @default(NEW)
   assignedSalesRepId String?
+  createdBy          String?    // ID of user who created the lead
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
@@ -137,6 +139,7 @@ model Lead {
   // Relations
   customer         Customer      @relation("CustomerLeads", fields: [customerId], references: [id], onDelete: Cascade)
   assignedSalesRep User?         @relation("AssignedSalesRep", fields: [assignedSalesRepId], references: [id])
+  createdByUser    User?         @relation("LeadCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   referrerCustomer Customer?     @relation("ReferrerCustomer", fields: [referrerCustomerId], references: [id], onDelete: SetNull)
   appointments     Appointment[]
   quotes           Quote[]
@@ -146,6 +149,7 @@ model Lead {
   @@index([assignedSalesRepId])
   @@index([createdAt(sort: Desc)])
   @@index([status, assignedSalesRepId])
+  @@index([createdBy])
   @@map("leads")
 }
 

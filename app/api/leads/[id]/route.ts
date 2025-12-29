@@ -25,6 +25,13 @@ export async function GET(
             email: true,
           },
         },
+        createdByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         referrerCustomer: {
           select: {
             id: true,
@@ -224,6 +231,13 @@ export async function PATCH(
       include: {
         customer: true,
         assignedSalesRep: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        createdByUser: {
           select: {
             id: true,
             name: true,

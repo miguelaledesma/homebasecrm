@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { SourceType, LeadType } from "@prisma/client"
+import { SourceType, LeadType, LeadStatus } from "@prisma/client"
 
 export async function POST(request: NextRequest) {
   try {
@@ -118,13 +118,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Auto-assign lead to creator if they are a SALES_REP or ADMIN
+    // Only assign if the user has a role that can be assigned (SALES_REP or ADMIN)
+    const shouldAutoAssign = session.user.role === "SALES_REP" || session.user.role === "ADMIN"
+    const assignedSalesRepId = shouldAutoAssign ? session.user.id : null
+    // Set status to ASSIGNED if auto-assigned, otherwise NEW
+    const initialStatus: LeadStatus = assignedSalesRepId ? "ASSIGNED" : "NEW"
+
     // Create lead
     const lead = await prisma.lead.create({
       data: {
         customerId: customer.id,
         leadTypes: leadTypes as LeadType[],
         description: description || null,
-        status: "NEW",
+        status: initialStatus,
+        createdBy: session.user.id, // Track who created the lead
+        assignedSalesRepId: assignedSalesRepId, // Auto-assign to creator
         // Referral fields
         referrerFirstName: sourceType === "REFERRAL" ? referrerFirstName || null : null,
         referrerLastName: sourceType === "REFERRAL" ? referrerLastName || null : null,
@@ -136,6 +145,13 @@ export async function POST(request: NextRequest) {
       include: {
         customer: true,
         assignedSalesRep: true,
+        createdByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         referrerCustomer: {
           select: {
             id: true,
