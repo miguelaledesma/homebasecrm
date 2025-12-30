@@ -156,6 +156,13 @@ export async function GET(request: NextRequest) {
       lead: {
         include: {
           customer: true, // Always include full customer, we'll filter in response
+          assignedSalesRep: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
       },
       salesRep: {
@@ -188,6 +195,11 @@ export async function GET(request: NextRequest) {
               firstName: string;
               lastName: string;
             };
+            assignedSalesRep: {
+              id: string;
+              name: string | null;
+              email: string;
+            } | null;
           };
         };
         const lead = appointmentWithLead.lead;
@@ -203,6 +215,7 @@ export async function GET(request: NextRequest) {
               firstName: customer.firstName,
               lastName: customer.lastName,
             },
+            assignedSalesRep: lead.assignedSalesRep,
           },
           salesRep: appointment.salesRep,
           _readOnly: true,

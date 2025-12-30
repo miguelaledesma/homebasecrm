@@ -40,6 +40,11 @@ type Appointment = {
       phone: string | null
       email: string | null
     }
+    assignedSalesRep: {
+      id: string
+      name: string | null
+      email: string
+    } | null
   }
   salesRep: {
     id: string
@@ -232,11 +237,12 @@ export default function AppointmentsPage() {
         ...(session?.user.role === "ADMIN"
           ? [
               {
-                field: "salesRep.name",
+                field: "lead.assignedSalesRep.name",
                 headerName: "Sales Rep",
                 valueGetter: (params: any) => {
+                  const assignedSalesRep = params.data.lead?.assignedSalesRep
                   return (
-                    params.data.salesRep.name || params.data.salesRep.email
+                    assignedSalesRep?.name || assignedSalesRep?.email || "Unassigned"
                   )
                 },
                 flex: 1,

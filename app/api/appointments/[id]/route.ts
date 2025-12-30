@@ -20,6 +20,13 @@ export async function GET(
         lead: {
           include: {
             customer: true,
+            assignedSalesRep: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
         salesRep: {
