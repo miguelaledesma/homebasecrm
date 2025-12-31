@@ -11,7 +11,7 @@ import { Plus, Filter } from "lucide-react"
 import { LeadStatus } from "@prisma/client"
 import { AgGridReact } from "ag-grid-react"
 import { ColDef, ModuleRegistry, AllCommunityModule } from "ag-grid-community"
-import { formatLeadTypes, formatLeadType } from "@/lib/utils"
+import { formatLeadTypes, formatLeadType, formatPhoneNumber } from "@/lib/utils"
 
 import "ag-grid-community/styles/ag-grid.css"
 import "ag-grid-community/styles/ag-theme-alpine.css"
@@ -160,7 +160,10 @@ export default function LeadsPage() {
         {
           field: "customer.phone",
           headerName: "Phone",
-          valueGetter: (params) => params.data.customer.phone || "-",
+          valueGetter: (params) => 
+            params.data.customer.phone 
+              ? formatPhoneNumber(params.data.customer.phone)
+              : "-",
           flex: 1,
           minWidth: 120,
         },

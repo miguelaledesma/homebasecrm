@@ -136,6 +136,11 @@ model Lead {
   referrerCustomerId  String?  // Link to existing customer if referrer is in system
   referrerIsCustomer  Boolean  @default(false)
 
+  // Customer classification
+  isMilitaryFirstResponder Boolean @default(false)
+  isContractor             Boolean @default(false)
+  contractorLicenseNumber   String?
+
   // Relations
   customer         Customer      @relation("CustomerLeads", fields: [customerId], references: [id], onDelete: Cascade)
   assignedSalesRep User?         @relation("AssignedSalesRep", fields: [assignedSalesRepId], references: [id])

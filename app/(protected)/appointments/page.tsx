@@ -14,6 +14,7 @@ import { ColDef, ModuleRegistry, AllCommunityModule } from "ag-grid-community"
 
 import "ag-grid-community/styles/ag-grid.css"
 import "ag-grid-community/styles/ag-theme-alpine.css"
+import { formatPhoneNumber } from "@/lib/utils"
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule])
@@ -211,7 +212,9 @@ export default function AppointmentsPage() {
           field: "customer.phone",
           headerName: "Phone",
           valueGetter: (params: any) => {
-            return params.data.lead.customer.phone || "-"
+            return params.data.lead.customer.phone 
+              ? formatPhoneNumber(params.data.lead.customer.phone)
+              : "-"
           },
           flex: 1,
           minWidth: 120,

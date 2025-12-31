@@ -38,6 +38,10 @@ export default function NewLeadPage() {
     referrerLastName: "",
     referrerPhone: "",
     referrerEmail: "",
+    // Customer classification
+    isMilitaryFirstResponder: false,
+    isContractor: false,
+    contractorLicenseNumber: "",
   })
   
   const [referrerMatch, setReferrerMatch] = useState<{
@@ -66,6 +70,12 @@ export default function NewLeadPage() {
     // Validate: at least one lead type must be selected
     if (formData.leadTypes.length === 0) {
       setError("Please select at least one work type")
+      return
+    }
+    
+    // Validate: if contractor is selected, license number is required
+    if (formData.isContractor && !formData.contractorLicenseNumber.trim()) {
+      setError("Contractor License Number is required when 'Contractor' is selected")
       return
     }
     
@@ -459,6 +469,72 @@ export default function NewLeadPage() {
                   placeholder="Additional details about the lead..."
                   required={formData.leadTypes.includes("OTHER")}
                 />
+              </div>
+
+              <div className="space-y-4 pt-4 border-t">
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="isMilitaryFirstResponder"
+                      checked={formData.isMilitaryFirstResponder}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          isMilitaryFirstResponder: e.target.checked,
+                        })
+                      }
+                    />
+                    <Label
+                      htmlFor="isMilitaryFirstResponder"
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      Is this lead a Military/First Responder?
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="isContractor"
+                      checked={formData.isContractor}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          isContractor: e.target.checked,
+                          // Clear license number if unchecking contractor
+                          contractorLicenseNumber: e.target.checked
+                            ? formData.contractorLicenseNumber
+                            : "",
+                        })
+                      }
+                    />
+                    <Label
+                      htmlFor="isContractor"
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      Is this lead a Contractor?
+                    </Label>
+                  </div>
+
+                  {formData.isContractor && (
+                    <div className="ml-6 mt-2">
+                      <Label htmlFor="contractorLicenseNumber">
+                        Contractor License # <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="contractorLicenseNumber"
+                        value={formData.contractorLicenseNumber}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            contractorLicenseNumber: e.target.value,
+                          })
+                        }
+                        placeholder="Enter contractor license number"
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

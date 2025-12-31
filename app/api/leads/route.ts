@@ -1,17 +1,17 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { SourceType, LeadType, LeadStatus } from "@prisma/client"
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { SourceType, LeadType, LeadStatus } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json()
+    const body = await request.json();
     const {
       firstName,
       lastName,
@@ -30,35 +30,53 @@ export async function POST(request: NextRequest) {
       referrerLastName,
       referrerPhone,
       referrerEmail,
-    } = body
+      // Customer classification
+      isMilitaryFirstResponder,
+      isContractor,
+      contractorLicenseNumber,
+    } = body;
 
     // Validate required fields
-    if (!firstName || !lastName || !sourceType || !leadTypes || leadTypes.length === 0) {
+    if (
+      !firstName ||
+      !lastName ||
+      !sourceType ||
+      !leadTypes ||
+      leadTypes.length === 0
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
-      )
+      );
     }
-    
+
     // Validate: if OTHER is selected, description is required
     if (leadTypes.includes("OTHER") && !description?.trim()) {
       return NextResponse.json(
         { error: "Description is required when 'Other' is selected" },
         { status: 400 }
-      )
+      );
+    }
+
+    // Validate: if contractor is selected, license number is required
+    if (isContractor && !contractorLicenseNumber?.trim()) {
+      return NextResponse.json(
+        {
+          error:
+            "Contractor License Number is required when 'Contractor' is selected",
+        },
+        { status: 400 }
+      );
     }
 
     // Check if customer already exists (by phone or email)
-    let customer = null
+    let customer = null;
     if (phone || email) {
       customer = await prisma.customer.findFirst({
         where: {
-          OR: [
-            ...(phone ? [{ phone }] : []),
-            ...(email ? [{ email }] : []),
-          ],
+          OR: [...(phone ? [{ phone }] : []), ...(email ? [{ email }] : [])],
         },
-      })
+      });
     }
 
     // Create or update customer
@@ -78,7 +96,7 @@ export async function POST(request: NextRequest) {
           zip: zip || customer.zip,
           sourceType: sourceType || customer.sourceType,
         },
-      })
+      });
     } else {
       // Create new customer
       customer = await prisma.customer.create({
@@ -94,12 +112,12 @@ export async function POST(request: NextRequest) {
           zip: zip || null,
           sourceType: sourceType as SourceType,
         },
-      })
+      });
     }
 
     // Handle referral information if sourceType is REFERRAL
-    let referrerCustomerId: string | null = null
-    let referrerIsCustomer = false
+    let referrerCustomerId: string | null = null;
+    let referrerIsCustomer = false;
 
     if (sourceType === "REFERRAL" && (referrerPhone || referrerEmail)) {
       // Check if referrer is an existing customer
@@ -110,20 +128,21 @@ export async function POST(request: NextRequest) {
             ...(referrerEmail ? [{ email: referrerEmail }] : []),
           ],
         },
-      })
+      });
 
       if (referrerCustomer) {
-        referrerCustomerId = referrerCustomer.id
-        referrerIsCustomer = true
+        referrerCustomerId = referrerCustomer.id;
+        referrerIsCustomer = true;
       }
     }
 
     // Auto-assign lead to creator if they are a SALES_REP or ADMIN
     // Only assign if the user has a role that can be assigned (SALES_REP or ADMIN)
-    const shouldAutoAssign = session.user.role === "SALES_REP" || session.user.role === "ADMIN"
-    const assignedSalesRepId = shouldAutoAssign ? session.user.id : null
+    const shouldAutoAssign =
+      session.user.role === "SALES_REP" || session.user.role === "ADMIN";
+    const assignedSalesRepId = shouldAutoAssign ? session.user.id : null;
     // Set status to ASSIGNED if auto-assigned, otherwise NEW
-    const initialStatus: LeadStatus = assignedSalesRepId ? "ASSIGNED" : "NEW"
+    const initialStatus: LeadStatus = assignedSalesRepId ? "ASSIGNED" : "NEW";
 
     // Create lead
     const lead = await prisma.lead.create({
@@ -135,12 +154,21 @@ export async function POST(request: NextRequest) {
         createdBy: session.user.id, // Track who created the lead
         assignedSalesRepId: assignedSalesRepId, // Auto-assign to creator
         // Referral fields
-        referrerFirstName: sourceType === "REFERRAL" ? referrerFirstName || null : null,
-        referrerLastName: sourceType === "REFERRAL" ? referrerLastName || null : null,
+        referrerFirstName:
+          sourceType === "REFERRAL" ? referrerFirstName || null : null,
+        referrerLastName:
+          sourceType === "REFERRAL" ? referrerLastName || null : null,
         referrerPhone: sourceType === "REFERRAL" ? referrerPhone || null : null,
         referrerEmail: sourceType === "REFERRAL" ? referrerEmail || null : null,
         referrerCustomerId: referrerCustomerId,
         referrerIsCustomer: referrerIsCustomer,
+        // Customer classification
+        isMilitaryFirstResponder: isMilitaryFirstResponder || false,
+        isContractor: isContractor || false,
+        contractorLicenseNumber:
+          isContractor && contractorLicenseNumber?.trim()
+            ? contractorLicenseNumber.trim()
+            : null,
       },
       include: {
         customer: true,
@@ -162,39 +190,39 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    })
+    });
 
-    return NextResponse.json({ lead, customer }, { status: 201 })
+    return NextResponse.json({ lead, customer }, { status: 201 });
   } catch (error: any) {
-    console.error("Error creating lead:", error)
+    console.error("Error creating lead:", error);
     return NextResponse.json(
       { error: error.message || "Failed to create lead" },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url)
-    const status = searchParams.get("status")
-    const myLeads = searchParams.get("myLeads") === "true" || false
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
+    const myLeads = searchParams.get("myLeads") === "true" || false;
 
-    const where: any = {}
+    const where: any = {};
 
     // Filter by status if provided
     if (status) {
-      where.status = status
+      where.status = status;
     }
 
     // Filter by assigned sales rep if user is SALES_REP and myLeads is true
     if (myLeads && session.user.role === "SALES_REP") {
-      where.assignedSalesRepId = session.user.id
+      where.assignedSalesRepId = session.user.id;
     }
 
     // ADMIN can see all leads, SALES_REP can see all leads (with limited data)
@@ -209,10 +237,13 @@ export async function GET(request: NextRequest) {
           email: true,
         },
       },
-    }
+    };
 
     // Only include referrer info for admins or when viewing own leads
-    if (session.user.role === "ADMIN" || (session.user.role === "SALES_REP" && myLeads)) {
+    if (
+      session.user.role === "ADMIN" ||
+      (session.user.role === "SALES_REP" && myLeads)
+    ) {
       includeObj.referrerCustomer = {
         select: {
           id: true,
@@ -221,7 +252,7 @@ export async function GET(request: NextRequest) {
           phone: true,
           email: true,
         },
-      }
+      };
     }
 
     const leads = await prisma.lead.findMany({
@@ -230,7 +261,7 @@ export async function GET(request: NextRequest) {
       orderBy: {
         createdAt: "desc",
       },
-    })
+    });
 
     // For sales reps viewing all leads (not just their own), strip out sensitive data
     if (session.user.role === "SALES_REP" && !myLeads) {
@@ -261,13 +292,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ leads: limitedLeads }, { status: 200 });
     }
 
-    return NextResponse.json({ leads }, { status: 200 })
+    return NextResponse.json({ leads }, { status: 200 });
   } catch (error: any) {
-    console.error("Error fetching leads:", error)
+    console.error("Error fetching leads:", error);
     return NextResponse.json(
       { error: error.message || "Failed to fetch leads" },
       { status: 500 }
-    )
+    );
   }
 }
-
