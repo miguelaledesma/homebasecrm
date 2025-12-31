@@ -43,11 +43,14 @@ export default function DashboardPage() {
     fetchStats()
   }, [])
 
+  const userName = session?.user?.name || "there"
+  const isAdmin = session?.user?.role === "ADMIN"
+
   if (loading) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <h1 className="text-3xl font-bold">Welcome{session?.user?.name ? `, ${session.user.name}` : ""}</h1>
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -58,7 +61,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <h1 className="text-3xl font-bold">Welcome{session?.user?.name ? `, ${session.user.name}` : ""}</h1>
           <p className="text-destructive">{error}</p>
         </div>
       </div>
@@ -69,12 +72,10 @@ export default function DashboardPage() {
     return null
   }
 
-  const isAdmin = session?.user?.role === "ADMIN"
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl font-bold">Welcome{session?.user?.name ? `, ${session.user.name}` : ""}</h1>
         <p className="text-muted-foreground">
           {isAdmin
             ? "Overview of all leads and appointments"
