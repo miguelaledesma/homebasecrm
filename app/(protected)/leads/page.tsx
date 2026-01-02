@@ -40,13 +40,16 @@ type Lead = {
   } | null
 }
 
+type ViewMode = "my" | "all" | "unassigned"
+
 export default function LeadsPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [myLeadsOnly, setMyLeadsOnly] = useState(false)
+  const isSalesRep = session?.user.role === "SALES_REP"
+  const [viewMode, setViewMode] = useState<ViewMode>(isSalesRep ? "my" : "all")
 
   const fetchLeads = useCallback(async () => {
     setLoading(true)
@@ -55,8 +58,10 @@ export default function LeadsPage() {
       if (statusFilter !== "all") {
         params.append("status", statusFilter)
       }
-      if (myLeadsOnly) {
+      if (viewMode === "my" && isSalesRep) {
         params.append("myLeads", "true")
+      } else if (viewMode === "unassigned") {
+        params.append("unassigned", "true")
       }
 
       const response = await fetch(`/api/leads?${params.toString()}`)
@@ -69,7 +74,7 @@ export default function LeadsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, myLeadsOnly])
+  }, [statusFilter, viewMode, isSalesRep])
 
   useEffect(() => {
     fetchLeads()
@@ -94,8 +99,7 @@ export default function LeadsPage() {
     }
   }
 
-  const isSalesRep = session?.user.role === "SALES_REP"
-  const isViewingAllLeads = isSalesRep && !myLeadsOnly
+  const isViewingAllLeads = isSalesRep && viewMode === "all"
 
   const columnDefs: ColDef[] = useMemo(
     () => {
@@ -178,20 +182,34 @@ export default function LeadsPage() {
           field: "leadTypes",
           headerName: "Type",
           flex: 1,
-          minWidth: 100,
+          minWidth: 150,
+          maxWidth: 250,
           valueGetter: (params) => formatLeadTypes(params.data.leadTypes || []),
           cellRenderer: (params: any) => {
             const types = params.data.leadTypes || []
+            const maxVisible = 2
+            const visibleTypes = types.slice(0, maxVisible)
+            const remainingCount = types.length - maxVisible
+            
+            if (types.length === 0) {
+              return <span className="text-muted-foreground text-xs">-</span>
+            }
+            
             return (
-              <div className="flex flex-wrap gap-1">
-                {types.map((type: string, idx: number) => (
+              <div className="flex items-center gap-1 flex-wrap" title={formatLeadTypes(types)}>
+                {visibleTypes.map((type: string, idx: number) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground"
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground whitespace-nowrap"
                   >
                     {formatLeadType(type)}
                   </span>
                 ))}
+                {remainingCount > 0 && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground whitespace-nowrap">
+                    +{remainingCount} more
+                  </span>
+                )}
               </div>
             )
           },
@@ -258,8 +276,20 @@ export default function LeadsPage() {
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Leads</h1>
-          <p className="text-sm md:text-base text-muted-foreground">Manage and track your leads</p>
+          <h1 className="text-2xl md:text-3xl font-bold">
+            {isSalesRep && viewMode === "my"
+              ? "My Leads"
+              : isSalesRep && viewMode === "unassigned"
+              ? "Unassigned Leads"
+              : "Leads"}
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground">
+            {isSalesRep && viewMode === "my"
+              ? "Your assigned leads"
+              : isSalesRep && viewMode === "unassigned"
+              ? "Leads available to claim"
+              : "Manage and track your leads"}
+          </p>
         </div>
         <Link href="/leads/new" className="w-full sm:w-auto">
           <Button className="w-full sm:w-auto">
@@ -268,6 +298,42 @@ export default function LeadsPage() {
           </Button>
         </Link>
       </div>
+
+      {/* View Mode Tabs - Only show for sales reps */}
+      {isSalesRep && (
+        <div className="flex gap-2 border-b">
+          <button
+            onClick={() => setViewMode("my")}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              viewMode === "my"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            My Leads
+          </button>
+          <button
+            onClick={() => setViewMode("all")}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              viewMode === "all"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            All Leads
+          </button>
+          <button
+            onClick={() => setViewMode("unassigned")}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              viewMode === "unassigned"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Unassigned Leads
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border rounded-lg bg-muted/30">
@@ -289,17 +355,6 @@ export default function LeadsPage() {
             <option value="WON">Won</option>
             <option value="LOST">Lost</option>
           </Select>
-          {session?.user.role === "SALES_REP" && (
-            <label className="flex items-center gap-2 cursor-pointer text-sm">
-              <input
-                type="checkbox"
-                checked={myLeadsOnly}
-                onChange={(e) => setMyLeadsOnly(e.target.checked)}
-                className="rounded"
-              />
-              <span>My Leads Only</span>
-            </label>
-          )}
         </div>
         {isViewingAllLeads && (
           <div className="text-xs text-muted-foreground sm:ml-auto">

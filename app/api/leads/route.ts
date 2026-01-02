@@ -212,6 +212,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const myLeads = searchParams.get("myLeads") === "true" || false;
+    const unassigned = searchParams.get("unassigned") === "true" || false;
 
     const where: any = {};
 
@@ -221,7 +222,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by assigned sales rep if user is SALES_REP and myLeads is true
-    if (myLeads && session.user.role === "SALES_REP") {
+    // Unassigned filter takes precedence if both are set (though they shouldn't be)
+    if (unassigned) {
+      where.assignedSalesRepId = null;
+    } else if (myLeads && session.user.role === "SALES_REP") {
       where.assignedSalesRepId = session.user.id;
     }
 
@@ -239,10 +243,10 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // Only include referrer info for admins or when viewing own leads
+    // Only include referrer info for admins, when viewing own leads, or when viewing unassigned leads (so sales reps can claim them)
     if (
       session.user.role === "ADMIN" ||
-      (session.user.role === "SALES_REP" && myLeads)
+      (session.user.role === "SALES_REP" && (myLeads || unassigned))
     ) {
       includeObj.referrerCustomer = {
         select: {
@@ -263,8 +267,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // For sales reps viewing all leads (not just their own), strip out sensitive data
-    if (session.user.role === "SALES_REP" && !myLeads) {
+    // For sales reps viewing all leads (not their own and not unassigned), strip out sensitive data
+    // Unassigned leads show full data so sales reps can claim them
+    if (session.user.role === "SALES_REP" && !myLeads && !unassigned) {
       const limitedLeads = leads.map((lead) => {
         // Type assertion: customer is always included as a single object (not an array)
         // Prisma's include returns customer as a single relation object
