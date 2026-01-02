@@ -23,6 +23,7 @@ import {
   Trash2,
   Edit,
   X,
+  CheckCircle,
 } from "lucide-react";
 import { LeadStatus, AppointmentStatus, QuoteStatus } from "@prisma/client";
 import { Input } from "@/components/ui/input";
@@ -356,7 +357,7 @@ export default function LeadDetailPage() {
           city: appointmentForm.city || null,
           state: appointmentForm.state || null,
           zip: appointmentForm.zip || null,
-          notes: appointmentForm.notes || null,
+          notes: null, // Notes removed from creation form
         }),
       });
 
@@ -468,6 +469,39 @@ export default function LeadDetailPage() {
       alert(error.message || "Failed to update appointment");
     } finally {
       setUpdatingAppointment(false);
+    }
+  };
+
+  const handleUpdateAppointmentStatus = async (
+    appointmentId: string,
+    newStatus: AppointmentStatus
+  ) => {
+    if (
+      !confirm(
+        `Are you sure you want to mark this appointment as ${newStatus.replace(
+          "_",
+          " "
+        )}?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/appointments/${appointmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update appointment status");
+      }
+
+      fetchAppointments();
+    } catch (error: any) {
+      alert(error.message || "Failed to update appointment status");
     }
   };
 
@@ -1401,21 +1435,6 @@ export default function LeadDetailPage() {
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={appointmentForm.notes}
-                    onChange={(e) =>
-                      setAppointmentForm({
-                        ...appointmentForm,
-                        notes: e.target.value,
-                      })
-                    }
-                    rows={3}
-                  />
-                </div>
-
                 <div className="flex gap-2">
                   <Button type="submit" disabled={creatingAppointment}>
                     {creatingAppointment ? "Creating..." : "Create Appointment"}
@@ -1601,70 +1620,157 @@ export default function LeadDetailPage() {
                           </div>
                         </form>
                       ) : (
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-semibold">
-                                {new Date(
-                                  appointment.scheduledFor
-                                ).toLocaleString()}
-                              </span>
-                              <span
-                                className={`px-2 py-1 rounded text-xs font-medium ${
-                                  appointment.status === "COMPLETED"
-                                    ? "bg-green-100 text-green-800"
-                                    : appointment.status === "CANCELLED"
-                                    ? "bg-red-100 text-red-800"
-                                    : appointment.status === "NO_SHOW"
-                                    ? "bg-orange-100 text-orange-800"
-                                    : "bg-blue-100 text-blue-800"
-                                }`}
-                              >
-                                {appointment.status}
-                              </span>
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 space-y-3">
+                              {/* Date/Time and Status */}
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-semibold text-base">
+                                    {new Date(
+                                      appointment.scheduledFor
+                                    ).toLocaleString(undefined, {
+                                      weekday: "short",
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                </div>
+                                <span
+                                  className={`px-2.5 py-1 rounded-md text-xs font-medium ${
+                                    appointment.status === "COMPLETED"
+                                      ? "bg-green-100 text-green-800"
+                                      : appointment.status === "CANCELLED"
+                                      ? "bg-red-100 text-red-800"
+                                      : appointment.status === "NO_SHOW"
+                                      ? "bg-orange-100 text-orange-800"
+                                      : "bg-blue-100 text-blue-800"
+                                  }`}
+                                >
+                                  {appointment.status.replace("_", " ")}
+                                </span>
+                              </div>
+
+                              {/* Address */}
+                              <div className="space-y-1">
+                                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Site Address
+                                </div>
+                                {appointment.siteAddressLine1 ||
+                                appointment.city ? (
+                                  <div className="text-sm">
+                                    {appointment.siteAddressLine1 && (
+                                      <div>{appointment.siteAddressLine1}</div>
+                                    )}
+                                    {appointment.siteAddressLine2 && (
+                                      <div>{appointment.siteAddressLine2}</div>
+                                    )}
+                                    {(appointment.city ||
+                                      appointment.state ||
+                                      appointment.zip) && (
+                                      <div>
+                                        {appointment.city}
+                                        {appointment.state &&
+                                          `, ${appointment.state}`}
+                                        {appointment.zip &&
+                                          ` ${appointment.zip}`}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="text-sm text-muted-foreground italic">
+                                    No address provided
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Notes */}
+                              {appointment.notes && (
+                                <div className="space-y-1">
+                                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Notes
+                                  </div>
+                                  <div className="text-sm bg-muted/50 p-2 rounded-md">
+                                    {appointment.notes}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Sales Rep */}
+                              <div className="text-xs text-muted-foreground">
+                                Sales Rep:{" "}
+                                <span className="font-medium">
+                                  {appointment.salesRep.name ||
+                                    appointment.salesRep.email}
+                                </span>
+                              </div>
                             </div>
-                            {(appointment.siteAddressLine1 ||
-                              appointment.city) && (
-                              <div className="text-sm text-muted-foreground mb-2">
-                                {appointment.siteAddressLine1}
-                                {appointment.siteAddressLine2 && (
-                                  <>, {appointment.siteAddressLine2}</>
-                                )}
-                                {appointment.city && (
-                                  <>
-                                    <br />
-                                    {appointment.city}
-                                    {appointment.state && (
-                                      <>, {appointment.state}</>
-                                    )}{" "}
-                                    {appointment.zip}
-                                  </>
-                                )}
-                              </div>
-                            )}
-                            {appointment.notes && (
-                              <div className="text-sm text-muted-foreground">
-                                {appointment.notes}
-                              </div>
-                            )}
-                            <div className="text-xs text-muted-foreground mt-2">
-                              Sales Rep:{" "}
-                              {appointment.salesRep.name ||
-                                appointment.salesRep.email}
+
+                            {/* Action Buttons */}
+                            <div className="flex flex-col gap-2 ml-4">
+                              {canEdit && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleStartEditAppointment(appointment)
+                                  }
+                                  className="h-8"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </div>
-                          {canEdit && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleStartEditAppointment(appointment)
-                              }
-                              className="ml-2"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+
+                          {/* Status Action Buttons - Only show for scheduled appointments */}
+                          {appointment.status === "SCHEDULED" && canEdit && (
+                            <div className="flex gap-2 pt-2 border-t">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleUpdateAppointmentStatus(
+                                    appointment.id,
+                                    "COMPLETED"
+                                  )
+                                }
+                                className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Complete
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleUpdateAppointmentStatus(
+                                    appointment.id,
+                                    "NO_SHOW"
+                                  )
+                                }
+                                className="flex-1 text-orange-700 border-orange-200 hover:bg-orange-50"
+                              >
+                                No Show
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleUpdateAppointmentStatus(
+                                    appointment.id,
+                                    "CANCELLED"
+                                  )
+                                }
+                                className="flex-1 text-red-700 border-red-200 hover:bg-red-50"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
                           )}
                         </div>
                       )}

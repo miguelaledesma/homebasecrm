@@ -54,13 +54,16 @@ type Appointment = {
   }
 }
 
+type ViewMode = "my" | "all"
+
 export default function AppointmentsPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [myAppointmentsOnly, setMyAppointmentsOnly] = useState(false)
+  const isSalesRep = session?.user.role === "SALES_REP"
+  const [viewMode, setViewMode] = useState<ViewMode>(isSalesRep ? "my" : "all")
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true)
@@ -69,7 +72,7 @@ export default function AppointmentsPage() {
       if (statusFilter !== "all") {
         params.append("status", statusFilter)
       }
-      if (myAppointmentsOnly) {
+      if (viewMode === "my" && isSalesRep) {
         params.append("myAppointments", "true")
       }
 
@@ -83,7 +86,7 @@ export default function AppointmentsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, myAppointmentsOnly])
+  }, [statusFilter, viewMode, isSalesRep])
 
   useEffect(() => {
     fetchAppointments()
@@ -130,8 +133,7 @@ export default function AppointmentsPage() {
     }
   }, [fetchAppointments])
 
-  const isSalesRep = session?.user.role === "SALES_REP"
-  const isViewingAllAppointments = isSalesRep && !myAppointmentsOnly
+  const isViewingAllAppointments = isSalesRep && viewMode === "all"
 
   const columnDefs: ColDef[] = useMemo(
     () => {
@@ -326,11 +328,43 @@ export default function AppointmentsPage() {
   return (
     <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Appointments</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">
+          {isSalesRep && viewMode === "my"
+            ? "My Appointments"
+            : "Appointments"}
+        </h1>
         <p className="text-sm md:text-base text-muted-foreground">
-          Manage your scheduled appointments
+          {isSalesRep && viewMode === "my"
+            ? "Your scheduled appointments"
+            : "Manage your scheduled appointments"}
         </p>
       </div>
+
+      {/* View Mode Tabs - Only show for sales reps */}
+      {isSalesRep && (
+        <div className="flex gap-2 border-b">
+          <button
+            onClick={() => setViewMode("my")}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              viewMode === "my"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            My Appointments
+          </button>
+          <button
+            onClick={() => setViewMode("all")}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              viewMode === "all"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            All Appointments
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border rounded-lg bg-muted/30">
@@ -350,17 +384,6 @@ export default function AppointmentsPage() {
             <option value="CANCELLED">Cancelled</option>
             <option value="NO_SHOW">No Show</option>
           </Select>
-          {session?.user.role === "SALES_REP" && (
-            <label className="flex items-center gap-2 cursor-pointer text-sm">
-              <input
-                type="checkbox"
-                checked={myAppointmentsOnly}
-                onChange={(e) => setMyAppointmentsOnly(e.target.checked)}
-                className="rounded"
-              />
-              <span>My Appointments Only</span>
-            </label>
-          )}
         </div>
         {isViewingAllAppointments && (
           <div className="text-xs text-muted-foreground sm:ml-auto">
