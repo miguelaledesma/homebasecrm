@@ -8,16 +8,20 @@ export function cn(...inputs: ClassValue[]) {
 // Format lead type enum value to human-readable label
 export function formatLeadType(type: string): string {
   const typeMap: Record<string, string> = {
-    FLOOR: "Floor",
-    KITCHEN: "Kitchen",
-    BATH: "Bath",
+    FLOOR: "Flooring",
     CARPET: "Carpet",
+    TILE_STONE: "Tile/Stone",
+    MATERIALS: "Materials",
+    KITCHEN: "Kitchen",
+    BATH: "Bathroom",
+    ADUS: "ADU's",
     PAINTING: "Painting",
-    LANDSCAPING: "Landscaping",
-    MONTHLY_YARD_MAINTENANCE: "Monthly Yard Maintenance",
     ROOFING: "Roofing",
     STUCCO: "Stucco",
-    ADUS: "ADU's",
+    CONCRETE: "Concrete",
+    TURF: "Turf",
+    LANDSCAPING: "Landscaping",
+    MONTHLY_YARD_MAINTENANCE: "Monthly Yard Maintenance",
     OTHER: "Other",
   }
   return typeMap[type] || type

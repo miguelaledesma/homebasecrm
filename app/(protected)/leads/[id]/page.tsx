@@ -37,15 +37,19 @@ import {
 
 type LeadType =
   | "FLOOR"
+  | "CARPET"
+  | "TILE_STONE"
+  | "MATERIALS"
   | "KITCHEN"
   | "BATH"
-  | "CARPET"
+  | "ADUS"
   | "PAINTING"
-  | "LANDSCAPING"
-  | "MONTHLY_YARD_MAINTENANCE"
   | "ROOFING"
   | "STUCCO"
-  | "ADUS"
+  | "CONCRETE"
+  | "TURF"
+  | "LANDSCAPING"
+  | "MONTHLY_YARD_MAINTENANCE"
   | "OTHER";
 import {
   AlertDialog,
@@ -230,16 +234,20 @@ export default function LeadDetailPage() {
   const leadId = params.id as string;
 
   const leadTypeOptions: { value: LeadType; label: string }[] = [
-    { value: "FLOOR", label: "Floor" },
-    { value: "KITCHEN", label: "Kitchen" },
-    { value: "BATH", label: "Bath" },
+    { value: "FLOOR", label: "Flooring" },
     { value: "CARPET", label: "Carpet" },
+    { value: "TILE_STONE", label: "Tile/Stone" },
+    { value: "MATERIALS", label: "Materials" },
+    { value: "KITCHEN", label: "Kitchen" },
+    { value: "BATH", label: "Bathroom" },
+    { value: "ADUS", label: "ADU's" },
     { value: "PAINTING", label: "Painting" },
-    { value: "LANDSCAPING", label: "Landscaping" },
-    { value: "MONTHLY_YARD_MAINTENANCE", label: "Monthly Yard Maintenance" },
     { value: "ROOFING", label: "Roofing" },
     { value: "STUCCO", label: "Stucco" },
-    { value: "ADUS", label: "ADU&apos;s" },
+    { value: "CONCRETE", label: "Concrete" },
+    { value: "TURF", label: "Turf" },
+    { value: "LANDSCAPING", label: "Landscaping" },
+    { value: "MONTHLY_YARD_MAINTENANCE", label: "Monthly Yard Maintenance" },
     { value: "OTHER", label: "Other" },
   ];
 
@@ -1081,7 +1089,7 @@ export default function LeadDetailPage() {
                     Lead Types
                   </Label>
                   <div className="mt-2 space-y-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                       {leadTypeOptions.map((option) => (
                         <div
                           key={option.value}
