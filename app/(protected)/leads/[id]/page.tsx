@@ -357,7 +357,7 @@ export default function LeadDetailPage() {
           city: appointmentForm.city || null,
           state: appointmentForm.state || null,
           zip: appointmentForm.zip || null,
-          notes: null, // Notes removed from creation form
+          notes: appointmentForm.notes || null,
         }),
       });
 
@@ -1433,6 +1433,21 @@ export default function LeadDetailPage() {
                       }
                     />
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={appointmentForm.notes}
+                    onChange={(e) =>
+                      setAppointmentForm({
+                        ...appointmentForm,
+                        notes: e.target.value,
+                      })
+                    }
+                    rows={3}
+                  />
                 </div>
 
                 <div className="flex gap-2">
