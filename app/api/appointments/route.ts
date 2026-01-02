@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ appointment }, { status: 201 })
   } catch (error: any) {
+    const session = await getServerSession(authOptions);
     logError("Error creating appointment", error, {
       userId: session?.user?.id,
       userRole: session?.user?.role,
@@ -238,7 +239,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ appointments }, { status: 200 })
   } catch (error: any) {
-    console.error("Error fetching appointments:", error)
+    const session = await getServerSession(authOptions);
+    logError("Error fetching appointments", error, {
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+    })
     return NextResponse.json(
       { error: error.message || "Failed to fetch appointments" },
       { status: 500 }
