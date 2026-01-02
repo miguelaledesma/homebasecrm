@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
@@ -16,6 +16,7 @@ import {
   LogOut,
   Menu,
   X,
+  Bell,
 } from "lucide-react"
 
 const navigation = [
@@ -31,6 +32,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const notificationsRef = useRef<HTMLDivElement>(null)
+
+  // Close notifications menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        notificationsRef.current &&
+        !notificationsRef.current.contains(event.target as Node)
+      ) {
+        setNotificationsOpen(false)
+      }
+    }
+
+    if (notificationsOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [notificationsOpen])
 
   // Filter navigation based on user role - only show Admin for admins
   const filteredNavigation = navigation.filter(
@@ -56,6 +79,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2 md:gap-4">
             {session?.user && (
               <>
+                <div className="relative" ref={notificationsRef}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setNotificationsOpen(!notificationsOpen)}
+                    className="relative"
+                    title="Notifications"
+                  >
+                    <Bell className="h-5 w-5" />
+                  </Button>
+                  {notificationsOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-80 rounded-md border bg-background shadow-lg z-50">
+                      <div className="p-4">
+                        <div className="mb-2 text-sm font-semibold">Notifications</div>
+                        <div className="text-sm text-muted-foreground">
+                          Coming Soon
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <span className="hidden md:inline text-sm text-muted-foreground">
                   {session.user.name || session.user.email}
                 </span>
