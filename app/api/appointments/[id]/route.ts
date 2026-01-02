@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { AppointmentStatus } from "@prisma/client"
+import { logInfo, logError, logAction } from "@/lib/utils"
 
 export async function GET(
   request: NextRequest,
@@ -169,9 +170,20 @@ export async function PATCH(
       },
     })
 
+    logAction("Appointment updated", session.user.id, session.user.role, {
+      appointmentId: params.id,
+      leadId: appointment.leadId,
+      statusChanged: status ? { from: existingAppointment.status, to: status } : undefined,
+    });
+
     return NextResponse.json({ appointment }, { status: 200 })
   } catch (error: any) {
-    console.error("Error updating appointment:", error)
+    const session = await getServerSession(authOptions);
+    logError("Error updating appointment", error, {
+      appointmentId: params.id,
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+    })
     return NextResponse.json(
       { error: error.message || "Failed to update appointment" },
       { status: 500 }

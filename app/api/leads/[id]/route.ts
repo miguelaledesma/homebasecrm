@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { LeadStatus, LeadType, SourceType } from "@prisma/client";
+import { logInfo, logError, logAction } from "@/lib/utils";
 
 export async function GET(
   request: NextRequest,
@@ -256,9 +257,29 @@ export async function PATCH(
       },
     });
 
+    logAction("Lead updated", session.user.id, session.user.role, {
+      leadId: params.id,
+      customerName: `${lead.customer.firstName} ${lead.customer.lastName}`,
+      statusChanged: status
+        ? { from: existingLead.status, to: status }
+        : undefined,
+      assignedChanged:
+        assignedSalesRepId !== undefined
+          ? {
+              from: existingLead.assignedSalesRepId,
+              to: assignedSalesRepId,
+            }
+          : undefined,
+    });
+
     return NextResponse.json({ lead }, { status: 200 });
   } catch (error: any) {
-    console.error("Error updating lead:", error);
+    const session = await getServerSession(authOptions);
+    logError("Error updating lead", error, {
+      leadId: params.id,
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+    });
     return NextResponse.json(
       { error: error.message || "Failed to update lead" },
       { status: 500 }

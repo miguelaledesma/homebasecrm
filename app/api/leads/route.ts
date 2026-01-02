@@ -3,13 +3,20 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SourceType, LeadType, LeadStatus } from "@prisma/client";
+import { logInfo, logError, logAction } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
+      logInfo("POST /api/leads - Unauthorized request");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    logInfo("POST /api/leads - Creating new lead", {
+      userId: session.user.name,
+      userRole: session.user.role,
+    });
 
     const body = await request.json();
     const {
@@ -192,9 +199,24 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    logAction("Lead created", session.user.id, session.user.role, {
+      leadId: lead.id,
+      customerId: customer.id,
+      customerName: `${customer.firstName} ${customer.lastName}`,
+      leadTypes: leadTypes,
+      status: lead.status,
+      assignedTo: assignedSalesRepId || "Unassigned",
+      sourceType: sourceType,
+      isReferral: sourceType === "REFERRAL",
+    });
+
     return NextResponse.json({ lead, customer }, { status: 201 });
   } catch (error: any) {
-    console.error("Error creating lead:", error);
+    const session = await getServerSession(authOptions);
+    logError("Error creating lead", error, {
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+    });
     return NextResponse.json(
       { error: error.message || "Failed to create lead" },
       { status: 500 }
@@ -206,6 +228,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
+      logInfo("GET /api/leads - Unauthorized request");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -213,6 +236,14 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const myLeads = searchParams.get("myLeads") === "true" || false;
     const unassigned = searchParams.get("unassigned") === "true" || false;
+
+    logInfo("GET /api/leads - Fetching leads", {
+      userId: session.user.id,
+      userRole: session.user.role,
+      status: status || "all",
+      myLeads,
+      unassigned,
+    });
 
     const where: any = {};
 
@@ -294,12 +325,26 @@ export async function GET(request: NextRequest) {
           createdAt: lead.createdAt,
         };
       });
+      logInfo("GET /api/leads - Returning limited leads for sales rep", {
+        userId: session.user.id,
+        leadCount: limitedLeads.length,
+      });
       return NextResponse.json({ leads: limitedLeads }, { status: 200 });
     }
 
+    logInfo("GET /api/leads - Returning leads", {
+      userId: session.user.id,
+      userRole: session.user.role,
+      leadCount: leads.length,
+    });
+
     return NextResponse.json({ leads }, { status: 200 });
   } catch (error: any) {
-    console.error("Error fetching leads:", error);
+    const session = await getServerSession(authOptions);
+    logError("Error fetching leads", error, {
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+    });
     return NextResponse.json(
       { error: error.message || "Failed to fetch leads" },
       { status: 500 }

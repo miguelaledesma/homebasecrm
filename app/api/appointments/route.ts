@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { AppointmentStatus } from "@prisma/client"
+import { logInfo, logError, logAction } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
   try {
@@ -102,9 +103,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    logAction("Appointment created", session.user.id, session.user.role, {
+      appointmentId: appointment.id,
+      leadId: leadId,
+      scheduledFor: scheduledFor,
+      salesRepId: salesRepId,
+    });
+
     return NextResponse.json({ appointment }, { status: 201 })
   } catch (error: any) {
-    console.error("Error creating appointment:", error)
+    logError("Error creating appointment", error, {
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+      leadId,
+    })
     return NextResponse.json(
       { error: error.message || "Failed to create appointment" },
       { status: 500 }

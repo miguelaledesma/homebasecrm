@@ -48,3 +48,27 @@ export function formatPhoneNumber(phone: string | null | undefined): string {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
+// Logging helper for structured logs in Railway
+export function logInfo(message: string, data?: Record<string, any>) {
+  const timestamp = new Date().toISOString();
+  console.log(`[INFO] ${timestamp} - ${message}`, data ? JSON.stringify(data, null, 2) : "");
+}
+
+export function logError(message: string, error: any, context?: Record<string, any>) {
+  const timestamp = new Date().toISOString();
+  console.error(`[ERROR] ${timestamp} - ${message}`, {
+    error: error?.message || String(error),
+    stack: error?.stack,
+    ...context,
+  });
+}
+
+export function logAction(action: string, userId: string, userRole: string, details?: Record<string, any>) {
+  const timestamp = new Date().toISOString();
+  console.log(`[ACTION] ${timestamp} - ${action}`, {
+    userId,
+    userRole,
+    ...details,
+  });
+}
+

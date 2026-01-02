@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { QuoteStatus } from "@prisma/client"
+import { logInfo, logError, logAction } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
   try {
@@ -104,9 +105,22 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    logAction("Quote created", session.user.id, session.user.role, {
+      quoteId: quote.id,
+      leadId: leadId,
+      amount: quote.amount,
+      currency: quote.currency,
+      status: quote.status,
+    });
+
     return NextResponse.json({ quote }, { status: 201 })
   } catch (error: any) {
-    console.error("Error creating quote:", error)
+    const session = await getServerSession(authOptions);
+    logError("Error creating quote", error, {
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+      leadId,
+    })
     return NextResponse.json(
       { error: error.message || "Failed to create quote" },
       { status: 500 }
