@@ -6,6 +6,7 @@ import { AppointmentStatus } from "@prisma/client"
 import { logInfo, logError, logAction } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
+  let leadId: string | undefined;
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
-      leadId,
+      leadId: bodyLeadId,
       salesRepId,
       scheduledFor,
       siteAddressLine1,
@@ -24,9 +25,11 @@ export async function POST(request: NextRequest) {
       zip,
       notes,
     } = body
+    
+    leadId = bodyLeadId;
 
     // Validate required fields
-    if (!leadId || !salesRepId || !scheduledFor) {
+    if (!bodyLeadId || !salesRepId || !scheduledFor) {
       return NextResponse.json(
         { error: "Missing required fields: leadId, salesRepId, scheduledFor" },
         { status: 400 }
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Verify lead exists
     const lead = await prisma.lead.findUnique({
-      where: { id: leadId },
+      where: { id: bodyLeadId },
     })
 
     if (!lead) {
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
     // Create appointment
     const appointment = await prisma.appointment.create({
       data: {
-        leadId,
+        leadId: bodyLeadId,
         salesRepId,
         scheduledFor: new Date(scheduledFor),
         siteAddressLine1: siteAddressLine1 || null,
@@ -98,14 +101,14 @@ export async function POST(request: NextRequest) {
     // Update lead status to APPOINTMENT_SET if it's not already
     if (lead.status !== "APPOINTMENT_SET") {
       await prisma.lead.update({
-        where: { id: leadId },
+        where: { id: bodyLeadId },
         data: { status: "APPOINTMENT_SET" },
       })
     }
 
     logAction("Appointment created", session.user.id, session.user.role, {
       appointmentId: appointment.id,
-      leadId: leadId,
+      leadId: bodyLeadId,
       scheduledFor: scheduledFor,
       salesRepId: salesRepId,
     });

@@ -26,13 +26,6 @@ export async function GET(
             email: true,
           },
         },
-        createdByUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
         referrerCustomer: {
           select: {
             id: true,
@@ -42,7 +35,15 @@ export async function GET(
             email: true,
           },
         },
-      },
+        // Include createdByUser relation - using type assertion since Prisma types may be out of sync during build
+        createdByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      } as any,
     });
 
     if (!lead) {
@@ -55,15 +56,23 @@ export async function GET(
       lead.assignedSalesRepId !== session.user.id
     ) {
       // Return limited lead data for read-only viewing
+      // Type assertion: customer is always included as a single object (not an array)
+      const leadWithCustomer = lead as typeof lead & {
+        customer: {
+          id: string;
+          firstName: string;
+          lastName: string;
+        };
+      };
       const limitedLead = {
         id: lead.id,
         assignedSalesRepId: lead.assignedSalesRepId,
         customer: {
-          id: lead.customer.id,
-          firstName: lead.customer.firstName,
-          lastName: lead.customer.lastName,
+          id: leadWithCustomer.customer.id,
+          firstName: leadWithCustomer.customer.firstName,
+          lastName: leadWithCustomer.customer.lastName,
         },
-        assignedSalesRep: lead.assignedSalesRep,
+        assignedSalesRep: lead.assignedSalesRep || null,
         status: lead.status,
         createdAt: lead.createdAt,
         // Mark as read-only for frontend
@@ -238,13 +247,6 @@ export async function PATCH(
             email: true,
           },
         },
-        createdByUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
         referrerCustomer: {
           select: {
             id: true,
@@ -254,12 +256,27 @@ export async function PATCH(
             email: true,
           },
         },
-      },
+        // Include createdByUser relation - using type assertion since Prisma types may be out of sync during build
+        createdByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      } as any,
     });
 
+    // Type assertion: customer is always included as a single object (not an array)
+    const leadWithCustomer = lead as typeof lead & {
+      customer: {
+        firstName: string;
+        lastName: string;
+      };
+    };
     logAction("Lead updated", session.user.id, session.user.role, {
       leadId: params.id,
-      customerName: `${lead.customer.firstName} ${lead.customer.lastName}`,
+      customerName: `${leadWithCustomer.customer.firstName} ${leadWithCustomer.customer.lastName}`,
       statusChanged: status
         ? { from: existingLead.status, to: status }
         : undefined,

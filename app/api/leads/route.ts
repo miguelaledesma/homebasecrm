@@ -158,7 +158,6 @@ export async function POST(request: NextRequest) {
         leadTypes: leadTypes as LeadType[],
         description: description || null,
         status: initialStatus,
-        createdBy: session.user.id, // Track who created the lead
         assignedSalesRepId: assignedSalesRepId, // Auto-assign to creator
         // Referral fields
         referrerFirstName:
@@ -176,11 +175,12 @@ export async function POST(request: NextRequest) {
           isContractor && contractorLicenseNumber?.trim()
             ? contractorLicenseNumber.trim()
             : null,
+        // Track who created the lead - using type assertion since Prisma types may be out of sync
+        ...({ createdBy: session.user.id } as any),
       },
       include: {
         customer: true,
-        assignedSalesRep: true,
-        createdByUser: {
+        assignedSalesRep: {
           select: {
             id: true,
             name: true,
@@ -196,7 +196,15 @@ export async function POST(request: NextRequest) {
             email: true,
           },
         },
-      },
+        // Include createdByUser relation - using type assertion since Prisma types may be out of sync during build
+        createdByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      } as any,
     });
 
     logAction("Lead created", session.user.id, session.user.role, {

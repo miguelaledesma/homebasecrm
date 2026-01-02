@@ -6,6 +6,7 @@ import { QuoteStatus } from "@prisma/client"
 import { logInfo, logError, logAction } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
+  let leadId: string | undefined;
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
@@ -13,10 +14,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { leadId, appointmentId, amount, currency, expiresAt, status } = body
+    const { leadId: bodyLeadId, appointmentId, amount, currency, expiresAt, status } = body
+    
+    leadId = bodyLeadId;
 
     // Validate required fields
-    if (!leadId || !amount) {
+    if (!bodyLeadId || !amount) {
       return NextResponse.json(
         { error: "Missing required fields: leadId, amount" },
         { status: 400 }
@@ -25,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     // Verify lead exists
     const lead = await prisma.lead.findUnique({
-      where: { id: leadId },
+      where: { id: bodyLeadId },
     })
 
     if (!lead) {
@@ -71,7 +74,7 @@ export async function POST(request: NextRequest) {
     // Create quote
     const quote = await prisma.quote.create({
       data: {
-        leadId,
+        leadId: bodyLeadId,
         appointmentId: appointmentId || null,
         salesRepId,
         amount: parseFloat(amount),
@@ -100,14 +103,14 @@ export async function POST(request: NextRequest) {
     // Update lead status to QUOTED if not already
     if (lead.status !== "QUOTED" && lead.status !== "WON" && lead.status !== "LOST") {
       await prisma.lead.update({
-        where: { id: leadId },
+        where: { id: bodyLeadId },
         data: { status: "QUOTED" },
       })
     }
 
     logAction("Quote created", session.user.id, session.user.role, {
       quoteId: quote.id,
-      leadId: leadId,
+      leadId: bodyLeadId,
       amount: quote.amount,
       currency: quote.currency,
       status: quote.status,
