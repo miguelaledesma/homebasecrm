@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 type SourceType = "CALL_IN" | "WALK_IN" | "REFERRAL"
 type LeadType = "FLOOR" | "CARPET" | "TILE_STONE" | "MATERIALS" | "KITCHEN" | "BATH" | "ADUS" | "PAINTING" | "ROOFING" | "STUCCO" | "CONCRETE" | "TURF" | "LANDSCAPING" | "MONTHLY_YARD_MAINTENANCE" | "OTHER"
+type HearAboutUs = "YELP" | "FACEBOOK" | "DRIVING_BY" | "OTHER"
 
 export default function NewLeadPage() {
   const router = useRouter()
@@ -42,6 +43,9 @@ export default function NewLeadPage() {
     isMilitaryFirstResponder: false,
     isContractor: false,
     contractorLicenseNumber: "",
+    // Marketing attribution
+    hearAboutUs: "" as HearAboutUs | "",
+    hearAboutUsOther: "",
   })
   
   const [referrerMatch, setReferrerMatch] = useState<{
@@ -328,6 +332,42 @@ export default function NewLeadPage() {
                   <option value="REFERRAL">Referral</option>
                 </Select>
               </div>
+
+              <div>
+                <Label htmlFor="hearAboutUs">Where did you hear about us?</Label>
+                <Select
+                  id="hearAboutUs"
+                  value={formData.hearAboutUs}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      hearAboutUs: e.target.value as HearAboutUs | "",
+                      // Clear other text if not "OTHER"
+                      hearAboutUsOther: e.target.value === "OTHER" ? formData.hearAboutUsOther : "",
+                    })
+                  }
+                >
+                  <option value="">Select an option...</option>
+                  <option value="YELP">Yelp</option>
+                  <option value="FACEBOOK">Facebook</option>
+                  <option value="DRIVING_BY">Driving By</option>
+                  <option value="OTHER">Other</option>
+                </Select>
+              </div>
+
+              {formData.hearAboutUs === "OTHER" && (
+                <div>
+                  <Label htmlFor="hearAboutUsOther">Please specify</Label>
+                  <Input
+                    id="hearAboutUsOther"
+                    value={formData.hearAboutUsOther}
+                    onChange={(e) =>
+                      setFormData({ ...formData, hearAboutUsOther: e.target.value })
+                    }
+                    placeholder="How did you hear about us?"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 

@@ -63,6 +63,13 @@ enum QuoteStatus {
   EXPIRED
 }
 
+enum HearAboutUs {
+  YELP
+  FACEBOOK
+  DRIVING_BY
+  OTHER
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String?
@@ -144,6 +151,10 @@ model Lead {
   isMilitaryFirstResponder Boolean @default(false)
   isContractor             Boolean @default(false)
   contractorLicenseNumber   String?
+
+  // Marketing attribution
+  hearAboutUs              HearAboutUs?
+  hearAboutUsOther         String?  // Free text when hearAboutUs is OTHER
 
   // Relations
   customer         Customer      @relation("CustomerLeads", fields: [customerId], references: [id], onDelete: Cascade)

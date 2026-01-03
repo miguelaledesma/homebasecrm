@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
       isMilitaryFirstResponder,
       isContractor,
       contractorLicenseNumber,
+      // Marketing attribution
+      hearAboutUs,
+      hearAboutUsOther,
     } = body;
 
     // Validate required fields
@@ -174,6 +177,12 @@ export async function POST(request: NextRequest) {
         contractorLicenseNumber:
           isContractor && contractorLicenseNumber?.trim()
             ? contractorLicenseNumber.trim()
+            : null,
+        // Marketing attribution
+        hearAboutUs: hearAboutUs || null,
+        hearAboutUsOther:
+          hearAboutUs === "OTHER" && hearAboutUsOther?.trim()
+            ? hearAboutUsOther.trim()
             : null,
         // Track who created the lead - using type assertion since Prisma types may be out of sync
         ...({ createdBy: session.user.id } as any),

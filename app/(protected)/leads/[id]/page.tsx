@@ -80,6 +80,8 @@ type Lead = {
   isMilitaryFirstResponder: boolean;
   isContractor: boolean;
   contractorLicenseNumber: string | null;
+  hearAboutUs: string | null;
+  hearAboutUsOther: string | null;
   customer: {
     id: string;
     firstName: string;
@@ -1292,6 +1294,21 @@ export default function LeadDetailPage() {
                     </div>
                   </div>
                 )}
+
+              {lead.hearAboutUs && (
+                <div className="pt-3 border-t">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Where did you hear about us?
+                  </p>
+                  <p className="text-sm">
+                    {lead.hearAboutUs === "YELP" && "Yelp"}
+                    {lead.hearAboutUs === "FACEBOOK" && "Facebook"}
+                    {lead.hearAboutUs === "DRIVING_BY" && "Driving By"}
+                    {lead.hearAboutUs === "OTHER" &&
+                      (lead.hearAboutUsOther || "Other")}
+                  </p>
+                </div>
+              )}
 
               <div className="pt-3 border-t -mb-3">
                 <div className="flex justify-between items-center">
