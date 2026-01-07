@@ -18,7 +18,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "db:seed:once": "tsx scripts/seed-once.ts"
+    "db:seed:once": "tsx scripts/seed-once.ts",
+    "cron:check-inactivity": "tsx scripts/check-inactivity.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/logo"
+import { NotificationsList } from "@/components/notifications-list"
 import {
   LayoutDashboard,
   Users,
@@ -28,12 +29,118 @@ const navigation = [
   { name: "Admin", href: "/admin", icon: Settings },
 ]
 
+type Notification = {
+  id: string
+  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT"
+  read: boolean
+  acknowledged: boolean
+  createdAt: string
+  lead: {
+    id: string
+    customer: {
+      firstName: string
+      lastName: string
+    }
+  } | null
+  note: {
+    id: string
+    content: string
+    createdByUser: {
+      name: string | null
+      email: string
+    }
+  } | null
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const notificationsRef = useRef<HTMLDivElement>(null)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [unacknowledgedCount, setUnacknowledgedCount] = useState(0)
+  const [loadingNotifications, setLoadingNotifications] = useState(false)
+
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    if (!session?.user) return
+
+    try {
+      setLoadingNotifications(true)
+      const response = await fetch("/api/notifications?limit=20")
+      if (!response.ok) throw new Error("Failed to fetch notifications")
+
+      const data = await response.json()
+      setNotifications(data.notifications || [])
+      setUnreadCount(data.counts?.unread || 0)
+      setUnacknowledgedCount(data.counts?.unacknowledged || 0)
+    } catch (error) {
+      console.error("Error fetching notifications:", error)
+    } finally {
+      setLoadingNotifications(false)
+    }
+  }
+
+  // Poll for notifications when user is active and dropdown is open
+  useEffect(() => {
+    if (!session?.user) return
+
+    // Fetch immediately when dropdown opens
+    if (notificationsOpen) {
+      fetchNotifications()
+    }
+
+    // Set up polling interval (every 30 seconds when dropdown is open)
+    let interval: NodeJS.Timeout | null = null
+    if (notificationsOpen) {
+      interval = setInterval(fetchNotifications, 30000)
+    }
+
+    // Also poll when page is visible (every 60 seconds)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchNotifications()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    // Initial fetch
+    fetchNotifications()
+
+    return () => {
+      if (interval) clearInterval(interval)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [session?.user, notificationsOpen])
+
+  // Handle acknowledge notification
+  const handleAcknowledge = async (id: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${id}/acknowledge`, {
+        method: "PATCH",
+      })
+      if (!response.ok) throw new Error("Failed to acknowledge notification")
+      await fetchNotifications()
+    } catch (error) {
+      console.error("Error acknowledging notification:", error)
+    }
+  }
+
+  // Handle mark as read
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${id}/read`, {
+        method: "PATCH",
+      })
+      if (!response.ok) throw new Error("Failed to mark notification as read")
+      await fetchNotifications()
+    } catch (error) {
+      console.error("Error marking notification as read:", error)
+    }
+  }
 
   // Close notifications menu when clicking outside
   useEffect(() => {
@@ -79,7 +186,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2 md:gap-4">
             {session?.user && (
               <>
-                <div className="relative" ref={notificationsRef}>
+                <div className="relative hidden md:block" ref={notificationsRef}>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -88,15 +195,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     title="Notifications"
                   >
                     <Bell className="h-5 w-5" />
+                    {unacknowledgedCount > 0 && (
+                      <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                        {unacknowledgedCount > 9 ? "9+" : unacknowledgedCount}
+                      </span>
+                    )}
                   </Button>
                   {notificationsOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-80 rounded-md border bg-background shadow-lg z-50">
-                      <div className="p-4">
-                        <div className="mb-2 text-sm font-semibold">Notifications</div>
-                        <div className="text-sm text-muted-foreground">
-                          Coming Soon
+                    <div className="absolute right-0 top-full mt-2 w-80 md:w-96 max-w-sm rounded-md border bg-background shadow-lg z-50">
+                      <div className="p-3 md:p-4 border-b">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-semibold">Notifications</div>
+                          {unacknowledgedCount > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-xs"
+                              onClick={async () => {
+                                // Acknowledge all unacknowledged notifications
+                                const unacknowledged = notifications.filter(
+                                  (n) => !n.acknowledged
+                                )
+                                await Promise.all(
+                                  unacknowledged.map((n) => handleAcknowledge(n.id))
+                                )
+                              }}
+                            >
+                              <span className="hidden sm:inline">Acknowledge All</span>
+                              <span className="sm:hidden">All</span>
+                            </Button>
+                          )}
                         </div>
                       </div>
+                      {loadingNotifications ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          Loading...
+                        </div>
+                      ) : (
+                        <NotificationsList
+                          notifications={notifications}
+                          onAcknowledge={handleAcknowledge}
+                          onMarkAsRead={handleMarkAsRead}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Trash2 } from "lucide-react"
+import { AdminFollowUps } from "@/components/admin-follow-ups"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -289,6 +290,18 @@ export function AdminContent() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Follow-up Tracking</CardTitle>
+          <CardDescription>
+            Monitor which sales reps have inactive leads and aren't following up
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AdminFollowUps />
         </CardContent>
       </Card>
 
