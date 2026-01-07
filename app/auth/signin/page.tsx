@@ -22,6 +22,9 @@ export default function SignInPage() {
     if (searchParams.get("invited") === "true") {
       setSuccess("Account created successfully! Please sign in with your credentials.")
     }
+    if (searchParams.get("reset") === "true") {
+      setSuccess("Password reset successfully! Please sign in with your new password.")
+    }
   }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {

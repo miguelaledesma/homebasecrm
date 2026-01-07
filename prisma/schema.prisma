@@ -95,14 +95,15 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  assignedLeads      Lead[]         @relation("AssignedSalesRep")
-  createdLeads       Lead[]         @relation("LeadCreator")
+  assignedLeads      Lead[]             @relation("AssignedSalesRep")
+  createdLeads       Lead[]             @relation("LeadCreator")
   appointments       Appointment[]
   quotes             Quote[]
   uploadedQuoteFiles QuoteFile[]
-  leadNotes          LeadNote[]     @relation("LeadNoteCreator")
+  leadNotes          LeadNote[]         @relation("LeadNoteCreator")
   notifications      Notification[]
   tasks              Task[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -119,6 +120,23 @@ model UserInvitation {
 
   @@index([email])
   @@map("user_invitations")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  createdBy String? // ID of admin who created the reset token
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_reset_tokens")
 }
 
 model Customer {
