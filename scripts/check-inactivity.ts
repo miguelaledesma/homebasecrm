@@ -114,7 +114,8 @@ async function checkInactivity() {
                   userId: admin.id,
                   leadId: lead.id,
                   type: "LEAD_INACTIVITY",
-                  taskId: task.id, // Same task, different notification per admin
+                  // Don't set taskId for admin notifications - taskId is unique and only one notification can reference a task
+                  // The sales rep notification already has the taskId link
                 },
               })
               notificationsCreated++

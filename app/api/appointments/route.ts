@@ -1,19 +1,19 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { AppointmentStatus } from "@prisma/client"
-import { logInfo, logError, logAction } from "@/lib/utils"
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { AppointmentStatus } from "@prisma/client";
+import { logInfo, logError, logAction } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   let leadId: string | undefined;
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json()
+    const body = await request.json();
     const {
       leadId: bodyLeadId,
       salesRepId,
@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
       state,
       zip,
       notes,
-    } = body
-    
+    } = body;
+
     leadId = bodyLeadId;
 
     // Validate required fields
@@ -33,28 +33,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Missing required fields: leadId, salesRepId, scheduledFor" },
         { status: 400 }
-      )
+      );
     }
 
     // Verify lead exists
     const lead = await prisma.lead.findUnique({
       where: { id: bodyLeadId },
-    })
+    });
 
     if (!lead) {
-      return NextResponse.json({ error: "Lead not found" }, { status: 404 })
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
     // Verify sales rep exists
     const salesRep = await prisma.user.findUnique({
       where: { id: salesRepId },
-    })
+    });
 
     if (!salesRep || salesRep.role !== "SALES_REP") {
-      return NextResponse.json(
-        { error: "Invalid sales rep" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Invalid sales rep" }, { status: 400 });
     }
 
     // Check permissions: SALES_REP can only create appointments for their assigned leads
@@ -65,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "You can only create appointments for your assigned leads" },
         { status: 403 }
-      )
+      );
     }
 
     // Create appointment
@@ -96,14 +93,14 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    })
+    });
 
     // Update lead status to APPOINTMENT_SET if it's not already
     if (lead.status !== "APPOINTMENT_SET") {
       await prisma.lead.update({
         where: { id: bodyLeadId },
         data: { status: "APPOINTMENT_SET" },
-      })
+      });
     }
 
     logAction("Appointment created", session.user.id, session.user.role, {
@@ -113,58 +110,69 @@ export async function POST(request: NextRequest) {
       salesRepId: salesRepId,
     });
 
-    return NextResponse.json({ appointment }, { status: 201 })
+    return NextResponse.json({ appointment }, { status: 201 });
   } catch (error: any) {
     const session = await getServerSession(authOptions);
     logError("Error creating appointment", error, {
       userId: session?.user?.id,
       userRole: session?.user?.role,
       leadId,
-    })
+    });
     return NextResponse.json(
       { error: error.message || "Failed to create appointment" },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url)
-    const status = searchParams.get("status")
-    const upcoming = searchParams.get("upcoming") === "true"
-    const leadId = searchParams.get("leadId")
-    const myAppointments = searchParams.get("myAppointments") === "true" || false
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
+    const upcoming = searchParams.get("upcoming") === "true";
+    const pastDue = searchParams.get("pastDue") === "true";
+    const leadId = searchParams.get("leadId");
+    const myAppointments =
+      searchParams.get("myAppointments") === "true" || false;
 
-    const where: any = {}
+    const where: any = {};
 
     // Filter by leadId if provided
     if (leadId) {
-      where.leadId = leadId
-    }
-
-    // Filter by status if provided
-    if (status) {
-      where.status = status as AppointmentStatus
+      where.leadId = leadId;
     }
 
     // Filter by sales rep if user is SALES_REP and myAppointments is true
     if (myAppointments && session.user.role === "SALES_REP") {
-      where.salesRepId = session.user.id
+      where.salesRepId = session.user.id;
     }
 
     // ADMIN can see all appointments, SALES_REP can see all appointments (with limited data)
     // No filtering needed for sales reps when viewing all appointments
 
-    // Filter upcoming appointments (scheduledFor >= now)
-    if (upcoming) {
+    // Filter past due appointments (scheduledFor < now() AND status = SCHEDULED)
+    // This takes precedence over status filter
+    if (pastDue) {
+      where.status = "SCHEDULED";
       where.scheduledFor = {
-        gte: new Date(),
+        lt: new Date(),
+      };
+    } else {
+      // Filter by status if provided (only if not filtering past due)
+      if (status) {
+        where.status = status as AppointmentStatus;
+      }
+
+      // Filter upcoming appointments (scheduledFor >= now)
+      if (upcoming) {
+        where.scheduledFor = {
+          gte: new Date(),
+        };
       }
     }
 
@@ -188,7 +196,7 @@ export async function GET(request: NextRequest) {
           email: true,
         },
       },
-    }
+    };
 
     const appointments = await prisma.appointment.findMany({
       where,
@@ -196,7 +204,7 @@ export async function GET(request: NextRequest) {
       orderBy: {
         scheduledFor: "asc",
       },
-    })
+    });
 
     // For sales reps viewing all appointments (not just their own), strip out sensitive data
     if (session.user.role === "SALES_REP" && !myAppointments) {
@@ -237,20 +245,22 @@ export async function GET(request: NextRequest) {
           _readOnly: true,
         };
       });
-      return NextResponse.json({ appointments: limitedAppointments }, { status: 200 });
+      return NextResponse.json(
+        { appointments: limitedAppointments },
+        { status: 200 }
+      );
     }
 
-    return NextResponse.json({ appointments }, { status: 200 })
+    return NextResponse.json({ appointments }, { status: 200 });
   } catch (error: any) {
     const session = await getServerSession(authOptions);
     logError("Error fetching appointments", error, {
       userId: session?.user?.id,
       userRole: session?.user?.role,
-    })
+    });
     return NextResponse.json(
       { error: error.message || "Failed to fetch appointments" },
       { status: 500 }
-    )
+    );
   }
 }
-

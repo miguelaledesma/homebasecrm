@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   Bell,
+  AlertTriangle,
 } from "lucide-react"
 
 const navigation = [
@@ -61,21 +62,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [unacknowledgedCount, setUnacknowledgedCount] = useState(0)
+  const [pastDueAppointmentsCount, setPastDueAppointmentsCount] = useState(0)
   const [loadingNotifications, setLoadingNotifications] = useState(false)
 
-  // Fetch notifications
+  // Fetch notifications and past-due appointments count
   const fetchNotifications = useCallback(async () => {
     if (!session?.user) return
 
     try {
       setLoadingNotifications(true)
-      const response = await fetch("/api/notifications?limit=20")
-      if (!response.ok) throw new Error("Failed to fetch notifications")
+      const [notificationsResponse, statsResponse] = await Promise.all([
+        fetch("/api/notifications?limit=20"),
+        fetch("/api/dashboard/stats"),
+      ])
 
-      const data = await response.json()
-      setNotifications(data.notifications || [])
-      setUnreadCount(data.counts?.unread || 0)
-      setUnacknowledgedCount(data.counts?.unacknowledged || 0)
+      if (!notificationsResponse.ok) throw new Error("Failed to fetch notifications")
+      const notificationsData = await notificationsResponse.json()
+      setNotifications(notificationsData.notifications || [])
+      setUnreadCount(notificationsData.counts?.unread || 0)
+      setUnacknowledgedCount(notificationsData.counts?.unacknowledged || 0)
+
+      // Fetch past-due appointments count
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json()
+        setPastDueAppointmentsCount(statsData.stats?.pastDueAppointments || 0)
+      }
     } catch (error) {
       console.error("Error fetching notifications:", error)
     } finally {
@@ -195,9 +206,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     title="Notifications"
                   >
                     <Bell className="h-5 w-5" />
-                    {unacknowledgedCount > 0 && (
+                    {(unacknowledgedCount > 0 || pastDueAppointmentsCount > 0) && (
                       <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                        {unacknowledgedCount > 9 ? "9+" : unacknowledgedCount}
+                        {unacknowledgedCount + pastDueAppointmentsCount > 9
+                          ? "9+"
+                          : unacknowledgedCount + pastDueAppointmentsCount}
                       </span>
                     )}
                   </Button>
@@ -232,11 +245,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           Loading...
                         </div>
                       ) : (
-                        <NotificationsList
-                          notifications={notifications}
-                          onAcknowledge={handleAcknowledge}
-                          onMarkAsRead={handleMarkAsRead}
-                        />
+                        <>
+                          {pastDueAppointmentsCount > 0 && (
+                            <div className="p-2 border-b">
+                              <Link
+                                href="/appointments?pastDue=true"
+                                onClick={() => setNotificationsOpen(false)}
+                                className="flex items-center gap-3 p-3 border rounded-md hover:bg-accent cursor-pointer bg-orange-50 dark:bg-orange-950/20"
+                              >
+                                <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium">
+                                    {pastDueAppointmentsCount} Past Due Appointment
+                                    {pastDueAppointmentsCount !== 1 ? "s" : ""}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Click to view and update status
+                                  </div>
+                                </div>
+                              </Link>
+                            </div>
+                          )}
+                          <NotificationsList
+                            notifications={notifications}
+                            onAcknowledge={handleAcknowledge}
+                            onMarkAsRead={handleMarkAsRead}
+                          />
+                        </>
                       )}
                     </div>
                   )}

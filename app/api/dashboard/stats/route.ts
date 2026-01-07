@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         wonLeads,
         totalAppointments,
         scheduledAppointments,
+        pastDueAppointments,
       ] = await Promise.all([
         // Total leads
         prisma.lead.count(),
@@ -66,6 +67,16 @@ export async function GET(request: NextRequest) {
             },
           },
         }),
+        
+        // Past due appointments (scheduledFor < now() AND status = SCHEDULED)
+        prisma.appointment.count({
+          where: {
+            status: "SCHEDULED",
+            scheduledFor: {
+              lt: new Date(),
+            },
+          },
+        }),
       ])
 
       // Calculate conversion rates
@@ -88,6 +99,7 @@ export async function GET(request: NextRequest) {
             wonLeads,
             totalAppointments,
             scheduledAppointments,
+            pastDueAppointments,
             leadToAppointmentRate: parseFloat(leadToAppointmentRate),
             winRate: parseFloat(winRate),
           },
@@ -106,6 +118,7 @@ export async function GET(request: NextRequest) {
         myTotalAppointments,
         myScheduledAppointments,
         myLeadsWithAppointments,
+        myPastDueAppointments,
       ] = await Promise.all([
         // My total leads
         prisma.lead.count({
@@ -177,6 +190,17 @@ export async function GET(request: NextRequest) {
             },
           },
         }),
+        
+        // My past due appointments (scheduledFor < now() AND status = SCHEDULED)
+        prisma.appointment.count({
+          where: {
+            salesRepId: userId,
+            status: "SCHEDULED",
+            scheduledFor: {
+              lt: new Date(),
+            },
+          },
+        }),
       ])
 
       // Calculate conversion rates
@@ -202,6 +226,7 @@ export async function GET(request: NextRequest) {
             totalAppointments: myTotalAppointments,
             scheduledAppointments: myScheduledAppointments,
             leadsWithAppointments: myLeadsWithAppointments,
+            pastDueAppointments: myPastDueAppointments,
             leadToAppointmentRate: parseFloat(leadToAppointmentRate),
             winRate: parseFloat(winRate),
           },

@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, Calendar, TrendingUp, Target, FileText, CheckCircle, Clock, Award, Bell, AlertCircle, MessageSquare, ArrowRight } from "lucide-react"
+import { Users, Calendar, TrendingUp, Target, FileText, CheckCircle, Clock, Award, Bell, AlertCircle, MessageSquare, ArrowRight, AlertTriangle } from "lucide-react"
 
 interface DashboardStats {
   totalLeads: number
@@ -16,6 +16,7 @@ interface DashboardStats {
   wonLeads: number
   totalAppointments: number
   scheduledAppointments: number
+  pastDueAppointments?: number
   leadToAppointmentRate: number
   winRate: number
   leadsWithAppointments?: number
@@ -71,6 +72,8 @@ export default function DashboardPage() {
 
     fetchStats()
   }, [])
+
+  const pastDueAppointmentsCount = stats?.pastDueAppointments || 0
 
   // Fetch notifications for mobile view
   useEffect(() => {
@@ -170,9 +173,11 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <Bell className="h-5 w-5" />
                 <CardTitle className="text-base">Notifications</CardTitle>
-                {unacknowledgedCount > 0 && (
+                {(unacknowledgedCount > 0 || pastDueAppointmentsCount > 0) && (
                   <span className="h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                    {unacknowledgedCount > 9 ? "9+" : unacknowledgedCount}
+                    {unacknowledgedCount + pastDueAppointmentsCount > 9
+                      ? "9+"
+                      : unacknowledgedCount + pastDueAppointmentsCount}
                   </span>
                 )}
               </div>
@@ -187,8 +192,8 @@ export default function DashboardPage() {
               </Button>
             </div>
             <CardDescription>
-              {unacknowledgedCount > 0
-                ? `You have ${unacknowledgedCount} unacknowledged notification${unacknowledgedCount !== 1 ? "s" : ""}`
+              {unacknowledgedCount > 0 || pastDueAppointmentsCount > 0
+                ? `You have ${unacknowledgedCount + pastDueAppointmentsCount} notification${unacknowledgedCount + pastDueAppointmentsCount !== 1 ? "s" : ""}`
                 : "No new notifications"}
             </CardDescription>
           </CardHeader>
@@ -197,12 +202,33 @@ export default function DashboardPage() {
               <div className="text-center text-sm text-muted-foreground py-4">
                 Loading notifications...
               </div>
-            ) : notifications.length === 0 ? (
+            ) : notifications.length === 0 && pastDueAppointmentsCount === 0 ? (
               <div className="text-center text-sm text-muted-foreground py-4">
                 No notifications
               </div>
             ) : (
               <div className="space-y-3">
+                {pastDueAppointmentsCount > 0 && (
+                  <div
+                    className="p-3 border rounded-md cursor-pointer hover:bg-accent transition-colors bg-orange-50 dark:bg-orange-950/20"
+                    onClick={() => router.push("/appointments?pastDue=true")}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="mt-0.5">
+                        <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium">
+                          {pastDueAppointmentsCount} Past Due Appointment
+                          {pastDueAppointmentsCount !== 1 ? "s" : ""}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Click to view and update status
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {notifications.slice(0, 3).map((notification) => (
                   <div
                     key={notification.id}
@@ -386,6 +412,7 @@ export default function DashboardPage() {
           </Card>
         </div>
       )}
+
 
       {/* Additional Stats Section */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

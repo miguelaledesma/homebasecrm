@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { QuoteStatus } from "@prisma/client"
+import { QuoteStatus, UserRole } from "@prisma/client"
+import { logAction, logError } from "@/lib/utils"
 
 export async function GET(
   request: NextRequest,
@@ -91,8 +92,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Quote not found" }, { status: 404 })
     }
 
-    // SALES_REP can only update their own quotes
+    // Only admins can edit quotes (amount, expiresAt, etc.)
+    // Sales reps can only update status of their own quotes
+    const isUpdatingAmountOrExpires = amount !== undefined || expiresAt !== undefined
+    
+    if (isUpdatingAmountOrExpires && session.user.role !== UserRole.ADMIN) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Sales reps can only update status of their own quotes
     if (
+      status !== undefined &&
       session.user.role === "SALES_REP" &&
       existingQuote.salesRepId !== session.user.id
     ) {
@@ -144,11 +154,80 @@ export async function PATCH(
       },
     })
 
+    logAction("Quote updated", session.user.id, session.user.role, {
+      quoteId: params.id,
+      leadId: quote.leadId,
+      changes: { status, amount, expiresAt, sentAt },
+    })
+
     return NextResponse.json({ quote }, { status: 200 })
   } catch (error: any) {
-    console.error("Error updating quote:", error)
+    const session = await getServerSession(authOptions)
+    logError("Error updating quote", error, {
+      quoteId: params.id,
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+    })
     return NextResponse.json(
       { error: error.message || "Failed to update quote" },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Only admins can delete quotes
+    if (session.user.role !== UserRole.ADMIN) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Check if quote exists
+    const existingQuote = await prisma.quote.findUnique({
+      where: { id: params.id },
+      include: {
+        lead: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    })
+
+    if (!existingQuote) {
+      return NextResponse.json({ error: "Quote not found" }, { status: 404 })
+    }
+
+    // Delete the quote (files will be cascade deleted if foreign key is set up)
+    await prisma.quote.delete({
+      where: { id: params.id },
+    })
+
+    logAction("Quote deleted", session.user.id, session.user.role, {
+      quoteId: params.id,
+      leadId: existingQuote.leadId,
+      amount: existingQuote.amount,
+      status: existingQuote.status,
+    })
+
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (error: any) {
+    const session = await getServerSession(authOptions)
+    logError("Error deleting quote", error, {
+      quoteId: params.id,
+      userId: session?.user?.id,
+      userRole: session?.user?.role,
+    })
+    return NextResponse.json(
+      { error: error.message || "Failed to delete quote" },
       { status: 500 }
     )
   }

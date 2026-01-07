@@ -7,7 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, MapPin, User, Filter } from "lucide-react"
+import { Calendar, MapPin, User, Filter, AlertTriangle } from "lucide-react"
 import { AppointmentStatus } from "@prisma/client"
 import { AgGridReact } from "ag-grid-react"
 import { ColDef, ModuleRegistry, AllCommunityModule } from "ag-grid-community"
@@ -75,6 +75,11 @@ export default function AppointmentsPage() {
       if (viewMode === "my" && isSalesRep) {
         params.append("myAppointments", "true")
       }
+      // Check URL parameter for pastDue (from dashboard widget link)
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get("pastDue") === "true") {
+        params.append("pastDue", "true")
+      }
 
       const response = await fetch(`/api/appointments?${params.toString()}`)
       if (!response.ok) throw new Error("Failed to fetch appointments")
@@ -91,6 +96,14 @@ export default function AppointmentsPage() {
   useEffect(() => {
     fetchAppointments()
   }, [fetchAppointments])
+
+  // Helper function to check if appointment is past due
+  const isPastDue = (appointment: Appointment) => {
+    if (appointment.status !== "SCHEDULED") return false
+    const scheduledDate = new Date(appointment.scheduledFor)
+    return scheduledDate < new Date()
+  }
+
 
   const getStatusColor = (status: AppointmentStatus) => {
     switch (status) {
@@ -187,6 +200,20 @@ export default function AppointmentsPage() {
               hour: "numeric",
               minute: "2-digit",
             })
+          },
+          cellRenderer: (params: any) => {
+            const appointment = params.data as Appointment
+            const isOverdue = isPastDue(appointment)
+            return (
+              <div className="flex items-center gap-2">
+                <span className={isOverdue ? "text-red-600 dark:text-red-400 font-medium" : ""}>
+                  {params.value}
+                </span>
+                {isOverdue && (
+                  <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                )}
+              </div>
+            )
           },
           sort: "asc",
         },
@@ -420,7 +447,17 @@ export default function AppointmentsPage() {
                     router.push(`/leads/${event.data.lead.id}`)
                   }
                 }}
-                rowStyle={{ cursor: isViewingAllAppointments ? "default" : "pointer" }}
+                getRowStyle={(params) => {
+                  const appointment = params.data as Appointment
+                  const isOverdue = isPastDue(appointment)
+                  const style: any = {
+                    cursor: isViewingAllAppointments ? "default" : "pointer",
+                  }
+                  if (isOverdue) {
+                    style.backgroundColor = "rgba(254, 242, 242, 0.5)"
+                  }
+                  return style
+                }}
                 pagination={true}
                 paginationPageSize={20}
                 suppressCellFocus={true}
