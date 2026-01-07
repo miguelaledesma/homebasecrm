@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { AlertCircle, User, Clock, CheckSquare } from "lucide-react"
@@ -53,7 +53,7 @@ export function AdminFollowUps() {
   const [taskStatusFilter, setTaskStatusFilter] = useState<string>("all")
   const [salesReps, setSalesReps] = useState<SalesRepStats[]>([])
 
-  const fetchFollowUps = async () => {
+  const fetchFollowUps = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -82,11 +82,11 @@ export function AdminFollowUps() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [salesRepFilter, hoursFilter, taskStatusFilter])
 
   useEffect(() => {
     fetchFollowUps()
-  }, [salesRepFilter, hoursFilter, taskStatusFilter])
+  }, [fetchFollowUps])
 
   if (loading) {
     return <div className="text-muted-foreground">Loading...</div>

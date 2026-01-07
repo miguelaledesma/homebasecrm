@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [loadingNotifications, setLoadingNotifications] = useState(false)
 
   // Fetch notifications
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!session?.user) return
 
     try {
@@ -81,7 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     } finally {
       setLoadingNotifications(false)
     }
-  }
+  }, [session?.user])
 
   // Poll for notifications when user is active and dropdown is open
   useEffect(() => {
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (interval) clearInterval(interval)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
-  }, [session?.user, notificationsOpen])
+  }, [session?.user, notificationsOpen, fetchNotifications])
 
   // Handle acknowledge notification
   const handleAcknowledge = async (id: string) => {

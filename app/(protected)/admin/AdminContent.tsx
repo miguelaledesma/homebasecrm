@@ -297,7 +297,7 @@ export function AdminContent() {
         <CardHeader>
           <CardTitle>Follow-up Tracking</CardTitle>
           <CardDescription>
-            Monitor which sales reps have inactive leads and aren't following up
+            Monitor which sales reps have inactive leads and aren&apos;t following up
           </CardDescription>
         </CardHeader>
         <CardContent>
