@@ -70,6 +70,21 @@ enum HearAboutUs {
   OTHER
 }
 
+enum NotificationType {
+  LEAD_INACTIVITY
+  ADMIN_COMMENT
+}
+
+enum TaskType {
+  LEAD_INACTIVITY
+}
+
+enum TaskStatus {
+  PENDING
+  ACKNOWLEDGED
+  RESOLVED
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String?
@@ -80,12 +95,14 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  assignedLeads      Lead[]        @relation("AssignedSalesRep")
-  createdLeads        Lead[]        @relation("LeadCreator")
+  assignedLeads      Lead[]         @relation("AssignedSalesRep")
+  createdLeads       Lead[]         @relation("LeadCreator")
   appointments       Appointment[]
   quotes             Quote[]
   uploadedQuoteFiles QuoteFile[]
-  leadNotes          LeadNote[]    @relation("LeadNoteCreator")
+  leadNotes          LeadNote[]     @relation("LeadNoteCreator")
+  notifications      Notification[]
+  tasks              Task[]
 
   @@map("users")
 }
@@ -120,8 +137,8 @@ model Customer {
   updatedAt    DateTime   @updatedAt
 
   // Relations
-  leads           Lead[] @relation("CustomerLeads")
-  referredLeads  Lead[] @relation("ReferrerCustomer")
+  leads         Lead[] @relation("CustomerLeads")
+  referredLeads Lead[] @relation("ReferrerCustomer")
 
   @@index([phone])
   @@index([email])
@@ -135,35 +152,37 @@ model Lead {
   description        String?
   status             LeadStatus @default(NEW)
   assignedSalesRepId String?
-  createdBy          String?    // ID of user who created the lead
+  createdBy          String? // ID of user who created the lead
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
   // Referral tracking
-  referrerFirstName   String?
-  referrerLastName    String?
-  referrerPhone       String?
-  referrerEmail       String?
-  referrerCustomerId  String?  // Link to existing customer if referrer is in system
-  referrerIsCustomer  Boolean  @default(false)
+  referrerFirstName  String?
+  referrerLastName   String?
+  referrerPhone      String?
+  referrerEmail      String?
+  referrerCustomerId String? // Link to existing customer if referrer is in system
+  referrerIsCustomer Boolean @default(false)
 
   // Customer classification
   isMilitaryFirstResponder Boolean @default(false)
   isContractor             Boolean @default(false)
-  contractorLicenseNumber   String?
+  contractorLicenseNumber  String?
 
   // Marketing attribution
-  hearAboutUs              HearAboutUs?
-  hearAboutUsOther         String?  // Free text when hearAboutUs is OTHER
+  hearAboutUs      HearAboutUs?
+  hearAboutUsOther String? // Free text when hearAboutUs is OTHER
 
   // Relations
-  customer         Customer      @relation("CustomerLeads", fields: [customerId], references: [id], onDelete: Cascade)
-  assignedSalesRep User?         @relation("AssignedSalesRep", fields: [assignedSalesRepId], references: [id])
-  createdByUser    User?         @relation("LeadCreator", fields: [createdBy], references: [id], onDelete: SetNull)
-  referrerCustomer Customer?     @relation("ReferrerCustomer", fields: [referrerCustomerId], references: [id], onDelete: SetNull)
+  customer         Customer       @relation("CustomerLeads", fields: [customerId], references: [id], onDelete: Cascade)
+  assignedSalesRep User?          @relation("AssignedSalesRep", fields: [assignedSalesRepId], references: [id])
+  createdByUser    User?          @relation("LeadCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  referrerCustomer Customer?      @relation("ReferrerCustomer", fields: [referrerCustomerId], references: [id], onDelete: SetNull)
   appointments     Appointment[]
   quotes           Quote[]
   notes            LeadNote[]
+  notifications    Notification[]
+  tasks            Task[]
 
   @@index([status])
   @@index([assignedSalesRepId])
@@ -250,10 +269,60 @@ model LeadNote {
   updatedAt DateTime @updatedAt
 
   // Relations
-  lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  createdByUser User @relation("LeadNoteCreator", fields: [createdBy], references: [id])
+  lead          Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdByUser User           @relation("LeadNoteCreator", fields: [createdBy], references: [id])
+  notifications Notification[]
 
   @@index([leadId])
   @@index([createdAt(sort: Desc)])
   @@map("lead_notes")
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  userId         String // User who receives the notification
+  type           NotificationType
+  read           Boolean          @default(false)
+  readAt         DateTime?
+  acknowledged   Boolean          @default(false) // Explicit acknowledgment flag
+  acknowledgedAt DateTime?
+  createdAt      DateTime         @default(now())
+
+  // Context data
+  leadId String? // Lead this notification is about
+  noteId String? // Note that triggered admin comment notification
+  taskId String? @unique // Link to related task
+
+  // Relations
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  note LeadNote? @relation(fields: [noteId], references: [id], onDelete: SetNull)
+  task Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId, read])
+  @@index([userId, acknowledged])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([leadId])
+  @@map("notifications")
+}
+
+model Task {
+  id             String     @id @default(cuid())
+  userId         String // User who needs to complete the task
+  type           TaskType
+  status         TaskStatus @default(PENDING)
+  leadId         String // Lead this task is about
+  createdAt      DateTime   @default(now())
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead         Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  notification Notification? // Link to related notification
+
+  @@unique([leadId, type]) // One task per lead per type
+  @@index([userId, status])
+  @@index([leadId])
+  @@map("tasks")
 }

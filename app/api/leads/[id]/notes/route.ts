@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getLastActivityTimestamp } from "@/lib/lead-activity"
 
 // GET /api/leads/[id]/notes - Get all notes for a lead
 export async function GET(
@@ -101,6 +102,28 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    // If admin is commenting, check lead activity BEFORE creating the note
+    // (so the admin's comment doesn't count as "activity" for this check)
+    let shouldNotify = false
+    if (session.user.role === "ADMIN" && lead.assignedSalesRepId) {
+      try {
+        // Check if lead has activity within last 48 hours (BEFORE this comment)
+        const lastActivity = await getLastActivityTimestamp(leadId)
+        
+        if (lastActivity) {
+          const hoursSinceActivity =
+            (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60)
+          
+          // Only notify if lead was already active (within 48 hours) before this comment
+          shouldNotify = hoursSinceActivity <= 48
+        }
+        // If no activity found or inactive (>48 hours), don't notify
+      } catch (notificationError) {
+        // Log error but continue with note creation
+        console.error("Error checking lead activity for notification:", notificationError)
+      }
+    }
+
     // Create note
     const note = await prisma.leadNote.create({
       data: {
@@ -118,6 +141,24 @@ export async function POST(
         },
       },
     })
+
+    // Create notification only if lead was active within 48 hours (before this comment)
+    // This prevents notifications on stale/old leads
+    if (shouldNotify) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: lead.assignedSalesRepId!,
+            type: "ADMIN_COMMENT",
+            leadId: leadId,
+            noteId: note.id,
+          },
+        })
+      } catch (notificationError) {
+        // Log error but don't fail the note creation
+        console.error("Error creating admin comment notification:", notificationError)
+      }
+    }
 
     return NextResponse.json({ note }, { status: 201 })
   } catch (error: any) {

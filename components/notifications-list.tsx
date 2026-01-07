@@ -1,0 +1,147 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Bell, MessageSquare, AlertCircle, X, Check } from "lucide-react"
+import Link from "next/link"
+
+type Notification = {
+  id: string
+  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT"
+  read: boolean
+  acknowledged: boolean
+  createdAt: string
+  lead: {
+    id: string
+    customer: {
+      firstName: string
+      lastName: string
+    }
+  } | null
+  note: {
+    id: string
+    content: string
+    createdByUser: {
+      name: string | null
+      email: string
+    }
+  } | null
+}
+
+type NotificationsListProps = {
+  notifications: Notification[]
+  onAcknowledge: (id: string) => Promise<void>
+  onMarkAsRead: (id: string) => Promise<void>
+}
+
+export function NotificationsList({
+  notifications,
+  onAcknowledge,
+  onMarkAsRead,
+}: NotificationsListProps) {
+  const router = useRouter()
+
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read when clicked
+    if (!notification.read) {
+      await onMarkAsRead(notification.id)
+    }
+
+    // For ADMIN_COMMENT notifications, auto-acknowledge when clicked (they'll be deleted)
+    if (notification.type === "ADMIN_COMMENT" && !notification.acknowledged) {
+      await onAcknowledge(notification.id)
+    }
+
+    // Navigate to lead if available
+    if (notification.lead) {
+      router.push(`/leads/${notification.lead.id}`)
+    }
+  }
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "LEAD_INACTIVITY":
+        return <AlertCircle className="h-4 w-4 text-orange-500" />
+      case "ADMIN_COMMENT":
+        return <MessageSquare className="h-4 w-4 text-blue-500" />
+      default:
+        return <Bell className="h-4 w-4" />
+    }
+  }
+
+  const getNotificationMessage = (notification: Notification) => {
+    if (notification.type === "LEAD_INACTIVITY") {
+      const customerName = notification.lead
+        ? `${notification.lead.customer.firstName} ${notification.lead.customer.lastName}`
+        : "a lead"
+      return `No activity on ${customerName} for 48+ hours`
+    } else if (notification.type === "ADMIN_COMMENT") {
+      const adminName =
+        notification.note?.createdByUser.name ||
+        notification.note?.createdByUser.email ||
+        "Admin"
+      return `${adminName} commented on your lead`
+    }
+    return "New notification"
+  }
+
+  // Acknowledged notifications are automatically deleted, so all notifications here are unacknowledged
+  // No need to filter - just display all notifications
+  const unacknowledged = notifications
+  const acknowledged: Notification[] = [] // Empty since acknowledged notifications are deleted
+
+  return (
+    <div className="max-h-96 overflow-y-auto">
+      {notifications.length === 0 ? (
+        <div className="p-4 text-center text-sm text-muted-foreground">
+          No notifications
+        </div>
+      ) : (
+        <div className="p-2">
+          {unacknowledged.map((notification) => (
+            <div
+              key={notification.id}
+              className={`p-3 border-b hover:bg-accent cursor-pointer ${
+                !notification.read ? "bg-blue-50 dark:bg-blue-950/20" : ""
+              }`}
+              onClick={() => handleNotificationClick(notification)}
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">{getNotificationIcon(notification.type)}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium">
+                    {getNotificationMessage(notification)}
+                  </div>
+                  {notification.note && (
+                    <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {notification.note.content}
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {new Date(notification.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      await onAcknowledge(notification.id)
+                    }}
+                    title="Acknowledge"
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
