@@ -9,7 +9,7 @@
     "dev:no-seed": "next dev",
     "build": "prisma generate && prisma migrate deploy && next build",
     "build:with-migrations": "prisma migrate deploy && next build",
-    "start": "next start",
+    "start": "node scripts/start-wrapper.js",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
