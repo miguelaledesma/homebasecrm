@@ -45,12 +45,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Verify sales rep exists
+    // Verify sales rep exists (can be SALES_REP or ADMIN since leads can be assigned to either)
     const salesRep = await prisma.user.findUnique({
       where: { id: salesRepId },
     });
 
-    if (!salesRep || salesRep.role !== "SALES_REP") {
+    if (
+      !salesRep ||
+      (salesRep.role !== "SALES_REP" && salesRep.role !== "ADMIN")
+    ) {
       return NextResponse.json({ error: "Invalid sales rep" }, { status: 400 });
     }
 
