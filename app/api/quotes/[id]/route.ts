@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { QuoteStatus, UserRole } from "@prisma/client"
 import { logAction, logError } from "@/lib/utils"
+import { storage } from "@/lib/storage"
 
 export async function GET(
   request: NextRequest,
@@ -60,7 +61,32 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    return NextResponse.json({ quote }, { status: 200 })
+    // Generate presigned URLs for files (if using Railway S3)
+    const quoteWithUrls = {
+      ...quote,
+      files: await Promise.all(
+        quote.files.map(async (file) => {
+          let downloadUrl = file.fileUrl
+          try {
+            // Check if it's a data URL (mock storage) or needs presigned URL
+            if (!file.fileUrl.startsWith("data:")) {
+              if (storage.getFileUrl) {
+                downloadUrl = await storage.getFileUrl(file.fileUrl, 3600) // 1 hour expiry
+              }
+            }
+          } catch (error) {
+            console.warn(`Failed to generate presigned URL for file ${file.id}:`, error)
+          }
+
+          return {
+            ...file,
+            fileUrl: downloadUrl,
+          }
+        })
+      ),
+    }
+
+    return NextResponse.json({ quote: quoteWithUrls }, { status: 200 })
   } catch (error: any) {
     console.error("Error fetching quote:", error)
     return NextResponse.json(

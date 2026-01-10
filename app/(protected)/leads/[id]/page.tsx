@@ -24,6 +24,7 @@ import {
   Edit,
   X,
   CheckCircle,
+  Upload,
 } from "lucide-react";
 import { LeadStatus, AppointmentStatus, QuoteStatus } from "@prisma/client";
 import { Input } from "@/components/ui/input";
@@ -1959,65 +1960,76 @@ export default function LeadDetailPage() {
             ) : (
               <div className="space-y-3">
                 {quotes.map((quote) => (
-                  <Link
+                  <div
                     key={quote.id}
-                    href={`/quotes/${quote.id}`}
-                    className="block"
+                    className="p-4 border rounded-md hover:bg-muted/50 transition-colors"
                   >
-                    <div className="p-4 border rounded-md hover:bg-muted/50 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <DollarSign className="h-5 w-5 text-muted-foreground" />
-                            <span className="font-semibold text-lg">
-                              {new Intl.NumberFormat("en-US", {
-                                style: "currency",
-                                currency: quote.currency,
-                              }).format(quote.amount)}
-                            </span>
-                            <span
-                              className={`px-2 py-1 rounded text-xs font-medium ${
-                                quote.status === "ACCEPTED"
-                                  ? "bg-green-100 text-green-800"
-                                  : quote.status === "DECLINED"
-                                  ? "bg-red-100 text-red-800"
-                                  : quote.status === "EXPIRED"
-                                  ? "bg-orange-100 text-orange-800"
-                                  : quote.status === "SENT"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {quote.status}
-                            </span>
-                          </div>
-                          <div className="text-sm text-muted-foreground space-y-1">
-                            <div>
-                              Created:{" "}
-                              {new Date(quote.createdAt).toLocaleString()}
-                            </div>
-                            {quote.sentAt && (
-                              <div>
-                                Sent: {new Date(quote.sentAt).toLocaleString()}
-                              </div>
-                            )}
-                            {quote.expiresAt && (
-                              <div>
-                                Expires:{" "}
-                                {new Date(quote.expiresAt).toLocaleString()}
-                              </div>
-                            )}
-                            {quote.files.length > 0 && (
-                              <div className="flex items-center gap-1 mt-2">
-                                <FileText className="h-4 w-4" />
-                                <span>{quote.files.length} file(s)</span>
-                              </div>
-                            )}
-                          </div>
+                    <div className="flex items-start justify-between gap-4">
+                      <Link href={`/quotes/${quote.id}`} className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <DollarSign className="h-5 w-5 text-muted-foreground" />
+                          <span className="font-semibold text-lg">
+                            {new Intl.NumberFormat("en-US", {
+                              style: "currency",
+                              currency: quote.currency,
+                            }).format(quote.amount)}
+                          </span>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              quote.status === "ACCEPTED"
+                                ? "bg-green-100 text-green-800"
+                                : quote.status === "DECLINED"
+                                ? "bg-red-100 text-red-800"
+                                : quote.status === "EXPIRED"
+                                ? "bg-orange-100 text-orange-800"
+                                : quote.status === "SENT"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {quote.status}
+                          </span>
                         </div>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <div>
+                            Created:{" "}
+                            {new Date(quote.createdAt).toLocaleString()}
+                          </div>
+                          {quote.sentAt && (
+                            <div>
+                              Sent: {new Date(quote.sentAt).toLocaleString()}
+                            </div>
+                          )}
+                          {quote.expiresAt && (
+                            <div>
+                              Expires:{" "}
+                              {new Date(quote.expiresAt).toLocaleString()}
+                            </div>
+                          )}
+                          {quote.files.length > 0 && (
+                            <div className="flex items-center gap-1 mt-2">
+                              <FileText className="h-4 w-4" />
+                              <span>{quote.files.length} file(s)</span>
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                      <div className="flex flex-col gap-2">
+                        <Link href={`/quotes/${quote.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            {quote.files.length > 0
+                              ? "Manage Files"
+                              : "Upload Files"}
+                          </Button>
+                        </Link>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}

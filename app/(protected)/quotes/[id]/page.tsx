@@ -279,6 +279,8 @@ export default function QuoteDetailPage() {
   const canEdit = session?.user.role === "ADMIN"
   const canDelete = session?.user.role === "ADMIN"
   const canUpdateStatus = canEdit || quote.salesRep.id === session?.user.id
+  // Upload permissions: ADMIN can upload to any quote, SALES_REP can upload to their own quotes
+  const canUpload = session?.user.role === "ADMIN" || quote.salesRep.id === session?.user.id
 
   return (
     <div className="space-y-6">
@@ -498,7 +500,7 @@ export default function QuoteDetailPage() {
                 <CardTitle>Files</CardTitle>
                 <CardDescription>Upload and manage quote files</CardDescription>
               </div>
-              {canEdit && (
+              {canUpload && (
                 <Button
                   onClick={() => fileInputRef.current?.click()}
                   size="sm"
@@ -521,38 +523,101 @@ export default function QuoteDetailPage() {
             {quote.files.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 No files uploaded yet.
-                {canEdit && " Upload a file to get started."}
+                {canUpload && " Upload a file to get started."}
               </div>
             ) : (
               <div className="space-y-3">
-                {quote.files.map((file) => (
-                  <div
-                    key={file.id}
-                    className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">
-                          {file.fileType || "File"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Uploaded {new Date(file.uploadedAt).toLocaleString()}
-                          {file.uploadedBy.name && (
-                            <> by {file.uploadedBy.name}</>
-                          )}
-                        </p>
+                {quote.files.map((file) => {
+                  // Extract filename from fileUrl (could be a path or data URL)
+                  const getFileName = () => {
+                    if (file.fileUrl.startsWith("data:")) {
+                      return "Uploaded file"
+                    }
+                    // Extract filename from path like "quotes/123/timestamp-filename.pdf"
+                    const parts = file.fileUrl.split("/")
+                    const filename = parts[parts.length - 1]
+                    // Remove timestamp prefix if present (format: timestamp-filename)
+                    const match = filename.match(/^\d+-(.+)$/)
+                    return match ? match[1] : filename
+                  }
+
+                  const fileName = getFileName()
+                  // Check if user can delete this file (ADMIN or file uploader)
+                  const canDeleteFile =
+                    session?.user.role === "ADMIN" ||
+                    file.uploadedBy.id === session?.user.id
+
+                  return (
+                    <div
+                      key={file.id}
+                      className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{fileName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {file.fileType && (
+                              <span className="uppercase">{file.fileType}</span>
+                            )}
+                            {" • "}
+                            Uploaded {new Date(file.uploadedAt).toLocaleString()}
+                            {file.uploadedBy.name && (
+                              <> by {file.uploadedBy.name}</>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => window.open(file.fileUrl, "_blank")}
+                          title="Download file"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        {canDeleteFile && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                              if (
+                                !confirm(
+                                  "Are you sure you want to delete this file?"
+                                )
+                              ) {
+                                return
+                              }
+
+                              try {
+                                const response = await fetch(
+                                  `/api/quotes/${quoteId}/files/${file.id}`,
+                                  {
+                                    method: "DELETE",
+                                  }
+                                )
+
+                                if (!response.ok) {
+                                  const data = await response.json()
+                                  throw new Error(data.error || "Failed to delete file")
+                                }
+
+                                fetchQuote()
+                              } catch (error: any) {
+                                alert(error.message || "Failed to delete file")
+                              }
+                            }}
+                            title="Delete file"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => window.open(file.fileUrl, "_blank")}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>
