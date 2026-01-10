@@ -32,7 +32,7 @@ const navigation = [
 
 type Notification = {
   id: string
-  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT"
+  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT" | "CONCIERGE_LEAD"
   read: boolean
   acknowledged: boolean
   createdAt: string
@@ -42,6 +42,11 @@ type Notification = {
       firstName: string
       lastName: string
     }
+    createdByUser: {
+      name: string | null
+      email: string
+      role: string
+    } | null
   } | null
   note: {
     id: string

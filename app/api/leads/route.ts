@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { SourceType, LeadType, LeadStatus } from "@prisma/client";
+import {
+  SourceType,
+  LeadType,
+  LeadStatus,
+  UserRole,
+  NotificationType,
+} from "@prisma/client";
 import { logInfo, logError, logAction } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
@@ -146,10 +152,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Auto-assign lead to creator if they are a SALES_REP or ADMIN
-    // Only assign if the user has a role that can be assigned (SALES_REP or ADMIN)
+    // Auto-assign lead to creator if they are a SALES_REP, CONCIERGE, or ADMIN
+    // Only assign if the user has a role that can be assigned (SALES_REP, CONCIERGE, or ADMIN)
     const shouldAutoAssign =
-      session.user.role === "SALES_REP" || session.user.role === "ADMIN";
+      session.user.role === UserRole.SALES_REP ||
+      session.user.role === UserRole.CONCIERGE ||
+      session.user.role === UserRole.ADMIN;
     const assignedSalesRepId = shouldAutoAssign ? session.user.id : null;
     // Set status to ASSIGNED if auto-assigned, otherwise NEW
     const initialStatus: LeadStatus = assignedSalesRepId ? "ASSIGNED" : "NEW";
@@ -227,6 +235,49 @@ export async function POST(request: NextRequest) {
       isReferral: sourceType === "REFERRAL",
     });
 
+    // If lead was created by a concierge, notify all admins INSTANTLY
+    // This happens synchronously in the same request, not via cron job
+    if (session.user.role === UserRole.CONCIERGE) {
+      try {
+        const admins = await prisma.user.findMany({
+          where: { role: "ADMIN" },
+          select: { id: true },
+        });
+
+        // Create notifications for all admins in parallel for better performance
+        await Promise.all(
+          admins.map((admin) =>
+            prisma.notification.create({
+              data: {
+                userId: admin.id,
+                leadId: lead.id,
+                type: NotificationType.CONCIERGE_LEAD,
+              },
+            })
+          )
+        );
+
+        logInfo(
+          "Created instant notifications for admins about concierge lead",
+          {
+            leadId: lead.id,
+            adminCount: admins.length,
+            conciergeId: session.user.id,
+          }
+        );
+      } catch (notificationError: any) {
+        // Log error but don't fail lead creation - notifications are important but shouldn't block the operation
+        logError(
+          "Error creating concierge lead notifications",
+          notificationError,
+          {
+            leadId: lead.id,
+            conciergeId: session.user.id,
+          }
+        );
+      }
+    }
+
     return NextResponse.json({ lead, customer }, { status: 201 });
   } catch (error: any) {
     const session = await getServerSession(authOptions);
@@ -269,11 +320,14 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    // Filter by assigned sales rep if user is SALES_REP and myLeads is true
+    // Filter by assigned sales rep if user is SALES_REP or CONCIERGE and myLeads is true
     // Unassigned filter takes precedence if both are set (though they shouldn't be)
     if (unassigned) {
       where.assignedSalesRepId = null;
-    } else if (myLeads && session.user.role === "SALES_REP") {
+    } else if (
+      myLeads &&
+      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE")
+    ) {
       where.assignedSalesRepId = session.user.id;
     }
 
@@ -291,10 +345,12 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // Only include referrer info for admins, when viewing own leads, or when viewing unassigned leads (so sales reps can claim them)
+    // Only include referrer info for admins, when viewing own leads, or when viewing unassigned leads (so sales reps/concierges can claim them)
     if (
-      session.user.role === "ADMIN" ||
-      (session.user.role === "SALES_REP" && (myLeads || unassigned))
+      session.user.role === UserRole.ADMIN ||
+      ((session.user.role === UserRole.SALES_REP ||
+        session.user.role === UserRole.CONCIERGE) &&
+        (myLeads || unassigned))
     ) {
       includeObj.referrerCustomer = {
         select: {
@@ -315,9 +371,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // For sales reps viewing all leads (not their own and not unassigned), strip out sensitive data
-    // Unassigned leads show full data so sales reps can claim them
-    if (session.user.role === "SALES_REP" && !myLeads && !unassigned) {
+    // For sales reps/concierges viewing all leads (not their own and not unassigned), strip out sensitive data
+    // Unassigned leads show full data so sales reps/concierges can claim them
+    if (
+      (session.user.role === UserRole.SALES_REP ||
+        session.user.role === UserRole.CONCIERGE) &&
+      !myLeads &&
+      !unassigned
+    ) {
       const limitedLeads = leads.map((lead) => {
         // Type assertion: customer is always included as a single object (not an array)
         // Prisma's include returns customer as a single relation object

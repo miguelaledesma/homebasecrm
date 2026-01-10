@@ -48,7 +48,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const isSalesRep = session?.user.role === "SALES_REP"
+  const isSalesRep = session?.user.role === "SALES_REP" || session?.user.role === "CONCIERGE"
   const [viewMode, setViewMode] = useState<ViewMode>(isSalesRep ? "my" : "all")
 
   const fetchLeads = useCallback(async () => {

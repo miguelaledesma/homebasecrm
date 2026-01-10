@@ -327,9 +327,13 @@ export default function LeadDetailPage() {
     setCreatingAppointment(true);
 
     try {
-      // Determine sales rep ID: use assigned rep or current user if they're a sales rep
+      // Determine sales rep ID: use assigned rep or current user if they're a sales rep or concierge
       let salesRepId = lead?.assignedSalesRepId;
-      if (!salesRepId && session?.user.role === "SALES_REP") {
+      if (
+        !salesRepId &&
+        (session?.user.role === "SALES_REP" ||
+          session?.user.role === "CONCIERGE")
+      ) {
         salesRepId = session.user.id;
       }
       if (!salesRepId) {
@@ -622,13 +626,15 @@ export default function LeadDetailPage() {
 
   const canCreateAppointment =
     (session?.user.role === "ADMIN" ||
-      (session?.user.role === "SALES_REP" &&
+      ((session?.user.role === "SALES_REP" ||
+        session?.user.role === "CONCIERGE") &&
         lead?.assignedSalesRepId === session.user.id)) &&
     lead?.assignedSalesRepId;
 
   const canCreateQuote =
     (session?.user.role === "ADMIN" ||
-      (session?.user.role === "SALES_REP" &&
+      ((session?.user.role === "SALES_REP" ||
+        session?.user.role === "CONCIERGE") &&
         lead?.assignedSalesRepId === session.user.id)) &&
     lead?.assignedSalesRepId;
 
@@ -725,10 +731,11 @@ export default function LeadDetailPage() {
     return <div className="text-center py-8">Lead not found</div>;
   }
 
-  // Check if this is a read-only view for sales rep
+  // Check if this is a read-only view for sales rep or concierge
   const isReadOnly =
     (lead as any)._readOnly ||
-    (session?.user?.role === "SALES_REP" &&
+    ((session?.user?.role === "SALES_REP" ||
+      session?.user?.role === "CONCIERGE") &&
       lead.assignedSalesRepId !== session?.user?.id);
 
   const hasChanges =
@@ -748,11 +755,12 @@ export default function LeadDetailPage() {
     customerZip !== (lead.customer.zip || "") ||
     customerSourceType !== lead.customer.sourceType;
 
-  // Check if user can delete this lead (admin can delete any, sales rep can delete their own)
+  // Check if user can delete this lead (admin can delete any, sales rep/concierge can delete their own)
   const canDelete =
     !isReadOnly &&
     (session?.user?.role === "ADMIN" ||
-      (session?.user?.role === "SALES_REP" &&
+      ((session?.user?.role === "SALES_REP" ||
+        session?.user?.role === "CONCIERGE") &&
         lead.assignedSalesRepId === session?.user?.id));
 
   return (
@@ -1495,7 +1503,8 @@ export default function LeadDetailPage() {
                   const isEditing = editingAppointmentId === appointment.id;
                   const canEdit =
                     session?.user.role === "ADMIN" ||
-                    (session?.user.role === "SALES_REP" &&
+                    ((session?.user.role === "SALES_REP" ||
+                      session?.user.role === "CONCIERGE") &&
                       appointment.salesRep.id === session.user.id);
 
                   return (

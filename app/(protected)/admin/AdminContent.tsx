@@ -34,7 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-type UserRole = "ADMIN" | "SALES_REP"
+type UserRole = "ADMIN" | "SALES_REP" | "CONCIERGE"
 
 interface User {
   id: string
@@ -62,6 +62,7 @@ export function AdminContent() {
   const [userToDelete, setUserToDelete] = useState<{ id: string; email: string; name: string | null } | null>(null)
   const [resettingUserId, setResettingUserId] = useState<string | null>(null)
   const [resetUrl, setResetUrl] = useState<{ userId: string; url: string; email: string } | null>(null)
+  const [updatingRoleUserId, setUpdatingRoleUserId] = useState<string | null>(null)
   
   // Messages
   const [error, setError] = useState("")
@@ -183,6 +184,34 @@ export function AdminContent() {
       setSuccess("")
     } finally {
       setResettingUserId(null)
+    }
+  }
+
+  const handleRoleUpdate = async (userId: string, newRole: UserRole) => {
+    try {
+      setUpdatingRoleUserId(userId)
+      setError("")
+      setSuccess("")
+
+      const response = await fetch(`/api/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update user role")
+      }
+
+      setSuccess(`User role updated successfully!`)
+      fetchUsers()
+    } catch (err: any) {
+      setError(err.message || "Failed to update user role")
+      setSuccess("")
+    } finally {
+      setUpdatingRoleUserId(null)
     }
   }
 
@@ -330,6 +359,11 @@ export function AdminContent() {
                                   <Shield className="h-3 w-3 mr-1" />
                                   Admin
                                 </>
+                              ) : user.role === "CONCIERGE" ? (
+                                <>
+                                  <User className="h-3 w-3 mr-1" />
+                                  Concierge
+                                </>
                               ) : (
                                 <>
                                   <User className="h-3 w-3 mr-1" />
@@ -346,6 +380,24 @@ export function AdminContent() {
                           </p>
                         </div>
                       </div>
+
+                      {/* Role Selector - Only show if not current user */}
+                      {user.id !== session?.user?.id && (
+                        <div className="flex items-center gap-2 sm:gap-3 pt-2 sm:pt-0 border-t sm:border-t-0">
+                          <div className="flex-1 sm:flex-initial min-w-[140px]">
+                            <Select
+                              value={user.role}
+                              onChange={(e) => handleRoleUpdate(user.id, e.target.value as UserRole)}
+                              disabled={updatingRoleUserId === user.id}
+                              className="text-xs sm:text-sm"
+                            >
+                              <option value="ADMIN">Admin</option>
+                              <option value="SALES_REP">Sales Rep</option>
+                              <option value="CONCIERGE">Concierge</option>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Actions */}
                       {user.id !== session?.user?.id && (
@@ -492,7 +544,8 @@ export function AdminContent() {
                     onChange={(e) => setRole(e.target.value as UserRole)}
                     required
                   >
-                    <option value="SALES_REP">Sales Person</option>
+                    <option value="SALES_REP">Sales Rep</option>
+                    <option value="CONCIERGE">Concierge</option>
                     <option value="ADMIN">Admin</option>
                   </Select>
                 </div>

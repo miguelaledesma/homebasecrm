@@ -53,9 +53,9 @@ export async function GET(
       return NextResponse.json({ error: "Quote not found" }, { status: 404 })
     }
 
-    // Check permissions: SALES_REP can only see their quotes
+    // Check permissions: SALES_REP and CONCIERGE can only see their quotes
     if (
-      session.user.role === "SALES_REP" &&
+      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") &&
       quote.salesRepId !== session.user.id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -126,10 +126,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Sales reps can only update status of their own quotes
+    // Sales reps and concierges can only update status of their own quotes
     if (
       status !== undefined &&
-      session.user.role === "SALES_REP" &&
+      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") &&
       existingQuote.salesRepId !== session.user.id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })

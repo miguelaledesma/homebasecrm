@@ -30,11 +30,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ users }, { status: 200 })
     }
 
-    // Return both ADMIN and SALES_REP users for assignment dropdowns
+    // Return ADMIN, SALES_REP, and CONCIERGE users for assignment dropdowns
     const assignableUsers = await prisma.user.findMany({
       where: {
         role: {
-          in: ["ADMIN", "SALES_REP"],
+          in: ["ADMIN", "SALES_REP", "CONCIERGE"],
         },
       },
       select: {

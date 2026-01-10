@@ -86,7 +86,7 @@ export default function TasksPage() {
         .then((res) => res.json())
         .then((data) => {
           const reps = (data.users || []).filter(
-            (u: any) => u.role === "SALES_REP"
+            (u: any) => u.role === "SALES_REP" || u.role === "CONCIERGE"
           )
           setSalesReps(reps)
         })

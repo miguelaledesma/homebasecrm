@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, Calendar, TrendingUp, Target, FileText, CheckCircle, Clock, Award, Bell, AlertCircle, MessageSquare, ArrowRight, AlertTriangle } from "lucide-react"
+import { Users, Calendar, TrendingUp, Target, FileText, CheckCircle, Clock, Award, Bell, AlertCircle, MessageSquare, ArrowRight, AlertTriangle, UserPlus } from "lucide-react"
 
 interface DashboardStats {
   totalLeads: number
@@ -24,7 +24,7 @@ interface DashboardStats {
 
 type Notification = {
   id: string
-  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT"
+  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT" | "CONCIERGE_LEAD"
   read: boolean
   acknowledged: boolean
   createdAt: string
@@ -34,6 +34,11 @@ type Notification = {
       firstName: string
       lastName: string
     }
+    createdByUser: {
+      name: string | null
+      email: string
+      role: string
+    } | null
   } | null
   note: {
     id: string
@@ -133,6 +138,8 @@ export default function DashboardPage() {
         return <AlertCircle className="h-4 w-4 text-orange-500" />
       case "ADMIN_COMMENT":
         return <MessageSquare className="h-4 w-4 text-blue-500" />
+      case "CONCIERGE_LEAD":
+        return <UserPlus className="h-4 w-4 text-green-500" />
       default:
         return <Bell className="h-4 w-4" />
     }
@@ -150,6 +157,15 @@ export default function DashboardPage() {
         notification.note?.createdByUser.email ||
         "Admin"
       return `${adminName} commented on your lead`
+    } else if (notification.type === "CONCIERGE_LEAD") {
+      const customerName = notification.lead
+        ? `${notification.lead.customer.firstName} ${notification.lead.customer.lastName}`
+        : "a new lead"
+      const conciergeName =
+        notification.lead?.createdByUser?.name ||
+        notification.lead?.createdByUser?.email ||
+        "Concierge"
+      return `New lead from ${conciergeName}: ${customerName}`
     }
     return "New notification"
   }

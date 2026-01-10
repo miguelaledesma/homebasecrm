@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Bell, MessageSquare, AlertCircle, X, Check } from "lucide-react"
+import { Bell, MessageSquare, AlertCircle, X, Check, UserPlus } from "lucide-react"
 import Link from "next/link"
 
 type Notification = {
   id: string
-  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT"
+  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT" | "CONCIERGE_LEAD"
   read: boolean
   acknowledged: boolean
   createdAt: string
@@ -18,6 +18,11 @@ type Notification = {
       firstName: string
       lastName: string
     }
+    createdByUser: {
+      name: string | null
+      email: string
+      role: string
+    } | null
   } | null
   note: {
     id: string
@@ -65,6 +70,8 @@ export function NotificationsList({
         return <AlertCircle className="h-4 w-4 text-orange-500" />
       case "ADMIN_COMMENT":
         return <MessageSquare className="h-4 w-4 text-blue-500" />
+      case "CONCIERGE_LEAD":
+        return <UserPlus className="h-4 w-4 text-green-500" />
       default:
         return <Bell className="h-4 w-4" />
     }
@@ -82,6 +89,15 @@ export function NotificationsList({
         notification.note?.createdByUser.email ||
         "Admin"
       return `${adminName} commented on your lead`
+    } else if (notification.type === "CONCIERGE_LEAD") {
+      const customerName = notification.lead
+        ? `${notification.lead.customer.firstName} ${notification.lead.customer.lastName}`
+        : "a new lead"
+      const conciergeName =
+        notification.lead?.createdByUser?.name ||
+        notification.lead?.createdByUser?.email ||
+        "Concierge"
+      return `New lead from ${conciergeName}: ${customerName}`
     }
     return "New notification"
   }

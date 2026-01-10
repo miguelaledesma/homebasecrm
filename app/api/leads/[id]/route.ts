@@ -50,9 +50,10 @@ export async function GET(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // SALES_REP can view any lead, but with limited data if not assigned to them
+    // SALES_REP and CONCIERGE can view any lead, but with limited data if not assigned to them
     if (
-      session.user.role === "SALES_REP" &&
+      (session.user.role === "SALES_REP" ||
+        session.user.role === "CONCIERGE") &&
       lead.assignedSalesRepId !== session.user.id
     ) {
       // Return limited lead data for read-only viewing
@@ -129,9 +130,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // SALES_REP can only update their own leads
+    // SALES_REP and CONCIERGE can only update their own leads
     if (
-      session.user.role === "SALES_REP" &&
+      (session.user.role === "SALES_REP" ||
+        session.user.role === "CONCIERGE") &&
       existingLead.assignedSalesRepId !== session.user.id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -152,11 +154,14 @@ export async function PATCH(
       });
       if (
         !assignedUser ||
-        (assignedUser.role !== "SALES_REP" && assignedUser.role !== "ADMIN")
+        (assignedUser.role !== "SALES_REP" &&
+          assignedUser.role !== "CONCIERGE" &&
+          assignedUser.role !== "ADMIN")
       ) {
         return NextResponse.json(
           {
-            error: "Invalid user - can only assign to Admin or Sales Rep users",
+            error:
+              "Invalid user - can only assign to Admin, Sales Rep, or Concierge users",
           },
           { status: 400 }
         );
@@ -322,9 +327,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // SALES_REP can only delete their own leads, ADMIN can delete any lead
+    // SALES_REP and CONCIERGE can only delete their own leads, ADMIN can delete any lead
     if (
-      session.user.role === "SALES_REP" &&
+      (session.user.role === "SALES_REP" ||
+        session.user.role === "CONCIERGE") &&
       lead.assignedSalesRepId !== session.user.id
     ) {
       return NextResponse.json(

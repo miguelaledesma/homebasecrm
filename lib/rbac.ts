@@ -39,13 +39,13 @@ export async function requireAdmin(): Promise<AuthUser> {
 }
 
 /**
- * Require the user to be a SALES_REP
- * Throws if not authenticated or not sales rep
+ * Require the user to be a SALES_REP or CONCIERGE
+ * Throws if not authenticated or not sales rep/concierge
  */
 export async function requireSalesRep(): Promise<AuthUser> {
   const user = await requireUser()
 
-  if (user.role !== UserRole.SALES_REP) {
+  if (user.role !== UserRole.SALES_REP && user.role !== UserRole.CONCIERGE) {
     redirect("/dashboard")
   }
 
@@ -65,5 +65,12 @@ export async function requireRole(
   }
 
   return user
+}
+
+/**
+ * Check if a role is a sales role (SALES_REP or CONCIERGE)
+ */
+export function isSalesRole(role: UserRole): boolean {
+  return role === UserRole.SALES_REP || role === UserRole.CONCIERGE
 }
 

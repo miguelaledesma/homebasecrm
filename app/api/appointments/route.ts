@@ -52,14 +52,17 @@ export async function POST(request: NextRequest) {
 
     if (
       !salesRep ||
-      (salesRep.role !== "SALES_REP" && salesRep.role !== "ADMIN")
+      (salesRep.role !== "SALES_REP" &&
+        salesRep.role !== "CONCIERGE" &&
+        salesRep.role !== "ADMIN")
     ) {
       return NextResponse.json({ error: "Invalid sales rep" }, { status: 400 });
     }
 
-    // Check permissions: SALES_REP can only create appointments for their assigned leads
+    // Check permissions: SALES_REP and CONCIERGE can only create appointments for their assigned leads
     if (
-      session.user.role === "SALES_REP" &&
+      (session.user.role === "SALES_REP" ||
+        session.user.role === "CONCIERGE") &&
       lead.assignedSalesRepId !== session.user.id
     ) {
       return NextResponse.json(
@@ -150,8 +153,11 @@ export async function GET(request: NextRequest) {
       where.leadId = leadId;
     }
 
-    // Filter by sales rep if user is SALES_REP and myAppointments is true
-    if (myAppointments && session.user.role === "SALES_REP") {
+    // Filter by sales rep if user is SALES_REP or CONCIERGE and myAppointments is true
+    if (
+      myAppointments &&
+      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE")
+    ) {
       where.salesRepId = session.user.id;
     }
 
@@ -209,8 +215,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // For sales reps viewing all appointments (not just their own), strip out sensitive data
-    if (session.user.role === "SALES_REP" && !myAppointments) {
+    // For sales reps/concierges viewing all appointments (not just their own), strip out sensitive data
+    if (
+      (session.user.role === "SALES_REP" ||
+        session.user.role === "CONCIERGE") &&
+      !myAppointments
+    ) {
       const limitedAppointments = appointments.map((appointment) => {
         // Type assertion: lead is always included as a single object (not an array)
         // Prisma's include returns lead as a single relation object

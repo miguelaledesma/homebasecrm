@@ -62,7 +62,7 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const isSalesRep = session?.user.role === "SALES_REP"
+  const isSalesRep = session?.user.role === "SALES_REP" || session?.user.role === "CONCIERGE"
   const [viewMode, setViewMode] = useState<ViewMode>(isSalesRep ? "my" : "all")
 
   const fetchAppointments = useCallback(async () => {

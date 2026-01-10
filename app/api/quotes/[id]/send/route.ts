@@ -22,9 +22,9 @@ export async function POST(
       return NextResponse.json({ error: "Quote not found" }, { status: 404 })
     }
 
-    // SALES_REP can only send their quotes
+    // SALES_REP and CONCIERGE can only send their quotes
     if (
-      session.user.role === "SALES_REP" &&
+      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") &&
       quote.salesRepId !== session.user.id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })

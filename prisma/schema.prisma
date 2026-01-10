@@ -13,6 +13,7 @@ datasource db {
 enum UserRole {
   ADMIN
   SALES_REP
+  CONCIERGE
 }
 
 enum SourceType {
@@ -73,6 +74,7 @@ enum HearAboutUs {
 enum NotificationType {
   LEAD_INACTIVITY
   ADMIN_COMMENT
+  CONCIERGE_LEAD
 }
 
 enum TaskType {

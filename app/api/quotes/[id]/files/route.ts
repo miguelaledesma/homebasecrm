@@ -23,9 +23,9 @@ export async function POST(
       return NextResponse.json({ error: "Quote not found" }, { status: 404 })
     }
 
-    // Check permissions: ADMIN can upload to any quote, SALES_REP only to their own
+    // Check permissions: ADMIN can upload to any quote, SALES_REP and CONCIERGE only to their own
     if (
-      session.user.role === "SALES_REP" &&
+      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") &&
       quote.salesRepId !== session.user.id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -156,9 +156,9 @@ export async function GET(
       return NextResponse.json({ error: "Quote not found" }, { status: 404 })
     }
 
-    // SALES_REP can only see files for their quotes
+    // SALES_REP and CONCIERGE can only see files for their quotes
     if (
-      session.user.role === "SALES_REP" &&
+      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") &&
       quote.salesRepId !== session.user.id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })

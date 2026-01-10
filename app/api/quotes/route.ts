@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // Determine sales rep ID
     let salesRepId = lead.assignedSalesRepId
-    if (!salesRepId && session.user.role === "SALES_REP") {
+    if (!salesRepId && (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE")) {
       salesRepId = session.user.id
     }
     if (!salesRepId) {
@@ -60,9 +60,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check permissions: SALES_REP can only create quotes for their assigned leads
+    // Check permissions: SALES_REP and CONCIERGE can only create quotes for their assigned leads
     if (
-      session.user.role === "SALES_REP" &&
+      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") &&
       lead.assignedSalesRepId !== session.user.id
     ) {
       return NextResponse.json(
