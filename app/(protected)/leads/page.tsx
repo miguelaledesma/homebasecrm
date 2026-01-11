@@ -57,7 +57,55 @@ export default function LeadsPage() {
   const [dismissedAlert, setDismissedAlert] = useState(false)
   const isSalesRep = session?.user.role === "SALES_REP" || session?.user.role === "CONCIERGE"
   const isAdmin = session?.user.role === "ADMIN"
-  const [viewMode, setViewMode] = useState<ViewMode>(isSalesRep ? "my" : "all")
+  
+  // Initialize viewMode from URL params, localStorage, or default based on role
+  const getInitialViewMode = (): ViewMode => {
+    if (typeof window !== "undefined") {
+      // First check URL params
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlViewMode = urlParams.get("view") as ViewMode | null
+      if (urlViewMode && ["my", "all", "unassigned"].includes(urlViewMode)) {
+        return urlViewMode
+      }
+      
+      // Then check localStorage as fallback
+      const storedViewMode = localStorage.getItem("leadsViewMode") as ViewMode | null
+      if (storedViewMode && ["my", "all", "unassigned"].includes(storedViewMode)) {
+        return storedViewMode
+      }
+    }
+    return isSalesRep ? "my" : "all"
+  }
+  
+  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode())
+  
+  // Sync viewMode from URL on mount (in case URL changed externally)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlViewMode = urlParams.get("view") as ViewMode | null
+      if (urlViewMode && ["my", "all", "unassigned"].includes(urlViewMode) && urlViewMode !== viewMode) {
+        setViewMode(urlViewMode)
+      }
+    }
+  }, [viewMode])
+  
+  // Update URL and localStorage when viewMode changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search)
+      urlParams.set("view", viewMode)
+      
+      // Store in localStorage as backup
+      localStorage.setItem("leadsViewMode", viewMode)
+      
+      const newUrl = `/leads?${urlParams.toString()}`
+      // Only update if URL actually changed to avoid infinite loops
+      if (window.location.pathname + window.location.search !== newUrl) {
+        router.replace(newUrl, { scroll: false })
+      }
+    }
+  }, [viewMode, router])
 
   const fetchLeads = useCallback(async () => {
     setLoading(true)
@@ -128,10 +176,32 @@ export default function LeadsPage() {
     return result
   }, [leads, showInactiveOnly])
 
-  // Count inactive leads
+  // Fetch sales rep's own leads separately to calculate inactive count for banner
+  const [myLeadsForCount, setMyLeadsForCount] = useState<Lead[]>([])
+  
+  const fetchMyLeadsForCount = useCallback(async () => {
+    if (isSalesRep) {
+      try {
+        const response = await fetch(`/api/leads?myLeads=true`)
+        if (response.ok) {
+          const data = await response.json()
+          setMyLeadsForCount(data.leads || [])
+        }
+      } catch (error) {
+        console.error("Error fetching my leads for count:", error)
+      }
+    }
+  }, [isSalesRep])
+  
+  useEffect(() => {
+    fetchMyLeadsForCount()
+  }, [fetchMyLeadsForCount])
+  
+  // Count inactive leads - use myLeadsForCount for sales reps, otherwise use current leads
   const inactiveCount = useMemo(() => {
-    return leads.filter((lead) => lead.isInactive === true).length
-  }, [leads])
+    const leadsToCount = (isSalesRep && myLeadsForCount.length > 0) ? myLeadsForCount : leads
+    return leadsToCount.filter((lead) => lead.isInactive === true).length
+  }, [leads, myLeadsForCount, isSalesRep])
 
   // Format time since activity
   const formatTimeSinceActivity = (hours: number | null | undefined): string => {
@@ -373,8 +443,8 @@ export default function LeadsPage() {
         </Link>
       </div>
 
-      {/* Alert Banner for Inactive Leads */}
-      {!dismissedAlert && inactiveCount > 0 && (isAdmin || (isSalesRep && viewMode === "my")) && (
+      {/* Alert Banner for Inactive Leads - Show for admins or sales reps on any tab */}
+      {!dismissedAlert && inactiveCount > 0 && (isAdmin || isSalesRep) && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
