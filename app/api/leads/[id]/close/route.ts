@@ -1,0 +1,140 @@
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { LeadStatus, JobStatus } from "@prisma/client"
+import { logError, logInfo } from "@/lib/utils"
+
+const DEAL_LOST_PREFIX = "Lead marked as lost. Reason:"
+const DEAL_WON_NOTE = "Lead marked as won."
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const leadId = params.id
+    const body = await request.json()
+    const { status, reason, jobStatus } = body as { status?: LeadStatus; reason?: string; jobStatus?: JobStatus | null }
+
+    if (!status || (status !== LeadStatus.WON && status !== LeadStatus.LOST)) {
+      return NextResponse.json(
+        { error: "Status must be WON or LOST" },
+        { status: 400 }
+      )
+    }
+
+    if (status === LeadStatus.LOST && (!reason || !reason.trim())) {
+      return NextResponse.json(
+        { error: "Loss reason is required when marking a lead as lost" },
+        { status: 400 }
+      )
+    }
+
+    const existingLead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: {
+        id: true,
+        status: true,
+        assignedSalesRepId: true,
+        customerId: true,
+        createdAt: true,
+      },
+    })
+
+    if (!existingLead) {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 })
+    }
+
+    // Access control: Admin can close any lead. Sales rep / concierge can close only their leads.
+    if (
+      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") &&
+      existingLead.assignedSalesRepId !== session.user.id
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Always allow setting to WON or LOST (even if already closed, allows changing between them or updating date)
+    // Only prevent if trying to set a non-closed status to itself
+    if (existingLead.status === status && status !== LeadStatus.WON && status !== LeadStatus.LOST) {
+      return NextResponse.json(
+        { error: `Lead is already ${status.toLowerCase()}` },
+        { status: 400 }
+      )
+    }
+
+    const now = new Date()
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedLead = await tx.lead.update({
+        where: { id: leadId },
+        data: {
+          status,
+          closedDate: now,
+          ...(status === LeadStatus.WON && jobStatus !== undefined ? { jobStatus } : {}),
+        },
+        include: {
+          customer: true,
+          assignedSalesRep: {
+            select: { id: true, name: true, email: true },
+          },
+          referrerCustomer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              email: true,
+            },
+          },
+          createdByUser: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      })
+
+      // Create a note when marking as LOST (always, to track reasons)
+      // Create a note when marking as WON only if status is changing
+      if (status === LeadStatus.LOST && reason) {
+        const noteContent = `${DEAL_LOST_PREFIX} ${reason.trim()}`
+        await tx.leadNote.create({
+          data: {
+            leadId,
+            content: noteContent,
+            createdBy: session.user.id,
+          },
+        })
+      } else if (status === LeadStatus.WON && existingLead.status !== LeadStatus.WON) {
+        // Only create WON note if status is actually changing to WON
+        await tx.leadNote.create({
+          data: {
+            leadId,
+            content: DEAL_WON_NOTE,
+            createdBy: session.user.id,
+          },
+        })
+      }
+
+      return updatedLead
+    })
+
+    logInfo("PATCH /api/leads/[id]/close", {
+      userId: session.user.id,
+      leadId,
+      status,
+    })
+
+    return NextResponse.json({ lead: result }, { status: 200 })
+  } catch (error: any) {
+    logError("Error closing lead", error, { leadId: params.id })
+    return NextResponse.json(
+      { error: error.message || "Failed to close lead" },
+      { status: 500 }
+    )
+  }
+}

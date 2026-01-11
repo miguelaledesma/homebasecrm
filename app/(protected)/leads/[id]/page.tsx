@@ -26,7 +26,7 @@ import {
   CheckCircle,
   Upload,
 } from "lucide-react";
-import { LeadStatus, AppointmentStatus, QuoteStatus } from "@prisma/client";
+import { LeadStatus, AppointmentStatus, QuoteStatus, JobStatus } from "@prisma/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,6 +72,8 @@ type Lead = {
   assignedSalesRepId: string | null;
   createdAt: string;
   updatedAt: string;
+  closedDate: string | null;
+  jobStatus: JobStatus | null;
   referrerFirstName: string | null;
   referrerLastName: string | null;
   referrerPhone: string | null;
@@ -158,6 +160,14 @@ type Quote = {
   }>;
 };
 
+const lossReasonOptions = [
+  "Price too high",
+  "Went with competitor",
+  "Timeline too long",
+  "No response / Ghost",
+  "Not interested",
+] as const;
+
 export default function LeadDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -170,7 +180,14 @@ export default function LeadDetailPage() {
   const [assignedSalesRepId, setAssignedSalesRepId] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [selectedLeadTypes, setSelectedLeadTypes] = useState<string[]>([]);
+  const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [closeReason, setCloseReason] = useState<string>(lossReasonOptions[0]);
+  const [closeJobStatus, setCloseJobStatus] = useState<JobStatus | null>(null);
+  const [closingStatus, setClosingStatus] = useState<"WON" | "LOST" | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
 
   // Customer fields
   const [customerFirstName, setCustomerFirstName] = useState<string>("");
@@ -283,6 +300,7 @@ export default function LeadDetailPage() {
       setAssignedSalesRepId(data.lead.assignedSalesRepId || "");
       setDescription(data.lead.description || "");
       setSelectedLeadTypes(data.lead.leadTypes || []);
+      setJobStatus(data.lead.jobStatus || null);
 
       // Set customer fields
       setCustomerFirstName(data.lead.customer.firstName || "");
@@ -653,6 +671,7 @@ export default function LeadDetailPage() {
           assignedSalesRepId: assignedSalesRepId || null,
           description: description || null,
           leadTypes: selectedLeadTypes,
+          jobStatus: status === "WON" ? (jobStatus || null) : null,
           // Customer fields
           firstName: customerFirstName,
           lastName: customerLastName,
@@ -683,6 +702,65 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleCloseLead = async (newStatus: "WON" | "LOST", reason?: string, jobStatus?: JobStatus | null) => {
+    if (!lead) return;
+    setClosing(true);
+    setCloseError(null);
+    try {
+      const response = await fetch(`/api/leads/${leadId}/close`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: newStatus,
+          ...(newStatus === "LOST" ? { reason } : {}),
+          ...(newStatus === "WON" && jobStatus ? { jobStatus } : {}),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to close lead" }));
+        throw new Error(errorData.error || `Failed to close lead: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Close the dialog first
+      setShowCloseDialog(false);
+      setClosingStatus(null);
+      if (newStatus === "LOST") {
+        setCloseReason(lossReasonOptions[0]);
+      } else if (newStatus === "WON") {
+        setCloseJobStatus(null);
+      }
+
+      // Update status immediately
+      if (data.lead) {
+        setStatus(data.lead.status as LeadStatus);
+        setLead(data.lead);
+        setJobStatus(data.lead.jobStatus || null);
+      }
+      
+      // Exit edit mode immediately so UI updates
+      setIsEditMode(false);
+      
+      // Refresh all data in the background (don't let errors here prevent the UI update)
+      try {
+        await Promise.all([fetchLead(), fetchNotes()]);
+      } catch (refreshError) {
+        console.error("Error refreshing data after close:", refreshError);
+        // Don't throw - the status is already updated above
+      }
+      
+      router.refresh();
+    } catch (error: any) {
+      console.error("Error closing lead:", error);
+      setCloseError(error.message || "Failed to close lead");
+      // Keep dialog open on error so user can try again
+    } finally {
+      setClosing(false);
+    }
+  };
+
   const handleCancelEdit = () => {
     // Reset to original values
     if (lead) {
@@ -690,6 +768,7 @@ export default function LeadDetailPage() {
       setAssignedSalesRepId(lead.assignedSalesRepId || "");
       setDescription(lead.description || "");
       setSelectedLeadTypes(lead.leadTypes || []);
+      setJobStatus(lead.jobStatus || null);
       setCustomerFirstName(lead.customer.firstName || "");
       setCustomerLastName(lead.customer.lastName || "");
       setCustomerPhone(lead.customer.phone || "");
@@ -748,6 +827,7 @@ export default function LeadDetailPage() {
     description !== (lead.description || "") ||
     JSON.stringify(selectedLeadTypes.sort()) !==
       JSON.stringify((lead.leadTypes || []).sort()) ||
+    (status === "WON" && jobStatus !== (lead.jobStatus || null)) ||
     customerFirstName !== (lead.customer.firstName || "") ||
     customerLastName !== (lead.customer.lastName || "") ||
     customerPhone !== (lead.customer.phone || "") ||
@@ -760,12 +840,8 @@ export default function LeadDetailPage() {
     customerSourceType !== lead.customer.sourceType;
 
   // Check if user can delete this lead (admin can delete any, sales rep/concierge can delete their own)
-  const canDelete =
-    !isReadOnly &&
-    (session?.user?.role === "ADMIN" ||
-      ((session?.user?.role === "SALES_REP" ||
-        session?.user?.role === "CONCIERGE") &&
-        lead.assignedSalesRepId === session?.user?.id));
+  // Only admins can delete leads
+  const canDelete = !isReadOnly && session?.user?.role === "ADMIN";
 
   return (
     <div className="space-y-6">
@@ -905,7 +981,87 @@ export default function LeadDetailPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <>
+          <AlertDialog
+            open={showCloseDialog}
+            onOpenChange={(open) => {
+              setShowCloseDialog(open);
+              if (!open) {
+                setClosingStatus(null);
+                setCloseError(null);
+                setCloseReason(lossReasonOptions[0]);
+                setCloseJobStatus(null);
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {closingStatus === "WON" ? "Mark Lead as Won" : "Mark Lead as Lost"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {closingStatus === "WON"
+                    ? "Select the job status for this won lead. A note will be added automatically."
+                    : "Select a reason for closing this lead. A note will be added automatically."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="space-y-3">
+                {closingStatus === "LOST" ? (
+                  <>
+                    <Label className="text-sm font-medium text-muted-foreground">
+                      Loss Reason
+                    </Label>
+                    <Select value={closeReason} onChange={(e) => setCloseReason(e.target.value)}>
+                      {lossReasonOptions.map((reason) => (
+                        <option key={reason} value={reason}>
+                          {reason}
+                        </option>
+                      ))}
+                    </Select>
+                  </>
+                ) : (
+                  <>
+                    <Label className="text-sm font-medium text-muted-foreground">
+                      Job Status
+                    </Label>
+                    <Select
+                      value={closeJobStatus || ""}
+                      onChange={(e) =>
+                        setCloseJobStatus(e.target.value ? (e.target.value as JobStatus) : null)
+                      }
+                    >
+                      <option value="">Not set</option>
+                      <option value="SCHEDULED">Scheduled</option>
+                      <option value="IN_PROGRESS">In Progress</option>
+                      <option value="DONE">Done</option>
+                    </Select>
+                  </>
+                )}
+                {closeError && <p className="text-sm text-destructive">{closeError}</p>}
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={closing}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    if (closingStatus === "LOST" && closeReason && !closing) {
+                      handleCloseLead("LOST", closeReason);
+                    } else if (closingStatus === "WON" && !closing) {
+                      handleCloseLead("WON", undefined, closeJobStatus);
+                    }
+                  }}
+                  disabled={
+                    closing ||
+                    (closingStatus === "LOST" && !closeReason) ||
+                    (closingStatus === "WON" && false) // Job status is optional for WON
+                  }
+                >
+                  {closing ? "Closing..." : "Confirm Close"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Customer Information */}
           <Card>
             <CardHeader>
@@ -1118,18 +1274,97 @@ export default function LeadDetailPage() {
                       <option value="ASSIGNED">Assigned</option>
                       <option value="APPOINTMENT_SET">Appointment Set</option>
                       <option value="QUOTED">Quoted</option>
-                      <option value="WON">Won</option>
-                      <option value="LOST">Lost</option>
+                      <option value="WON" disabled>
+                        Won
+                      </option>
+                      <option value="LOST" disabled>
+                        Lost
+                      </option>
                     </Select>
                   </div>
+
+                  {/* Job Status - Only show when status is WON */}
+                  {status === "WON" && (
+                    <div>
+                      <Label
+                        htmlFor="jobStatus"
+                        className="text-sm font-medium text-muted-foreground mb-2"
+                      >
+                        Job Status
+                      </Label>
+                      <Select
+                        id="jobStatus"
+                        value={jobStatus || ""}
+                        onChange={(e) => setJobStatus(e.target.value ? (e.target.value as JobStatus) : null)}
+                      >
+                        <option value="">Not set</option>
+                        <option value="SCHEDULED">Scheduled</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="DONE">Done</option>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  {/* Close Lead Section - Only show when editing and status is not WON or LOST */}
+                  {status !== "WON" && status !== "LOST" && (
+                    <div className="pt-3 border-t">
+                      <Label className="text-sm font-medium text-muted-foreground mb-2">
+                        Close Lead
+                      </Label>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Mark this lead as won or lost. Lost reasons will be added to notes automatically.
+                      </p>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          variant="outline"
+                          className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+                          onClick={() => {
+                            setClosingStatus("WON");
+                            setShowCloseDialog(true);
+                            setCloseError(null);
+                            setCloseJobStatus(null);
+                          }}
+                          disabled={closing}
+                          size="sm"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Mark as Won
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="bg-red-50 hover:bg-red-100 border-red-200 text-red-700"
+                          onClick={() => {
+                            setClosingStatus("LOST");
+                            setShowCloseDialog(true);
+                            setCloseError(null);
+                          }}
+                          disabled={closing}
+                          size="sm"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Mark as Lost
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Status
-                  </p>
-                  <p>{status.replace("_", " ")}</p>
-                </div>
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Status
+                    </p>
+                    <p>{status.replace("_", " ")}</p>
+                  </div>
+                  {status === "WON" && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Job Status
+                      </p>
+                      <p>{jobStatus ? jobStatus.replace("_", " ") : "Not set"}</p>
+                    </div>
+                  )}
+                </>
               )}
 
               {isEditMode ? (
@@ -1345,7 +1580,8 @@ export default function LeadDetailPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+          </div>
+        </>
       )}
 
       {/* Appointments Section - Only show if not read-only */}
@@ -2021,9 +2257,7 @@ export default function LeadDetailPage() {
                         </div>
                         <div className="text-sm text-muted-foreground space-y-1">
                           {quote.quoteNumber && (
-                            <div>
-                              Estimate #: {quote.quoteNumber}
-                            </div>
+                            <div>Estimate #: {quote.quoteNumber}</div>
                           )}
                           <div>
                             Created:{" "}

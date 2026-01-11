@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { LeadStatus, LeadType, SourceType } from "@prisma/client";
+import { LeadStatus, LeadType, SourceType, JobStatus } from "@prisma/client";
 import { logInfo, logError, logAction } from "@/lib/utils";
 
 export async function GET(
@@ -108,6 +108,7 @@ export async function PATCH(
       assignedSalesRepId,
       description,
       leadTypes,
+      jobStatus,
       // Customer fields
       firstName,
       lastName,
@@ -160,6 +161,28 @@ export async function PATCH(
       );
     }
 
+    // Validate jobStatus - only allowed for WON leads
+    if (jobStatus !== undefined) {
+      if (status && status !== "WON" && existingLead.status !== "WON") {
+        return NextResponse.json(
+          { error: "Job status can only be set for leads with WON status" },
+          { status: 400 }
+        );
+      }
+      if (existingLead.status !== "WON" && status !== "WON") {
+        return NextResponse.json(
+          { error: "Job status can only be set for leads with WON status" },
+          { status: 400 }
+        );
+      }
+      if (jobStatus && !["SCHEDULED", "IN_PROGRESS", "DONE"].includes(jobStatus)) {
+        return NextResponse.json(
+          { error: "Invalid job status. Must be SCHEDULED, IN_PROGRESS, or DONE" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Verify assigned user exists and is either ADMIN or SALES_REP
     if (assignedSalesRepId) {
       const assignedUser = await prisma.user.findUnique({
@@ -207,6 +230,9 @@ export async function PATCH(
       }
 
       updateData.leadTypes = providedTypes as LeadType[];
+    }
+    if (jobStatus !== undefined) {
+      updateData.jobStatus = jobStatus ? (jobStatus as JobStatus) : null;
     }
 
     // Update customer if customer fields are provided
@@ -340,14 +366,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // SALES_REP and CONCIERGE can only delete their own leads, ADMIN can delete any lead
-    if (
-      (session.user.role === "SALES_REP" ||
-        session.user.role === "CONCIERGE") &&
-      lead.assignedSalesRepId !== session.user.id
-    ) {
+    // Only admins can delete leads
+    if (session.user.role !== "ADMIN") {
       return NextResponse.json(
-        { error: "You can only delete leads assigned to you" },
+        { error: "Only admins can delete leads" },
         { status: 403 }
       );
     }

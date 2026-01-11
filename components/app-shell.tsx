@@ -13,6 +13,7 @@ import {
   Calendar,
   FileText,
   CheckSquare,
+  TrendingUp,
   Settings,
   LogOut,
   Menu,
@@ -27,6 +28,7 @@ const navigation = [
   { name: "Appointments", href: "/appointments", icon: Calendar },
   { name: "Quotes", href: "/quotes", icon: FileText },
   { name: "Tasks", href: "/tasks", icon: CheckSquare },
+  { name: "Won & Lost", href: "/won-lost", icon: TrendingUp },
   { name: "Admin", href: "/admin", icon: Settings },
 ]
 
@@ -178,9 +180,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [notificationsOpen])
 
-  // Filter navigation based on user role - only show Admin for admins
+  // Filter navigation based on user role - only show Admin and Won & Lost for admins
   const filteredNavigation = navigation.filter(
-    (item) => item.name !== "Admin" || session?.user?.role === "ADMIN"
+    (item) =>
+      (item.name !== "Admin" && item.name !== "Won & Lost") ||
+      session?.user?.role === "ADMIN"
   )
 
   return (

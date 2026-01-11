@@ -49,6 +49,12 @@ enum LeadStatus {
   LOST
 }
 
+enum JobStatus {
+  SCHEDULED
+  IN_PROGRESS
+  DONE
+}
+
 enum AppointmentStatus {
   SCHEDULED
   COMPLETED
@@ -97,14 +103,14 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  assignedLeads      Lead[]             @relation("AssignedSalesRep")
-  createdLeads       Lead[]             @relation("LeadCreator")
-  appointments       Appointment[]
-  quotes             Quote[]
-  uploadedQuoteFiles QuoteFile[]
-  leadNotes          LeadNote[]         @relation("LeadNoteCreator")
-  notifications      Notification[]
-  tasks              Task[]
+  assignedLeads       Lead[]               @relation("AssignedSalesRep")
+  createdLeads        Lead[]               @relation("LeadCreator")
+  appointments        Appointment[]
+  quotes              Quote[]
+  uploadedQuoteFiles  QuoteFile[]
+  leadNotes           LeadNote[]           @relation("LeadNoteCreator")
+  notifications       Notification[]
+  tasks               Task[]
   passwordResetTokens PasswordResetToken[]
 
   @@map("users")
@@ -171,6 +177,8 @@ model Lead {
   leadTypes          LeadType[]
   description        String?
   status             LeadStatus @default(NEW)
+  closedDate         DateTime?
+  jobStatus          JobStatus? // Only relevant when status is WON
   assignedSalesRepId String?
   createdBy          String? // ID of user who created the lead
   createdAt          DateTime   @default(now())

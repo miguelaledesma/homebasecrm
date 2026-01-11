@@ -205,7 +205,7 @@ export default function LeadsPage() {
 
   // Format time since activity
   const formatTimeSinceActivity = (hours: number | null | undefined): string => {
-    if (hours === null || hours === undefined) return "Never"
+    if (hours === null || hours === undefined) return "Closed/Inactive"
     if (hours < 24) return "Today"
     const days = Math.floor(hours / 24)
     if (days === 1) return "1 day ago"
@@ -377,9 +377,6 @@ export default function LeadsPage() {
           cellRenderer: (params: any) => {
             const isInactive = params.data.isInactive
             const timeText = params.value
-            const days = params.data.hoursSinceActivity 
-              ? Math.floor(params.data.hoursSinceActivity / 24)
-              : 0
             
             return (
               <div className="flex items-center gap-2">
@@ -389,11 +386,6 @@ export default function LeadsPage() {
                 <span className={isInactive ? "text-amber-700 font-medium" : ""}>
                   {timeText}
                 </span>
-                {isInactive && days > 0 && (
-                  <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-300">
-                    {days}d
-                  </Badge>
-                )}
               </div>
             )
           },
