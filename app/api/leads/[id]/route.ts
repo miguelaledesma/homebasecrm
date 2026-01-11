@@ -139,10 +139,23 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Only ADMIN can assign sales reps
-    if (assignedSalesRepId && session.user.role !== "ADMIN") {
+    // Only ADMIN can assign or change sales rep assignment
+    // Check if assignment is being changed (new value different from existing, or being set when currently null)
+    if (
+      assignedSalesRepId !== undefined &&
+      assignedSalesRepId !== existingLead.assignedSalesRepId &&
+      session.user.role !== "ADMIN"
+    ) {
       return NextResponse.json(
         { error: "Only admins can assign sales reps" },
+        { status: 403 }
+      );
+    }
+
+    // Only ADMIN can set status to LOST or WON
+    if (status && (status === "LOST" || status === "WON") && session.user.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Only admins can set lead status to Lost or Won" },
         { status: 403 }
       );
     }

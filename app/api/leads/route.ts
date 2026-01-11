@@ -10,6 +10,7 @@ import {
   NotificationType,
 } from "@prisma/client";
 import { logInfo, logError, logAction } from "@/lib/utils";
+import { getLastActivityTimestamp } from "@/lib/lead-activity";
 
 export async function POST(request: NextRequest) {
   try {
@@ -371,6 +372,74 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Calculate inactivity for leads that need it
+    // Only calculate for: assigned leads, not in terminal states, and when user should see this info
+    const shouldCalculateInactivity =
+      (session.user.role === UserRole.ADMIN) ||
+      (session.user.role === UserRole.SALES_REP && myLeads) ||
+      (session.user.role === UserRole.CONCIERGE && myLeads);
+
+    let leadsWithInactivity: any[] = leads as any[];
+
+    if (shouldCalculateInactivity) {
+      // Calculate inactivity in parallel for all leads
+      leadsWithInactivity = await Promise.all(
+        leads.map(async (lead) => {
+          // Only calculate for assigned leads not in terminal states
+          if (
+            !lead.assignedSalesRepId ||
+            lead.status === "WON" ||
+            lead.status === "LOST"
+          ) {
+            return {
+              ...lead,
+              isInactive: false,
+              hoursSinceActivity: null,
+              lastActivityTimestamp: null,
+              needsFollowUp: false,
+            } as any;
+          }
+
+          try {
+            const lastActivity = await getLastActivityTimestamp(lead.id);
+            const hoursSinceActivity = lastActivity
+              ? (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60)
+              : null;
+            const isInactive = hoursSinceActivity !== null && hoursSinceActivity > 48;
+
+            return {
+              ...lead,
+              isInactive,
+              hoursSinceActivity,
+              lastActivityTimestamp: lastActivity?.toISOString() || null,
+              needsFollowUp: isInactive,
+            } as any;
+          } catch (error) {
+            // If calculation fails, don't break the response
+            logError("Error calculating inactivity for lead", error, {
+              leadId: lead.id,
+            });
+            return {
+              ...lead,
+              isInactive: false,
+              hoursSinceActivity: null,
+              lastActivityTimestamp: null,
+              needsFollowUp: false,
+            } as any;
+          }
+        })
+      );
+    } else {
+      // For users who don't need inactivity data, add null values
+      leadsWithInactivity = leads.map((lead) => ({
+        ...lead,
+        isInactive: false,
+        hoursSinceActivity: null,
+        lastActivityTimestamp: null,
+        needsFollowUp: false,
+      } as any));
+    }
+
     // For sales reps/concierges viewing all leads (not their own and not unassigned), strip out sensitive data
     // Unassigned leads show full data so sales reps/concierges can claim them
     if (
@@ -379,7 +448,7 @@ export async function GET(request: NextRequest) {
       !myLeads &&
       !unassigned
     ) {
-      const limitedLeads = leads.map((lead) => {
+      const limitedLeads = leadsWithInactivity.map((lead) => {
         // Type assertion: customer is always included as a single object (not an array)
         // Prisma's include returns customer as a single relation object
         const leadWithCustomer = lead as typeof lead & {
@@ -401,6 +470,11 @@ export async function GET(request: NextRequest) {
           // Include status and created date for context
           status: lead.status,
           createdAt: lead.createdAt,
+          // Include inactivity data even in limited view (for read-only awareness)
+          isInactive: false,
+          hoursSinceActivity: null,
+          lastActivityTimestamp: null,
+          needsFollowUp: false,
         };
       });
       logInfo("GET /api/leads - Returning limited leads for sales rep", {
@@ -413,10 +487,10 @@ export async function GET(request: NextRequest) {
     logInfo("GET /api/leads - Returning leads", {
       userId: session.user.id,
       userRole: session.user.role,
-      leadCount: leads.length,
+      leadCount: leadsWithInactivity.length,
     });
 
-    return NextResponse.json({ leads }, { status: 200 });
+    return NextResponse.json({ leads: leadsWithInactivity }, { status: 200 });
   } catch (error: any) {
     const session = await getServerSession(authOptions);
     logError("Error fetching leads", error, {

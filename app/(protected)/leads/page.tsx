@@ -7,7 +7,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Filter } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Plus, Filter, AlertCircle, Bell, X } from "lucide-react"
 import { LeadStatus } from "@prisma/client"
 import { AgGridReact } from "ag-grid-react"
 import { ColDef, ModuleRegistry, AllCommunityModule } from "ag-grid-community"
@@ -38,6 +39,10 @@ type Lead = {
     name: string | null
     email: string
   } | null
+  isInactive?: boolean
+  hoursSinceActivity?: number | null
+  lastActivityTimestamp?: string | null
+  needsFollowUp?: boolean
 }
 
 type ViewMode = "my" | "all" | "unassigned"
@@ -48,7 +53,10 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [showInactiveOnly, setShowInactiveOnly] = useState(false)
+  const [dismissedAlert, setDismissedAlert] = useState(false)
   const isSalesRep = session?.user.role === "SALES_REP" || session?.user.role === "CONCIERGE"
+  const isAdmin = session?.user.role === "ADMIN"
   const [viewMode, setViewMode] = useState<ViewMode>(isSalesRep ? "my" : "all")
 
   const fetchLeads = useCallback(async () => {
@@ -100,6 +108,39 @@ export default function LeadsPage() {
   }
 
   const isViewingAllLeads = isSalesRep && viewMode === "all"
+
+  // Filter and sort leads
+  const filteredLeads = useMemo(() => {
+    let result = [...leads]
+    
+    // Filter by inactive if needed
+    if (showInactiveOnly) {
+      result = result.filter((lead) => lead.isInactive === true)
+    }
+    
+    // Auto-sort: inactive leads first
+    result.sort((a, b) => {
+      if (a.isInactive && !b.isInactive) return -1
+      if (!a.isInactive && b.isInactive) return 1
+      return 0
+    })
+    
+    return result
+  }, [leads, showInactiveOnly])
+
+  // Count inactive leads
+  const inactiveCount = useMemo(() => {
+    return leads.filter((lead) => lead.isInactive === true).length
+  }, [leads])
+
+  // Format time since activity
+  const formatTimeSinceActivity = (hours: number | null | undefined): string => {
+    if (hours === null || hours === undefined) return "Never"
+    if (hours < 24) return "Today"
+    const days = Math.floor(hours / 24)
+    if (days === 1) return "1 day ago"
+    return `${days} days ago`
+  }
 
   const columnDefs: ColDef[] = useMemo(
     () => {
@@ -254,9 +295,42 @@ export default function LeadsPage() {
           flex: 1,
           minWidth: 100,
         },
+        // Only show Last Activity column for admins or sales reps viewing their own leads
+        ...((isAdmin || (isSalesRep && viewMode === "my")) ? [{
+          field: "lastActivityTimestamp",
+          headerName: "Last Activity",
+          valueGetter: (params: any) => {
+            return formatTimeSinceActivity(params.data.hoursSinceActivity)
+          },
+          flex: 1,
+          minWidth: 150,
+          cellRenderer: (params: any) => {
+            const isInactive = params.data.isInactive
+            const timeText = params.value
+            const days = params.data.hoursSinceActivity 
+              ? Math.floor(params.data.hoursSinceActivity / 24)
+              : 0
+            
+            return (
+              <div className="flex items-center gap-2">
+                {isInactive && (
+                  <Bell className="h-4 w-4 text-amber-600" />
+                )}
+                <span className={isInactive ? "text-amber-700 font-medium" : ""}>
+                  {timeText}
+                </span>
+                {isInactive && days > 0 && (
+                  <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-300">
+                    {days}d
+                  </Badge>
+                )}
+              </div>
+            )
+          },
+        }] : []),
       ]
     },
-    [isViewingAllLeads]
+    [isViewingAllLeads, isAdmin, isSalesRep, viewMode]
   )
 
   const defaultColDef = useMemo(
@@ -298,6 +372,50 @@ export default function LeadsPage() {
           </Button>
         </Link>
       </div>
+
+      {/* Alert Banner for Inactive Leads */}
+      {!dismissedAlert && inactiveCount > 0 && (isAdmin || (isSalesRep && viewMode === "my")) && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <Bell className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-amber-900 mb-1">
+                  {inactiveCount} {inactiveCount === 1 ? "lead needs" : "leads need"} follow-up
+                </h3>
+                <p className="text-sm text-amber-700 mb-3">
+                  These leads have been inactive for over 48 hours. Please update the status, add a note, or contact an Admin to close or mark as Won.
+                </p>
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    className="bg-amber-600 hover:bg-amber-700"
+                    onClick={() => setShowInactiveOnly(true)}
+                  >
+                    View Inactive Leads
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    className="text-amber-700 hover:text-amber-900 hover:bg-amber-100"
+                    onClick={() => setDismissedAlert(true)}
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+              <button
+                onClick={() => setDismissedAlert(true)}
+                className="text-amber-600 hover:text-amber-900 transition-colors"
+                aria-label="Dismiss alert"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* View Mode Tabs - Only show for sales reps */}
       {isSalesRep && (
@@ -355,6 +473,29 @@ export default function LeadsPage() {
             <option value="WON">Won</option>
             <option value="LOST">Lost</option>
           </Select>
+          {/* Show inactive filter only for admins or sales reps viewing their own leads */}
+          {(isAdmin || (isSalesRep && viewMode === "my")) && (
+            <label className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 px-3 py-2 rounded-md transition-colors">
+              <input
+                type="checkbox"
+                checked={showInactiveOnly}
+                onChange={(e) => {
+                  setShowInactiveOnly(e.target.checked)
+                  if (e.target.checked) setDismissedAlert(true)
+                }}
+                className="rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+              />
+              <span className="flex items-center gap-1.5">
+                <Bell className="h-4 w-4 text-amber-600" />
+                <span className="text-amber-900 font-medium">Show only inactive leads</span>
+                {inactiveCount > 0 && (
+                  <Badge className="ml-1 bg-amber-100 text-amber-800 border-amber-300 text-xs">
+                    {inactiveCount}
+                  </Badge>
+                )}
+              </span>
+            </label>
+          )}
         </div>
         {isViewingAllLeads && (
           <div className="text-xs text-muted-foreground sm:ml-auto">
@@ -385,7 +526,7 @@ export default function LeadsPage() {
               style={{ height: "650px", width: "100%" }}
             >
               <AgGridReact
-                rowData={leads}
+                rowData={filteredLeads}
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
                 onRowClicked={(event) => {
@@ -394,7 +535,21 @@ export default function LeadsPage() {
                     router.push(`/leads/${event.data.id}`)
                   }
                 }}
-                rowStyle={{ cursor: isViewingAllLeads ? "default" : "pointer" }}
+                {...({
+                  rowStyle: (params: any) => {
+                    const baseStyle: any = { cursor: isViewingAllLeads ? "default" : "pointer" }
+                    // Highlight inactive leads with amber left border and subtle background
+                    if (params.data?.isInactive) {
+                      return { 
+                        ...baseStyle, 
+                        backgroundColor: "#fffbeb", // amber-50
+                        borderLeft: "4px solid #fbbf24", // amber-400
+                        paddingLeft: "8px"
+                      }
+                    }
+                    return baseStyle
+                  }
+                } as any)}
                 pagination={true}
                 paginationPageSize={20}
                 suppressCellFocus={true}

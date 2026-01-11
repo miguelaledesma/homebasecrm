@@ -282,7 +282,7 @@ export function AdminContent() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
-        <TabsList className="grid w-full max-w-full sm:max-w-md grid-cols-3 h-auto">
+        <TabsList className="grid w-full max-w-full sm:max-w-md grid-cols-2 h-auto">
           <TabsTrigger value="users" className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-1.5 text-xs sm:text-sm">
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span>Users</span>
@@ -292,11 +292,12 @@ export function AdminContent() {
             <span className="hidden sm:inline">Invitations</span>
             <span className="sm:hidden">Invite</span>
           </TabsTrigger>
-          <TabsTrigger value="followups" className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-1.5 text-xs sm:text-sm">
+          {/* Follow-ups tab hidden for now - see docs/ADMIN_FOLLOWUPS_OPTIMIZATION.md */}
+          {/* <TabsTrigger value="followups" className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-1.5 text-xs sm:text-sm">
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="hidden sm:inline">Follow-ups</span>
             <span className="sm:hidden">Follow</span>
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         {/* Users Tab */}
@@ -610,8 +611,8 @@ export function AdminContent() {
           )}
         </TabsContent>
 
-        {/* Follow-ups Tab */}
-        <TabsContent value="followups" className="mt-4 md:mt-6">
+        {/* Follow-ups Tab - Hidden for now, see docs/ADMIN_FOLLOWUPS_OPTIMIZATION.md */}
+        {/* <TabsContent value="followups" className="mt-4 md:mt-6">
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
@@ -626,7 +627,7 @@ export function AdminContent() {
               <AdminFollowUps />
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
 
       {/* Delete User Dialog */}
