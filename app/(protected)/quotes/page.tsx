@@ -6,7 +6,17 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, FileText } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import {
+  DollarSign,
+  FileText,
+  Calendar,
+  User,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Loader2,
+} from "lucide-react"
 import { QuoteStatus } from "@prisma/client"
 import { formatLeadTypes } from "@/lib/utils"
 
@@ -31,6 +41,18 @@ type Quote = {
   files: Array<{
     id: string
   }>
+  salesRep?: {
+    id: string
+    name: string | null
+    email: string
+  }
+}
+
+type PaginationInfo = {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
 }
 
 export default function QuotesPage() {
@@ -38,6 +60,8 @@ export default function QuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null)
 
   const fetchQuotes = useCallback(async () => {
     setLoading(true)
@@ -46,55 +70,105 @@ export default function QuotesPage() {
       if (statusFilter !== "all") {
         params.append("status", statusFilter)
       }
+      params.append("page", page.toString())
+      params.append("limit", "20")
 
       const response = await fetch(`/api/quotes?${params.toString()}`)
       if (!response.ok) throw new Error("Failed to fetch quotes")
 
       const data = await response.json()
-      setQuotes(data.quotes)
+      setQuotes(data.quotes || [])
+      setPagination(data.pagination || null)
     } catch (error) {
       console.error("Error fetching quotes:", error)
     } finally {
       setLoading(false)
     }
-  }, [statusFilter])
+  }, [statusFilter, page])
 
   useEffect(() => {
     fetchQuotes()
   }, [fetchQuotes])
 
-  const getStatusColor = (status: QuoteStatus) => {
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setPage(1)
+  }, [statusFilter])
+
+  const getStatusBadgeVariant = (status: QuoteStatus): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case "DRAFT":
-        return "bg-gray-100 text-gray-800"
+        return "outline"
       case "SENT":
-        return "bg-blue-100 text-blue-800"
+        return "default"
       case "ACCEPTED":
-        return "bg-green-100 text-green-800"
+        return "default"
       case "DECLINED":
-        return "bg-red-100 text-red-800"
+        return "destructive"
       case "EXPIRED":
-        return "bg-orange-100 text-orange-800"
+        return "secondary"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "outline"
     }
   }
 
+  const getStatusColor = (status: QuoteStatus) => {
+    switch (status) {
+      case "DRAFT":
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+      case "SENT":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+      case "ACCEPTED":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+      case "DECLINED":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+      case "EXPIRED":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+    }
+  }
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return null
+    const date = new Date(dateString)
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  const isExpired = (expiresAt: string | null) => {
+    if (!expiresAt) return false
+    return new Date(expiresAt) < new Date()
+  }
+
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Quotes</h1>
-        <p className="text-sm md:text-base text-muted-foreground">Manage your quotes</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Quotes</h1>
+          <p className="text-muted-foreground mt-1">
+            {pagination ? `Total: ${pagination.total} quote${pagination.total !== 1 ? "s" : ""}` : "Manage your quotes"}
+          </p>
+        </div>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-lg">Filters</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+            <div className="flex-1 max-w-xs">
               <label className="text-sm font-medium mb-2 block">Status</label>
               <Select
                 value={statusFilter}
@@ -114,85 +188,189 @@ export default function QuotesPage() {
 
       {/* Quotes List */}
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground">
-          Loading quotes...
-        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Loading quotes...</p>
+          </CardContent>
+        </Card>
       ) : quotes.length === 0 ? (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            No quotes found.
+          <CardContent className="py-12 text-center">
+            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
+            <p className="text-lg font-medium mb-2">No quotes found</p>
+            <p className="text-sm text-muted-foreground">
+              {statusFilter !== "all"
+                ? "Try adjusting your filters to see more results."
+                : "Get started by creating a quote for a lead."}
+            </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {quotes.map((quote) => (
-            <Link key={quote.id} href={`/quotes/${quote.id}`}>
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4 md:p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <DollarSign className="h-5 w-5 text-muted-foreground" />
-                        <Link
-                          href={`/quotes/${quote.id}`}
-                          className="text-lg font-semibold hover:underline"
-                        >
-                          {new Intl.NumberFormat("en-US", {
-                            style: "currency",
-                            currency: quote.currency,
-                          }).format(quote.amount)}
-                        </Link>
-                        {quote.quoteNumber && (
-                          <span className="text-sm text-muted-foreground">
-                            (#{quote.quoteNumber})
-                          </span>
-                        )}
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(
-                            quote.status
-                          )}`}
-                        >
-                          {quote.status}
-                        </span>
+        <>
+          <div className="grid gap-4">
+            {quotes.map((quote) => (
+              <Link key={quote.id} href={`/quotes/${quote.id}`}>
+                <Card className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-transparent hover:border-l-primary">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      {/* Left Section - Main Info */}
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-start gap-4">
+                          <div className="p-2 rounded-lg bg-primary/10">
+                            <DollarSign className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 flex-wrap mb-2">
+                              <h3 className="text-xl font-semibold">
+                                {new Intl.NumberFormat("en-US", {
+                                  style: "currency",
+                                  currency: quote.currency,
+                                }).format(quote.amount)}
+                              </h3>
+                              {quote.quoteNumber && (
+                                <span className="text-sm text-muted-foreground font-mono">
+                                  #{quote.quoteNumber}
+                                </span>
+                              )}
+                              <Badge
+                                variant={getStatusBadgeVariant(quote.status)}
+                                className={getStatusColor(quote.status)}
+                              >
+                                {quote.status}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                              <Link
+                                href={`/leads/${quote.lead.id}`}
+                                className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <User className="h-4 w-4" />
+                                <span className="font-medium">
+                                  {quote.lead.customer.firstName}{" "}
+                                  {quote.lead.customer.lastName}
+                                </span>
+                              </Link>
+                              <span className="text-xs">•</span>
+                              <span className="text-xs">
+                                {formatLeadTypes(quote.lead.leadTypes || [])}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        <div>
-                          <Link
-                            href={`/leads/${quote.lead.id}`}
-                            className="hover:underline"
-                          >
-                            {quote.lead.customer.firstName}{" "}
-                            {quote.lead.customer.lastName}
-                          </Link>
-                          <span className="ml-2">({formatLeadTypes(quote.lead.leadTypes || [])})</span>
+
+                      {/* Right Section - Metadata */}
+                      <div className="flex flex-col sm:flex-row lg:flex-col gap-3 lg:items-end lg:text-right">
+                        <div className="space-y-2 text-sm">
+                          {quote.createdAt && (
+                            <div className="flex items-center gap-1.5 lg:justify-end text-muted-foreground">
+                              <Calendar className="h-3.5 w-3.5" />
+                              <span>Created {formatDate(quote.createdAt)}</span>
+                            </div>
+                          )}
+                          {quote.sentAt && (
+                            <div className="flex items-center gap-1.5 lg:justify-end text-muted-foreground">
+                              <Calendar className="h-3.5 w-3.5" />
+                              <span>Sent {formatDate(quote.sentAt)}</span>
+                            </div>
+                          )}
+                          {quote.expiresAt && (
+                            <div
+                              className={`flex items-center gap-1.5 lg:justify-end ${
+                                isExpired(quote.expiresAt)
+                                  ? "text-red-600 dark:text-red-400 font-medium"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              <Calendar className="h-3.5 w-3.5" />
+                              <span>
+                                {isExpired(quote.expiresAt) ? "Expired " : "Expires "}
+                                {formatDate(quote.expiresAt)}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          Created: {new Date(quote.createdAt).toLocaleString()}
-                        </div>
-                        {quote.sentAt && (
-                          <div>
-                            Sent: {new Date(quote.sentAt).toLocaleString()}
-                          </div>
-                        )}
-                        {quote.expiresAt && (
-                          <div>
-                            Expires: {new Date(quote.expiresAt).toLocaleString()}
-                          </div>
-                        )}
                         {quote.files.length > 0 && (
-                          <div className="flex items-center gap-1 mt-2">
+                          <div className="flex items-center gap-1.5 lg:justify-end text-sm text-muted-foreground">
                             <FileText className="h-4 w-4" />
-                            <span>{quote.files.length} file(s)</span>
+                            <span>
+                              {quote.files.length} file{quote.files.length !== 1 ? "s" : ""}
+                            </span>
                           </div>
                         )}
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+                    {pagination.total} quotes
                   </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1 || loading}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <span className="sr-only sm:not-sr-only sm:ml-2">Previous</span>
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                        let pageNum: number
+                        if (pagination.totalPages <= 5) {
+                          pageNum = i + 1
+                        } else if (page <= 3) {
+                          pageNum = i + 1
+                        } else if (page >= pagination.totalPages - 2) {
+                          pageNum = pagination.totalPages - 4 + i
+                        } else {
+                          pageNum = page - 2 + i
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={page === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setPage(pageNum)}
+                            disabled={loading}
+                            className="min-w-[2.5rem]"
+                          >
+                            {pageNum}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setPage((p) => Math.min(pagination.totalPages, p + 1))
+                      }
+                      disabled={page === pagination.totalPages || loading}
+                    >
+                      <span className="sr-only sm:not-sr-only sm:mr-2">Next</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </div>
   )

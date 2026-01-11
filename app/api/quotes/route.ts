@@ -165,6 +165,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const leadId = searchParams.get("leadId")
     const status = searchParams.get("status")
+    const page = parseInt(searchParams.get("page") || "1", 10)
+    const limit = parseInt(searchParams.get("limit") || "20", 10)
+
+    // Validate pagination parameters
+    const pageNum = Math.max(1, page)
+    const limitNum = Math.min(Math.max(1, limit), 100) // Cap at 100 items per page
+    const skip = (pageNum - 1) * limitNum
 
     const where: any = {}
 
@@ -178,10 +185,13 @@ export async function GET(request: NextRequest) {
       where.status = status as QuoteStatus
     }
 
-    // Filter by sales rep: SALES_REP only sees their quotes
-    if (session.user.role === "SALES_REP") {
+    // Filter by sales rep: SALES_REP and CONCIERGE only see their quotes
+    if (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") {
       where.salesRepId = session.user.id
     }
+
+    // Get total count for pagination
+    const total = await prisma.quote.count({ where })
 
     const quotes = await prisma.quote.findMany({
       where,
@@ -214,9 +224,22 @@ export async function GET(request: NextRequest) {
       orderBy: {
         createdAt: "desc",
       },
+      skip,
+      take: limitNum,
     })
 
-    return NextResponse.json({ quotes }, { status: 200 })
+    return NextResponse.json(
+      {
+        quotes,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.ceil(total / limitNum),
+        },
+      },
+      { status: 200 }
+    )
   } catch (error: any) {
     console.error("Error fetching quotes:", error)
     return NextResponse.json(
