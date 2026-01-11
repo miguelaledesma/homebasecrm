@@ -120,6 +120,7 @@ export function WonLostContent() {
 
   useEffect(() => {
     fetchLeads().catch((err) => console.error(err))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search])
 
   // Reset to page 1 when search changes

@@ -26,7 +26,12 @@ import {
   CheckCircle,
   Upload,
 } from "lucide-react";
-import { LeadStatus, AppointmentStatus, QuoteStatus, JobStatus } from "@prisma/client";
+import {
+  LeadStatus,
+  AppointmentStatus,
+  QuoteStatus,
+  JobStatus,
+} from "@prisma/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -185,7 +190,9 @@ export default function LeadDetailPage() {
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [closeReason, setCloseReason] = useState<string>(lossReasonOptions[0]);
   const [closeJobStatus, setCloseJobStatus] = useState<JobStatus | null>(null);
-  const [closingStatus, setClosingStatus] = useState<"WON" | "LOST" | null>(null);
+  const [closingStatus, setClosingStatus] = useState<"WON" | "LOST" | null>(
+    null
+  );
   const [closing, setClosing] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
 
@@ -671,7 +678,7 @@ export default function LeadDetailPage() {
           assignedSalesRepId: assignedSalesRepId || null,
           description: description || null,
           leadTypes: selectedLeadTypes,
-          jobStatus: status === "WON" ? (jobStatus || null) : null,
+          jobStatus: status === "WON" ? jobStatus || null : null,
           // Customer fields
           firstName: customerFirstName,
           lastName: customerLastName,
@@ -702,7 +709,11 @@ export default function LeadDetailPage() {
     }
   };
 
-  const handleCloseLead = async (newStatus: "WON" | "LOST", reason?: string, jobStatus?: JobStatus | null) => {
+  const handleCloseLead = async (
+    newStatus: "WON" | "LOST",
+    reason?: string,
+    jobStatus?: JobStatus | null
+  ) => {
     if (!lead) return;
     setClosing(true);
     setCloseError(null);
@@ -718,8 +729,12 @@ export default function LeadDetailPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Failed to close lead" }));
-        throw new Error(errorData.error || `Failed to close lead: ${response.statusText}`);
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Failed to close lead" }));
+        throw new Error(
+          errorData.error || `Failed to close lead: ${response.statusText}`
+        );
       }
 
       const data = await response.json();
@@ -739,10 +754,10 @@ export default function LeadDetailPage() {
         setLead(data.lead);
         setJobStatus(data.lead.jobStatus || null);
       }
-      
+
       // Exit edit mode immediately so UI updates
       setIsEditMode(false);
-      
+
       // Refresh all data in the background (don't let errors here prevent the UI update)
       try {
         await Promise.all([fetchLead(), fetchNotes()]);
@@ -750,7 +765,7 @@ export default function LeadDetailPage() {
         console.error("Error refreshing data after close:", refreshError);
         // Don't throw - the status is already updated above
       }
-      
+
       router.refresh();
     } catch (error: any) {
       console.error("Error closing lead:", error);
@@ -997,7 +1012,9 @@ export default function LeadDetailPage() {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {closingStatus === "WON" ? "Mark Lead as Won" : "Mark Lead as Lost"}
+                  {closingStatus === "WON"
+                    ? "Mark Lead as Won"
+                    : "Mark Lead as Lost"}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   {closingStatus === "WON"
@@ -1011,7 +1028,10 @@ export default function LeadDetailPage() {
                     <Label className="text-sm font-medium text-muted-foreground">
                       Loss Reason
                     </Label>
-                    <Select value={closeReason} onChange={(e) => setCloseReason(e.target.value)}>
+                    <Select
+                      value={closeReason}
+                      onChange={(e) => setCloseReason(e.target.value)}
+                    >
                       {lossReasonOptions.map((reason) => (
                         <option key={reason} value={reason}>
                           {reason}
@@ -1027,7 +1047,9 @@ export default function LeadDetailPage() {
                     <Select
                       value={closeJobStatus || ""}
                       onChange={(e) =>
-                        setCloseJobStatus(e.target.value ? (e.target.value as JobStatus) : null)
+                        setCloseJobStatus(
+                          e.target.value ? (e.target.value as JobStatus) : null
+                        )
                       }
                     >
                       <option value="">Not set</option>
@@ -1037,7 +1059,9 @@ export default function LeadDetailPage() {
                     </Select>
                   </>
                 )}
-                {closeError && <p className="text-sm text-destructive">{closeError}</p>}
+                {closeError && (
+                  <p className="text-sm text-destructive">{closeError}</p>
+                )}
               </div>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={closing}>Cancel</AlertDialogCancel>
@@ -1062,524 +1086,547 @@ export default function LeadDetailPage() {
           </AlertDialog>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Customer Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Customer Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {isEditMode ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="customerFirstName">First Name *</Label>
-                      <Input
-                        id="customerFirstName"
-                        value={customerFirstName}
-                        onChange={(e) => setCustomerFirstName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="customerLastName">Last Name *</Label>
-                      <Input
-                        id="customerLastName"
-                        value={customerLastName}
-                        onChange={(e) => setCustomerLastName(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="customerPhone">Phone</Label>
-                      <Input
-                        id="customerPhone"
-                        type="tel"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="customerEmail">Email</Label>
-                      <Input
-                        id="customerEmail"
-                        type="email"
-                        value={customerEmail}
-                        onChange={(e) => setCustomerEmail(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="customerAddressLine1">Address Line 1</Label>
-                    <Input
-                      id="customerAddressLine1"
-                      value={customerAddressLine1}
-                      onChange={(e) => setCustomerAddressLine1(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="customerAddressLine2">Address Line 2</Label>
-                    <Input
-                      id="customerAddressLine2"
-                      value={customerAddressLine2}
-                      onChange={(e) => setCustomerAddressLine2(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="customerCity">City</Label>
-                      <Input
-                        id="customerCity"
-                        value={customerCity}
-                        onChange={(e) => setCustomerCity(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="customerState">State</Label>
-                      <Input
-                        id="customerState"
-                        value={customerState}
-                        onChange={(e) => setCustomerState(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="customerZip">ZIP</Label>
-                      <Input
-                        id="customerZip"
-                        value={customerZip}
-                        onChange={(e) => setCustomerZip(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="customerSourceType">Source Type *</Label>
-                    <Select
-                      id="customerSourceType"
-                      value={customerSourceType}
-                      onChange={(e) => setCustomerSourceType(e.target.value)}
-                      required
-                    >
-                      <option value="CALL_IN">Call In</option>
-                      <option value="WALK_IN">Walk In</option>
-                      <option value="REFERRAL">Referral</option>
-                    </Select>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Name
-                    </p>
-                    <p className="text-lg">
-                      {lead.customer.firstName} {lead.customer.lastName}
-                    </p>
-                  </div>
-                  {lead.customer.phone && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Phone
-                      </p>
-                      <p>{formatPhoneNumber(lead.customer.phone)}</p>
-                    </div>
-                  )}
-                  {lead.customer.email && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Email
-                      </p>
-                      <p>{lead.customer.email}</p>
-                    </div>
-                  )}
-                  {(lead.customer.addressLine1 ||
-                    lead.customer.city ||
-                    lead.customer.state) && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Address
-                      </p>
-                      <p>
-                        {lead.customer.addressLine1}
-                        {lead.customer.addressLine2 && (
-                          <>, {lead.customer.addressLine2}</>
-                        )}
-                        <br />
-                        {lead.customer.city && <>{lead.customer.city}, </>}
-                        {lead.customer.state} {lead.customer.zip}
-                      </p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Source
-                    </p>
-                    <p>{lead.customer.sourceType.replace("_", " ")}</p>
-                  </div>
-                  {(lead.isMilitaryFirstResponder || lead.isContractor) && (
-                    <div className="pt-4 border-t">
-                      <p className="text-sm font-medium text-muted-foreground mb-2">
-                        Additional Information
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {lead.isMilitaryFirstResponder && (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            Military/First Responder
-                          </span>
-                        )}
-                        {lead.isContractor && (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            Contractor
-                          </span>
-                        )}
+            {/* Customer Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Customer Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {isEditMode ? (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="customerFirstName">First Name *</Label>
+                        <Input
+                          id="customerFirstName"
+                          value={customerFirstName}
+                          onChange={(e) => setCustomerFirstName(e.target.value)}
+                          required
+                        />
                       </div>
-                      {lead.isContractor && lead.contractorLicenseNumber && (
-                        <div className="mt-2">
-                          <p className="text-sm font-medium text-muted-foreground">
-                            License #
-                          </p>
-                          <p className="text-sm">
-                            {lead.contractorLicenseNumber}
-                          </p>
-                        </div>
-                      )}
+                      <div>
+                        <Label htmlFor="customerLastName">Last Name *</Label>
+                        <Input
+                          id="customerLastName"
+                          value={customerLastName}
+                          onChange={(e) => setCustomerLastName(e.target.value)}
+                          required
+                        />
+                      </div>
                     </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Lead Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Lead Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {isEditMode ? (
-                <>
-                  <div>
-                    <Label
-                      htmlFor="status"
-                      className="text-sm font-medium text-muted-foreground mb-2"
-                    >
-                      Status
-                    </Label>
-                    <Select
-                      id="status"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as LeadStatus)}
-                    >
-                      <option value="NEW">New</option>
-                      <option value="ASSIGNED">Assigned</option>
-                      <option value="APPOINTMENT_SET">Appointment Set</option>
-                      <option value="QUOTED">Quoted</option>
-                      <option value="WON" disabled>
-                        Won
-                      </option>
-                      <option value="LOST" disabled>
-                        Lost
-                      </option>
-                    </Select>
-                  </div>
-
-                  {/* Job Status - Only show when status is WON */}
-                  {status === "WON" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="customerPhone">Phone</Label>
+                        <Input
+                          id="customerPhone"
+                          type="tel"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="customerEmail">Email</Label>
+                        <Input
+                          id="customerEmail"
+                          type="email"
+                          value={customerEmail}
+                          onChange={(e) => setCustomerEmail(e.target.value)}
+                        />
+                      </div>
+                    </div>
                     <div>
-                      <Label
-                        htmlFor="jobStatus"
-                        className="text-sm font-medium text-muted-foreground mb-2"
-                      >
-                        Job Status
+                      <Label htmlFor="customerAddressLine1">
+                        Address Line 1
                       </Label>
+                      <Input
+                        id="customerAddressLine1"
+                        value={customerAddressLine1}
+                        onChange={(e) =>
+                          setCustomerAddressLine1(e.target.value)
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="customerAddressLine2">
+                        Address Line 2
+                      </Label>
+                      <Input
+                        id="customerAddressLine2"
+                        value={customerAddressLine2}
+                        onChange={(e) =>
+                          setCustomerAddressLine2(e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="customerCity">City</Label>
+                        <Input
+                          id="customerCity"
+                          value={customerCity}
+                          onChange={(e) => setCustomerCity(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="customerState">State</Label>
+                        <Input
+                          id="customerState"
+                          value={customerState}
+                          onChange={(e) => setCustomerState(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="customerZip">ZIP</Label>
+                        <Input
+                          id="customerZip"
+                          value={customerZip}
+                          onChange={(e) => setCustomerZip(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="customerSourceType">Source Type *</Label>
                       <Select
-                        id="jobStatus"
-                        value={jobStatus || ""}
-                        onChange={(e) => setJobStatus(e.target.value ? (e.target.value as JobStatus) : null)}
+                        id="customerSourceType"
+                        value={customerSourceType}
+                        onChange={(e) => setCustomerSourceType(e.target.value)}
+                        required
                       >
-                        <option value="">Not set</option>
-                        <option value="SCHEDULED">Scheduled</option>
-                        <option value="IN_PROGRESS">In Progress</option>
-                        <option value="DONE">Done</option>
+                        <option value="CALL_IN">Call In</option>
+                        <option value="WALK_IN">Walk In</option>
+                        <option value="REFERRAL">Referral</option>
                       </Select>
                     </div>
-                  )}
-                  
-                  {/* Close Lead Section - Only show when editing and status is not WON or LOST */}
-                  {status !== "WON" && status !== "LOST" && (
-                    <div className="pt-3 border-t">
-                      <Label className="text-sm font-medium text-muted-foreground mb-2">
-                        Close Lead
-                      </Label>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Mark this lead as won or lost. Lost reasons will be added to notes automatically.
-                      </p>
-                      <div className="flex gap-2 flex-wrap">
-                        <Button
-                          variant="outline"
-                          className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
-                          onClick={() => {
-                            setClosingStatus("WON");
-                            setShowCloseDialog(true);
-                            setCloseError(null);
-                            setCloseJobStatus(null);
-                          }}
-                          disabled={closing}
-                          size="sm"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Mark as Won
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="bg-red-50 hover:bg-red-100 border-red-200 text-red-700"
-                          onClick={() => {
-                            setClosingStatus("LOST");
-                            setShowCloseDialog(true);
-                            setCloseError(null);
-                          }}
-                          disabled={closing}
-                          size="sm"
-                        >
-                          <X className="h-4 w-4 mr-2" />
-                          Mark as Lost
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Status
-                    </p>
-                    <p>{status.replace("_", " ")}</p>
-                  </div>
-                  {status === "WON" && (
+                  </>
+                ) : (
+                  <>
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">
-                        Job Status
+                        Name
                       </p>
-                      <p>{jobStatus ? jobStatus.replace("_", " ") : "Not set"}</p>
+                      <p className="text-lg">
+                        {lead.customer.firstName} {lead.customer.lastName}
+                      </p>
                     </div>
-                  )}
-                </>
-              )}
-
-              {isEditMode ? (
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground mb-2">
-                    Lead Types
-                  </Label>
-                  <div className="mt-2 space-y-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {leadTypeOptions.map((option) => (
-                        <div
-                          key={option.value}
-                          className="flex items-center space-x-2"
-                        >
-                          <Checkbox
-                            id={`leadType-${option.value}`}
-                            checked={selectedLeadTypes.includes(option.value)}
-                            onChange={(e) =>
-                              handleLeadTypeChange(
-                                option.value,
-                                e.target.checked
-                              )
-                            }
-                          />
-                          <Label
-                            htmlFor={`leadType-${option.value}`}
-                            className="text-sm font-normal cursor-pointer"
-                          >
-                            {option.label}
-                          </Label>
+                    {lead.customer.phone && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Phone
+                        </p>
+                        <p>{formatPhoneNumber(lead.customer.phone)}</p>
+                      </div>
+                    )}
+                    {lead.customer.email && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Email
+                        </p>
+                        <p>{lead.customer.email}</p>
+                      </div>
+                    )}
+                    {(lead.customer.addressLine1 ||
+                      lead.customer.city ||
+                      lead.customer.state) && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Address
+                        </p>
+                        <p>
+                          {lead.customer.addressLine1}
+                          {lead.customer.addressLine2 && (
+                            <>, {lead.customer.addressLine2}</>
+                          )}
+                          <br />
+                          {lead.customer.city && <>{lead.customer.city}, </>}
+                          {lead.customer.state} {lead.customer.zip}
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Source
+                      </p>
+                      <p>{lead.customer.sourceType.replace("_", " ")}</p>
+                    </div>
+                    {(lead.isMilitaryFirstResponder || lead.isContractor) && (
+                      <div className="pt-4 border-t">
+                        <p className="text-sm font-medium text-muted-foreground mb-2">
+                          Additional Information
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {lead.isMilitaryFirstResponder && (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              Military/First Responder
+                            </span>
+                          )}
+                          {lead.isContractor && (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              Contractor
+                            </span>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Lead Types
-                  </p>
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    {(lead.leadTypes || []).map((type: string, idx: number) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground"
-                      >
-                        {formatLeadType(type)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+                        {lead.isContractor && lead.contractorLicenseNumber && (
+                          <div className="mt-2">
+                            <p className="text-sm font-medium text-muted-foreground">
+                              License #
+                            </p>
+                            <p className="text-sm">
+                              {lead.contractorLicenseNumber}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
 
-              {isEditMode ? (
-                <>
-                  {session?.user.role === "ADMIN" && (
+            {/* Lead Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Lead Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {isEditMode ? (
+                  <>
                     <div>
                       <Label
-                        htmlFor="assignedSalesRep"
+                        htmlFor="status"
                         className="text-sm font-medium text-muted-foreground mb-2"
                       >
-                        Assigned To
+                        Status
                       </Label>
                       <Select
-                        id="assignedSalesRep"
-                        value={assignedSalesRepId}
-                        onChange={(e) => setAssignedSalesRepId(e.target.value)}
+                        id="status"
+                        value={status}
+                        onChange={(e) =>
+                          setStatus(e.target.value as LeadStatus)
+                        }
                       >
-                        <option value="">Unassigned</option>
-                        {salesReps.map((rep) => (
-                          <option key={rep.id} value={rep.id}>
-                            {rep.name || rep.email}{" "}
-                            {rep.role === "ADMIN" ? "(Admin)" : "(Sales Rep)"}
-                          </option>
+                        <option value="NEW">New</option>
+                        <option value="ASSIGNED">Assigned</option>
+                        <option value="APPOINTMENT_SET">Appointment Set</option>
+                        <option value="QUOTED">Quoted</option>
+                        <option value="WON" disabled>
+                          Won
+                        </option>
+                        <option value="LOST" disabled>
+                          Lost
+                        </option>
+                      </Select>
+                    </div>
+
+                    {/* Job Status - Only show when status is WON */}
+                    {status === "WON" && (
+                      <div>
+                        <Label
+                          htmlFor="jobStatus"
+                          className="text-sm font-medium text-muted-foreground mb-2"
+                        >
+                          Job Status
+                        </Label>
+                        <Select
+                          id="jobStatus"
+                          value={jobStatus || ""}
+                          onChange={(e) =>
+                            setJobStatus(
+                              e.target.value
+                                ? (e.target.value as JobStatus)
+                                : null
+                            )
+                          }
+                        >
+                          <option value="">Not set</option>
+                          <option value="SCHEDULED">Scheduled</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="DONE">Done</option>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Close Lead Section - Only show when editing and status is not WON or LOST */}
+                    {status !== "WON" && status !== "LOST" && (
+                      <div className="pt-3 border-t">
+                        <Label className="text-sm font-medium text-muted-foreground mb-2">
+                          Close Lead
+                        </Label>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Mark this lead as won or lost. Lost reasons will be
+                          added to notes automatically.
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            variant="outline"
+                            className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+                            onClick={() => {
+                              setClosingStatus("WON");
+                              setShowCloseDialog(true);
+                              setCloseError(null);
+                              setCloseJobStatus(null);
+                            }}
+                            disabled={closing}
+                            size="sm"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Mark as Won
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="bg-red-50 hover:bg-red-100 border-red-200 text-red-700"
+                            onClick={() => {
+                              setClosingStatus("LOST");
+                              setShowCloseDialog(true);
+                              setCloseError(null);
+                            }}
+                            disabled={closing}
+                            size="sm"
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Mark as Lost
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Status
+                      </p>
+                      <p>{status.replace("_", " ")}</p>
+                    </div>
+                    {status === "WON" && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Job Status
+                        </p>
+                        <p>
+                          {jobStatus ? jobStatus.replace("_", " ") : "Not set"}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {isEditMode ? (
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground mb-2">
+                      Lead Types
+                    </Label>
+                    <div className="mt-2 space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                        {leadTypeOptions.map((option) => (
+                          <div
+                            key={option.value}
+                            className="flex items-center space-x-2"
+                          >
+                            <Checkbox
+                              id={`leadType-${option.value}`}
+                              checked={selectedLeadTypes.includes(option.value)}
+                              onChange={(e) =>
+                                handleLeadTypeChange(
+                                  option.value,
+                                  e.target.checked
+                                )
+                              }
+                            />
+                            <Label
+                              htmlFor={`leadType-${option.value}`}
+                              className="text-sm font-normal cursor-pointer"
+                            >
+                              {option.label}
+                            </Label>
+                          </div>
                         ))}
-                      </Select>
+                      </div>
                     </div>
-                  )}
-                  <div>
-                    <Label
-                      htmlFor="description"
-                      className="text-sm font-medium text-muted-foreground mb-2"
-                    >
-                      Description
-                    </Label>
-                    <Textarea
-                      id="description"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Enter lead description..."
-                      rows={4}
-                      className="mt-1"
-                    />
                   </div>
-                </>
-              ) : (
-                <>
-                  {lead.assignedSalesRep && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Assigned To
-                      </p>
-                      <p>
-                        {lead.assignedSalesRep.name ||
-                          lead.assignedSalesRep.email}
-                      </p>
-                    </div>
-                  )}
-                  {lead.createdByUser && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Created By
-                      </p>
-                      <p>
-                        {lead.createdByUser.name || lead.createdByUser.email}
-                      </p>
-                    </div>
-                  )}
-                  {lead.description && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Description
-                      </p>
-                      <p className="mt-1 whitespace-pre-wrap">
-                        {lead.description}
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {lead.customer.sourceType === "REFERRAL" &&
-                (lead.referrerFirstName ||
-                  lead.referrerLastName ||
-                  lead.referrerPhone ||
-                  lead.referrerEmail) && (
-                  <div className="pt-3 border-t">
-                    <p className="text-sm font-medium text-muted-foreground mb-2">
-                      Referred By
+                ) : (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Lead Types
                     </p>
-                    <div className="space-y-1">
-                      {(lead.referrerFirstName || lead.referrerLastName) && (
-                        <p className="text-sm font-semibold">
-                          {lead.referrerFirstName} {lead.referrerLastName}
-                        </p>
-                      )}
-                      {lead.referrerPhone && (
-                        <p className="text-sm text-muted-foreground">
-                          Phone: {formatPhoneNumber(lead.referrerPhone)}
-                        </p>
-                      )}
-                      {lead.referrerEmail && (
-                        <p className="text-sm text-muted-foreground">
-                          Email: {lead.referrerEmail}
-                        </p>
-                      )}
-                      {lead.referrerIsCustomer && lead.referrerCustomer && (
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950 px-2 py-1 rounded">
-                            ✓ Existing Customer
-                          </span>
-                          <Link
-                            href={`/customers/${lead.referrerCustomer.id}`}
-                            className="text-xs text-primary hover:underline"
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {(lead.leadTypes || []).map(
+                        (type: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground"
                           >
-                            View Customer Profile
-                          </Link>
-                        </div>
-                      )}
-                      {lead.referrerIsCustomer === false && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Not in system
-                        </p>
+                            {formatLeadType(type)}
+                          </span>
+                        )
                       )}
                     </div>
                   </div>
                 )}
 
-              {lead.hearAboutUs && (
-                <div className="pt-3 border-t">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Where did you hear about us?
-                  </p>
-                  <p className="text-sm">
-                    {lead.hearAboutUs === "YELP" && "Yelp"}
-                    {lead.hearAboutUs === "FACEBOOK" && "Facebook"}
-                    {lead.hearAboutUs === "DRIVING_BY" && "Driving By"}
-                    {lead.hearAboutUs === "OTHER" &&
-                      (lead.hearAboutUsOther || "Other")}
-                  </p>
-                </div>
-              )}
+                {isEditMode ? (
+                  <>
+                    {session?.user.role === "ADMIN" && (
+                      <div>
+                        <Label
+                          htmlFor="assignedSalesRep"
+                          className="text-sm font-medium text-muted-foreground mb-2"
+                        >
+                          Assigned To
+                        </Label>
+                        <Select
+                          id="assignedSalesRep"
+                          value={assignedSalesRepId}
+                          onChange={(e) =>
+                            setAssignedSalesRepId(e.target.value)
+                          }
+                        >
+                          <option value="">Unassigned</option>
+                          {salesReps.map((rep) => (
+                            <option key={rep.id} value={rep.id}>
+                              {rep.name || rep.email}{" "}
+                              {rep.role === "ADMIN" ? "(Admin)" : "(Sales Rep)"}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    )}
+                    <div>
+                      <Label
+                        htmlFor="description"
+                        className="text-sm font-medium text-muted-foreground mb-2"
+                      >
+                        Description
+                      </Label>
+                      <Textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Enter lead description..."
+                        rows={4}
+                        className="mt-1"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {lead.assignedSalesRep && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Assigned To
+                        </p>
+                        <p>
+                          {lead.assignedSalesRep.name ||
+                            lead.assignedSalesRep.email}
+                        </p>
+                      </div>
+                    )}
+                    {lead.createdByUser && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Created By
+                        </p>
+                        <p>
+                          {lead.createdByUser.name || lead.createdByUser.email}
+                        </p>
+                      </div>
+                    )}
+                    {lead.description && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Description
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap">
+                          {lead.description}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
 
-              <div className="pt-3 border-t -mb-3">
-                <div className="flex justify-between items-center">
-                  <div>
+                {lead.customer.sourceType === "REFERRAL" &&
+                  (lead.referrerFirstName ||
+                    lead.referrerLastName ||
+                    lead.referrerPhone ||
+                    lead.referrerEmail) && (
+                    <div className="pt-3 border-t">
+                      <p className="text-sm font-medium text-muted-foreground mb-2">
+                        Referred By
+                      </p>
+                      <div className="space-y-1">
+                        {(lead.referrerFirstName || lead.referrerLastName) && (
+                          <p className="text-sm font-semibold">
+                            {lead.referrerFirstName} {lead.referrerLastName}
+                          </p>
+                        )}
+                        {lead.referrerPhone && (
+                          <p className="text-sm text-muted-foreground">
+                            Phone: {formatPhoneNumber(lead.referrerPhone)}
+                          </p>
+                        )}
+                        {lead.referrerEmail && (
+                          <p className="text-sm text-muted-foreground">
+                            Email: {lead.referrerEmail}
+                          </p>
+                        )}
+                        {lead.referrerIsCustomer && lead.referrerCustomer && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950 px-2 py-1 rounded">
+                              ✓ Existing Customer
+                            </span>
+                            <Link
+                              href={`/customers/${lead.referrerCustomer.id}`}
+                              className="text-xs text-primary hover:underline"
+                            >
+                              View Customer Profile
+                            </Link>
+                          </div>
+                        )}
+                        {lead.referrerIsCustomer === false && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Not in system
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                {lead.hearAboutUs && (
+                  <div className="pt-3 border-t">
                     <p className="text-sm font-medium text-muted-foreground">
-                      Created
+                      Where did you hear about us?
                     </p>
                     <p className="text-sm">
-                      {new Date(lead.createdAt).toLocaleString()}
+                      {lead.hearAboutUs === "YELP" && "Yelp"}
+                      {lead.hearAboutUs === "FACEBOOK" && "Facebook"}
+                      {lead.hearAboutUs === "DRIVING_BY" && "Driving By"}
+                      {lead.hearAboutUs === "OTHER" &&
+                        (lead.hearAboutUsOther || "Other")}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Updated
-                    </p>
-                    <p className="text-sm">
-                      {new Date(lead.updatedAt).toLocaleString()}
-                    </p>
+                )}
+
+                <div className="pt-3 border-t -mb-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Created
+                      </p>
+                      <p className="text-sm">
+                        {new Date(lead.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Updated
+                      </p>
+                      <p className="text-sm">
+                        {new Date(lead.updatedAt).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           </div>
         </>
       )}

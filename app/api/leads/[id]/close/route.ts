@@ -60,13 +60,8 @@ export async function PATCH(
     }
 
     // Always allow setting to WON or LOST (even if already closed, allows changing between them or updating date)
-    // Only prevent if trying to set a non-closed status to itself
-    if (existingLead.status === status && status !== LeadStatus.WON && status !== LeadStatus.LOST) {
-      return NextResponse.json(
-        { error: `Lead is already ${status.toLowerCase()}` },
-        { status: 400 }
-      )
-    }
+    // Note: Since we validate status must be WON or LOST above, this check is mainly for clarity
+    // We allow re-setting WON/LOST to update the closedDate
 
     const now = new Date()
 
