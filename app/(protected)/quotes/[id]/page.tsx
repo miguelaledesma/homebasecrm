@@ -1,14 +1,20 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useRef, useCallback } from "react"
-import { useSession } from "next-auth/react"
-import { useRouter, useParams } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,183 +25,206 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { ArrowLeft, DollarSign, FileText, Upload, Send, Download, Trash2, Edit2, Save, X, User } from "lucide-react"
-import { QuoteStatus } from "@prisma/client"
-import { formatLeadTypes } from "@/lib/utils"
+} from "@/components/ui/alert-dialog";
+import {
+  ArrowLeft,
+  DollarSign,
+  FileText,
+  Upload,
+  Send,
+  Download,
+  Trash2,
+  Edit2,
+  Save,
+  X,
+  User,
+  Eye,
+} from "lucide-react";
+import { QuoteStatus } from "@prisma/client";
+import { formatLeadTypes } from "@/lib/utils";
 
 type Quote = {
-  id: string
-  quoteNumber: string | null
-  amount: number
-  currency: string
-  status: QuoteStatus
-  sentAt: string | null
-  expiresAt: string | null
-  createdAt: string
-  updatedAt: string
+  id: string;
+  quoteNumber: string | null;
+  amount: number;
+  currency: string;
+  status: QuoteStatus;
+  sentAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
   lead: {
-    id: string
-    leadTypes: string[]
+    id: string;
+    leadTypes: string[];
     customer: {
-      id: string
-      firstName: string
-      lastName: string
-    }
-  }
+      id: string;
+      firstName: string;
+      lastName: string;
+    };
+  };
   appointment: {
-    id: string
-    scheduledFor: string
-  } | null
+    id: string;
+    scheduledFor: string;
+  } | null;
   salesRep: {
-    id: string
-    name: string | null
-    email: string
-  }
+    id: string;
+    name: string | null;
+    email: string;
+  };
   files: Array<{
-    id: string
-    fileUrl: string
-    fileType: string | null
-    uploadedAt: string
+    id: string;
+    fileUrl: string;
+    fileName?: string;
+    fileType: string | null;
+    uploadedAt: string;
     uploadedBy: {
-      id: string
-      name: string | null
-      email: string
-    }
-  }>
-}
+      id: string;
+      name: string | null;
+      email: string;
+    };
+  }>;
+};
 
 export default function QuoteDetailPage() {
-  const router = useRouter()
-  const params = useParams()
-  const { data: session } = useSession()
-  const [quote, setQuote] = useState<Quote | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
-  const [sending, setSending] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [updating, setUpdating] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [status, setStatus] = useState<QuoteStatus>("DRAFT")
-  const [amount, setAmount] = useState<string>("")
-  const [expiresAt, setExpiresAt] = useState<string>("")
-  const [originalAmount, setOriginalAmount] = useState<string>("")
-  const [originalExpiresAt, setOriginalExpiresAt] = useState<string>("")
-  const [originalStatus, setOriginalStatus] = useState<QuoteStatus>("DRAFT")
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter();
+  const params = useParams();
+  const { data: session } = useSession();
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [status, setStatus] = useState<QuoteStatus>("DRAFT");
+  const [amount, setAmount] = useState<string>("");
+  const [expiresAt, setExpiresAt] = useState<string>("");
+  const [originalAmount, setOriginalAmount] = useState<string>("");
+  const [originalExpiresAt, setOriginalExpiresAt] = useState<string>("");
+  const [originalStatus, setOriginalStatus] = useState<QuoteStatus>("DRAFT");
+  const [viewingFile, setViewingFile] = useState<{
+    url: string;
+    name: string;
+    type: string | null;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const quoteId = params.id as string
+  const quoteId = params.id as string;
 
   const fetchQuote = useCallback(async () => {
     try {
-      const response = await fetch(`/api/quotes/${quoteId}`)
+      const response = await fetch(`/api/quotes/${quoteId}`);
       if (!response.ok) {
         if (response.status === 404) {
-          router.push("/quotes")
-          return
+          router.push("/quotes");
+          return;
         }
-        throw new Error("Failed to fetch quote")
+        throw new Error("Failed to fetch quote");
       }
-      const data = await response.json()
-      setQuote(data.quote)
-      setStatus(data.quote.status)
-      setOriginalStatus(data.quote.status)
-      setAmount(data.quote.amount.toString())
-      setOriginalAmount(data.quote.amount.toString())
+      const data = await response.json();
+      setQuote(data.quote);
+      setStatus(data.quote.status);
+      setOriginalStatus(data.quote.status);
+      setAmount(data.quote.amount.toString());
+      setOriginalAmount(data.quote.amount.toString());
       const expiresAtValue = data.quote.expiresAt
         ? new Date(data.quote.expiresAt).toISOString().slice(0, 16)
-        : ""
-      setExpiresAt(expiresAtValue)
-      setOriginalExpiresAt(expiresAtValue)
+        : "";
+      setExpiresAt(expiresAtValue);
+      setOriginalExpiresAt(expiresAtValue);
     } catch (error) {
-      console.error("Error fetching quote:", error)
+      console.error("Error fetching quote:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [quoteId, router])
+  }, [quoteId, router]);
 
   useEffect(() => {
     if (quoteId) {
-      fetchQuote()
+      fetchQuote();
     }
-  }, [quoteId, fetchQuote])
+  }, [quoteId, fetchQuote]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    setUploading(true)
+    setUploading(true);
     try {
-      const formData = new FormData()
-      formData.append("file", file)
+      const formData = new FormData();
+      formData.append("file", file);
 
       const response = await fetch(`/api/quotes/${quoteId}/files`, {
         method: "POST",
         body: formData,
-      })
+      });
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to upload file")
+        const data = await response.json();
+        throw new Error(data.error || "Failed to upload file");
       }
 
-      fetchQuote()
+      fetchQuote();
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+        fileInputRef.current.value = "";
       }
     } catch (error: any) {
-      alert(error.message || "Failed to upload file")
+      alert(error.message || "Failed to upload file");
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
   const handleSendQuote = async () => {
-    if (!confirm("Are you sure you want to send this quote? This will mark it as sent.")) {
-      return
+    if (
+      !confirm(
+        "Are you sure you want to send this quote? This will mark it as sent."
+      )
+    ) {
+      return;
     }
 
-    setSending(true)
+    setSending(true);
     try {
       const response = await fetch(`/api/quotes/${quoteId}/send`, {
         method: "POST",
-      })
+      });
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to send quote")
+        const data = await response.json();
+        throw new Error(data.error || "Failed to send quote");
       }
 
-      fetchQuote()
-      router.refresh()
+      fetchQuote();
+      router.refresh();
     } catch (error: any) {
-      alert(error.message || "Failed to send quote")
+      alert(error.message || "Failed to send quote");
     } finally {
-      setSending(false)
+      setSending(false);
     }
-  }
+  };
 
   const handleStartEdit = () => {
-    setIsEditing(true)
-  }
+    setIsEditing(true);
+  };
 
   const handleCancelEdit = () => {
-    setIsEditing(false)
-    setAmount(originalAmount)
-    setExpiresAt(originalExpiresAt)
-    setStatus(originalStatus)
-  }
+    setIsEditing(false);
+    setAmount(originalAmount);
+    setExpiresAt(originalExpiresAt);
+    setStatus(originalStatus);
+  };
 
   const handleSaveChanges = async () => {
-    if (!quote) return
+    if (!quote) return;
 
-    const newAmount = parseFloat(amount)
+    const newAmount = parseFloat(amount);
     if (isNaN(newAmount) || newAmount <= 0) {
-      alert("Please enter a valid amount")
-      return
+      alert("Please enter a valid amount");
+      return;
     }
 
-    setUpdating(true)
+    setUpdating(true);
     try {
       const response = await fetch(`/api/quotes/${quoteId}`, {
         method: "PATCH",
@@ -205,22 +234,22 @@ export default function QuoteDetailPage() {
           expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
           status: status,
         }),
-      })
+      });
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to update quote")
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update quote");
       }
 
-      setIsEditing(false)
-      fetchQuote()
-      router.refresh()
+      setIsEditing(false);
+      fetchQuote();
+      router.refresh();
     } catch (error: any) {
-      alert(error.message || "Failed to update quote")
+      alert(error.message || "Failed to update quote");
     } finally {
-      setUpdating(false)
+      setUpdating(false);
     }
-  }
+  };
 
   const handleStatusUpdate = async (newStatus: QuoteStatus) => {
     if (!isEditing) {
@@ -230,58 +259,59 @@ export default function QuoteDetailPage() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: newStatus }),
-        })
+        });
 
         if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.error || "Failed to update quote")
+          const data = await response.json();
+          throw new Error(data.error || "Failed to update quote");
         }
 
-        fetchQuote()
-        router.refresh()
+        fetchQuote();
+        router.refresh();
       } catch (error: any) {
-        alert(error.message || "Failed to update quote")
+        alert(error.message || "Failed to update quote");
       }
     } else {
       // If in edit mode, just update local state
-      setStatus(newStatus)
+      setStatus(newStatus);
     }
-  }
+  };
 
   const handleDeleteQuote = async () => {
-    if (!quote) return
-    
-    setDeleting(true)
+    if (!quote) return;
+
+    setDeleting(true);
     try {
       const response = await fetch(`/api/quotes/${quoteId}`, {
         method: "DELETE",
-      })
+      });
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to delete quote")
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete quote");
       }
 
-      router.push(`/leads/${quote.lead.id}`)
+      router.push(`/leads/${quote.lead.id}`);
     } catch (error: any) {
-      alert(error.message || "Failed to delete quote")
-      setDeleting(false)
+      alert(error.message || "Failed to delete quote");
+      setDeleting(false);
     }
-  }
+  };
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">Loading...</div>;
   }
 
   if (!quote) {
-    return <div className="text-center py-8">Quote not found</div>
+    return <div className="text-center py-8">Quote not found</div>;
   }
 
-  const canEdit = session?.user.role === "ADMIN"
-  const canDelete = session?.user.role === "ADMIN"
-  const canUpdateStatus = canEdit || quote.salesRep.id === session?.user.id
+  const canEdit = session?.user.role === "ADMIN";
+  const canDelete = session?.user.role === "ADMIN";
+  const canUpdateStatus = canEdit || quote.salesRep.id === session?.user.id;
   // Upload permissions: ADMIN can upload to any quote, SALES_REP can upload to their own quotes
-  const canUpload = session?.user.role === "ADMIN" || quote.salesRep.id === session?.user.id
+  const canUpload =
+    session?.user.role === "ADMIN" || quote.salesRep.id === session?.user.id;
 
   return (
     <div className="space-y-6">
@@ -295,7 +325,8 @@ export default function QuoteDetailPage() {
           <div>
             <h1 className="text-3xl font-bold">Quote Details</h1>
             <p className="text-muted-foreground">
-              {quote.lead.customer.firstName} {quote.lead.customer.lastName} - {formatLeadTypes(quote.lead.leadTypes || [])}
+              {quote.lead.customer.firstName} {quote.lead.customer.lastName} -{" "}
+              {formatLeadTypes(quote.lead.leadTypes || [])}
             </p>
           </div>
         </div>
@@ -318,12 +349,14 @@ export default function QuoteDetailPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the quote
-                    for {quote.lead.customer.firstName} {quote.lead.customer.lastName} 
-                    ({new Intl.NumberFormat("en-US", {
+                    This action cannot be undone. This will permanently delete
+                    the quote for {quote.lead.customer.firstName}{" "}
+                    {quote.lead.customer.lastName}(
+                    {new Intl.NumberFormat("en-US", {
                       style: "currency",
                       currency: quote.currency,
-                    }).format(quote.amount)}).
+                    }).format(quote.amount)}
+                    ).
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -348,11 +381,7 @@ export default function QuoteDetailPage() {
             <div className="flex items-center justify-between">
               <CardTitle>Quote Information</CardTitle>
               {canEdit && !isEditing && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleStartEdit}
-                >
+                <Button variant="outline" size="sm" onClick={handleStartEdit}>
                   <Edit2 className="h-4 w-4 mr-2" />
                   Edit
                 </Button>
@@ -382,12 +411,17 @@ export default function QuoteDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="amount" className="text-sm font-medium text-muted-foreground">
+              <Label
+                htmlFor="amount"
+                className="text-sm font-medium text-muted-foreground"
+              >
                 Amount
               </Label>
               {canEdit && isEditing ? (
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-lg font-semibold">{quote.currency}</span>
+                  <span className="text-lg font-semibold">
+                    {quote.currency}
+                  </span>
                   <Input
                     id="amount"
                     type="number"
@@ -410,13 +444,15 @@ export default function QuoteDetailPage() {
             </div>
 
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2">Status</p>
+              <p className="text-sm font-medium text-muted-foreground mb-2">
+                Status
+              </p>
               <Select
                 value={status}
                 onChange={(e) => {
-                  const newStatus = e.target.value as QuoteStatus
-                  setStatus(newStatus)
-                  handleStatusUpdate(newStatus)
+                  const newStatus = e.target.value as QuoteStatus;
+                  setStatus(newStatus);
+                  handleStatusUpdate(newStatus);
                 }}
                 disabled={!canUpdateStatus || (isEditing && !canEdit)}
               >
@@ -430,7 +466,9 @@ export default function QuoteDetailPage() {
 
             {quote.appointment && (
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Related Appointment</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Related Appointment
+                </p>
                 <p className="text-sm">
                   {new Date(quote.appointment.scheduledFor).toLocaleString()}
                 </p>
@@ -438,33 +476,46 @@ export default function QuoteDetailPage() {
             )}
 
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Sales Rep</p>
-              <p className="text-sm">{quote.salesRep.name || quote.salesRep.email}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Sales Rep
+              </p>
+              <p className="text-sm">
+                {quote.salesRep.name || quote.salesRep.email}
+              </p>
             </div>
 
             <div className="pt-4 border-t space-y-2">
               {quote.quoteNumber && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Estimate #</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Estimate #
+                  </p>
                   <p className="text-sm">{quote.quoteNumber}</p>
                 </div>
               )}
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Created</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Created
+                </p>
                 <p className="text-sm">
                   {new Date(quote.createdAt).toLocaleString()}
                 </p>
               </div>
               {quote.sentAt && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Sent</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Sent
+                  </p>
                   <p className="text-sm">
                     {new Date(quote.sentAt).toLocaleString()}
                   </p>
                 </div>
               )}
               <div>
-                <Label htmlFor="expiresAt" className="text-sm font-medium text-muted-foreground">
+                <Label
+                  htmlFor="expiresAt"
+                  className="text-sm font-medium text-muted-foreground"
+                >
                   Expires
                 </Label>
                 {canEdit && isEditing ? (
@@ -481,7 +532,9 @@ export default function QuoteDetailPage() {
                     {new Date(quote.expiresAt).toLocaleString()}
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No expiration date</p>
+                  <p className="text-sm text-muted-foreground">
+                    No expiration date
+                  </p>
                 )}
               </div>
             </div>
@@ -535,24 +588,30 @@ export default function QuoteDetailPage() {
             ) : (
               <div className="space-y-3">
                 {quote.files.map((file) => {
-                  // Extract filename from fileUrl (could be a path or data URL)
-                  const getFileName = () => {
-                    if (file.fileUrl.startsWith("data:")) {
-                      return "Uploaded file"
-                    }
-                    // Extract filename from path like "quotes/123/timestamp-filename.pdf"
-                    const parts = file.fileUrl.split("/")
-                    const filename = parts[parts.length - 1]
-                    // Remove timestamp prefix if present (format: timestamp-filename)
-                    const match = filename.match(/^\d+-(.+)$/)
-                    return match ? match[1] : filename
-                  }
-
-                  const fileName = getFileName()
+                  // Use fileName from API if available, otherwise fall back to extraction
+                  const fileName =
+                    file.fileName ||
+                    (() => {
+                      if (file.fileUrl.startsWith("data:")) {
+                        return "Uploaded file";
+                      }
+                      // Fallback: try to extract from presigned URL (parse URL and get pathname)
+                      try {
+                        const url = new URL(file.fileUrl);
+                        const pathname = url.pathname;
+                        const parts = pathname.split("/");
+                        const filename = parts[parts.length - 1];
+                        // Remove timestamp prefix if present (format: timestamp-filename)
+                        const match = filename.match(/^\d+-(.+)$/);
+                        return match ? match[1] : filename;
+                      } catch {
+                        return "Uploaded file";
+                      }
+                    })();
                   // Check if user can delete this file (ADMIN or file uploader)
                   const canDeleteFile =
                     session?.user.role === "ADMIN" ||
-                    file.uploadedBy.id === session?.user.id
+                    file.uploadedBy.id === session?.user.id;
 
                   return (
                     <div
@@ -568,7 +627,8 @@ export default function QuoteDetailPage() {
                               <span className="uppercase">{file.fileType}</span>
                             )}
                             {" • "}
-                            Uploaded {new Date(file.uploadedAt).toLocaleString()}
+                            Uploaded{" "}
+                            {new Date(file.uploadedAt).toLocaleString()}
                             {file.uploadedBy.name && (
                               <> by {file.uploadedBy.name}</>
                             )}
@@ -576,6 +636,20 @@ export default function QuoteDetailPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setViewingFile({
+                              url: file.fileUrl,
+                              name: fileName,
+                              type: file.fileType,
+                            })
+                          }
+                          title="View file"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -594,7 +668,7 @@ export default function QuoteDetailPage() {
                                   "Are you sure you want to delete this file?"
                                 )
                               ) {
-                                return
+                                return;
                               }
 
                               try {
@@ -603,16 +677,18 @@ export default function QuoteDetailPage() {
                                   {
                                     method: "DELETE",
                                   }
-                                )
+                                );
 
                                 if (!response.ok) {
-                                  const data = await response.json()
-                                  throw new Error(data.error || "Failed to delete file")
+                                  const data = await response.json();
+                                  throw new Error(
+                                    data.error || "Failed to delete file"
+                                  );
                                 }
 
-                                fetchQuote()
+                                fetchQuote();
                               } catch (error: any) {
-                                alert(error.message || "Failed to delete file")
+                                alert(error.message || "Failed to delete file");
                               }
                             }}
                             title="Delete file"
@@ -623,14 +699,73 @@ export default function QuoteDetailPage() {
                         )}
                       </div>
                     </div>
-                  )
+                  );
                 })}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
-    </div>
-  )
-}
 
+      {/* File Viewer Modal */}
+      {viewingFile && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setViewingFile(null)}
+        >
+          <div
+            className="relative w-full h-full max-w-6xl max-h-[90vh] m-4 bg-background rounded-lg shadow-lg flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">{viewingFile.name}</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setViewingFile(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-4">
+              {viewingFile.type?.startsWith("image/") ? (
+                <img
+                  src={viewingFile.url}
+                  alt={viewingFile.name}
+                  className="max-w-full max-h-full mx-auto"
+                />
+              ) : viewingFile.type === "application/pdf" ||
+                viewingFile.name.toLowerCase().endsWith(".pdf") ? (
+                <iframe
+                  src={viewingFile.url}
+                  className="w-full h-full min-h-[600px] border-0"
+                  title={viewingFile.name}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                  <FileText className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium mb-2">
+                    Preview not available
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    This file type cannot be previewed in the browser.
+                  </p>
+                  <Button
+                    onClick={() => window.open(viewingFile.url, "_blank")}
+                    variant="outline"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download to view
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

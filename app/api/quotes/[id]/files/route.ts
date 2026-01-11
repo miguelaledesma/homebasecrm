@@ -119,11 +119,24 @@ export async function POST(
       console.warn("Failed to generate presigned URL:", error)
     }
 
+    // Extract original filename from S3 key (format: quotes/{quoteId}/{timestamp}-{filename})
+    const extractFileName = (s3Key: string): string => {
+      if (s3Key.startsWith("data:")) {
+        return "Uploaded file"
+      }
+      const parts = s3Key.split("/")
+      const filename = parts[parts.length - 1]
+      // Remove timestamp prefix if present (format: timestamp-filename)
+      const match = filename.match(/^\d+-(.+)$/)
+      return match ? match[1] : filename
+    }
+
     return NextResponse.json(
       {
         file: {
           ...quoteFile,
           fileUrl: downloadUrl, // Return presigned URL to client
+          fileName: extractFileName(filePath), // Include original filename
         },
       },
       { status: 201 }
@@ -180,9 +193,22 @@ export async function GET(
       },
     })
 
+    // Helper function to extract filename from S3 key
+    const extractFileName = (s3Key: string): string => {
+      if (s3Key.startsWith("data:")) {
+        return "Uploaded file"
+      }
+      const parts = s3Key.split("/")
+      const filename = parts[parts.length - 1]
+      // Remove timestamp prefix if present (format: timestamp-filename)
+      const match = filename.match(/^\d+-(.+)$/)
+      return match ? match[1] : filename
+    }
+
     // Generate presigned URLs for each file (if using Railway S3)
     const filesWithUrls = await Promise.all(
       files.map(async (file) => {
+        const originalS3Key = file.fileUrl // Store original S3 key before generating presigned URL
         let downloadUrl = file.fileUrl
         try {
           // Check if it's a data URL (mock storage) or needs presigned URL
@@ -198,6 +224,7 @@ export async function GET(
         return {
           ...file,
           fileUrl: downloadUrl,
+          fileName: extractFileName(originalS3Key), // Include original filename
         }
       })
     )
