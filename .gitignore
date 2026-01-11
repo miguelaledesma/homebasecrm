@@ -38,3 +38,4 @@ next-env.d.ts
 # prisma
 # /prisma/migrations - commented out to allow migrations in git for Railway
 
+build-output.log
