@@ -14,14 +14,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { leadId: bodyLeadId, appointmentId, amount, currency, expiresAt, status } = body
+    const { leadId: bodyLeadId, appointmentId, amount, currency, expiresAt, status, quoteNumber } = body
     
     leadId = bodyLeadId;
 
     // Validate required fields
-    if (!bodyLeadId || !amount) {
+    if (!bodyLeadId || !amount || !quoteNumber) {
       return NextResponse.json(
-        { error: "Missing required fields: leadId, amount" },
+        { error: "Missing required fields: leadId, amount, quoteNumber" },
+        { status: 400 }
+      )
+    }
+
+    // Validate quoteNumber is not empty
+    if (!quoteNumber.trim()) {
+      return NextResponse.json(
+        { error: "Quote number cannot be empty" },
         { status: 400 }
       )
     }
@@ -71,9 +79,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if quoteNumber already exists
+    // Using findUnique with quoteNumber since it's marked as @unique in the schema
+    const existingQuote = await prisma.quote.findUnique({
+      where: { 
+        quoteNumber: quoteNumber.trim() 
+      },
+    })
+    if (existingQuote) {
+      return NextResponse.json(
+        { error: "A quote with this number already exists" },
+        { status: 400 }
+      )
+    }
+
     // Create quote
     const quote = await prisma.quote.create({
       data: {
+        quoteNumber: quoteNumber.trim(),
         leadId: bodyLeadId,
         appointmentId: appointmentId || null,
         salesRepId,
@@ -110,6 +133,7 @@ export async function POST(request: NextRequest) {
 
     logAction("Quote created", session.user.id, session.user.role, {
       quoteId: quote.id,
+      quoteNumber: quote.quoteNumber,
       leadId: bodyLeadId,
       amount: quote.amount,
       currency: quote.currency,

@@ -12,6 +12,7 @@ import { formatLeadTypes } from "@/lib/utils"
 
 type Quote = {
   id: string
+  quoteNumber: string | null
   amount: number
   currency: string
   status: QuoteStatus
@@ -141,6 +142,11 @@ export default function QuotesPage() {
                             currency: quote.currency,
                           }).format(quote.amount)}
                         </Link>
+                        {quote.quoteNumber && (
+                          <span className="text-sm text-muted-foreground">
+                            (#{quote.quoteNumber})
+                          </span>
+                        )}
                         <span
                           className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(
                             quote.status

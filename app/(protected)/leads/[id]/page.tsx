@@ -142,6 +142,7 @@ type Appointment = {
 
 type Quote = {
   id: string;
+  quoteNumber: string | null;
   amount: number;
   currency: string;
   status: QuoteStatus;
@@ -212,6 +213,7 @@ export default function LeadDetailPage() {
   const [showQuoteForm, setShowQuoteForm] = useState(false);
   const [creatingQuote, setCreatingQuote] = useState(false);
   const [quoteForm, setQuoteForm] = useState({
+    quoteNumber: "",
     amount: "",
     currency: "USD",
     expiresAt: "",
@@ -592,6 +594,7 @@ export default function LeadDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leadId,
+          quoteNumber: quoteForm.quoteNumber,
           appointmentId: quoteForm.appointmentId || null,
           amount: quoteForm.amount,
           currency: quoteForm.currency,
@@ -607,6 +610,7 @@ export default function LeadDetailPage() {
 
       // Reset form and refresh
       setQuoteForm({
+        quoteNumber: "",
         amount: "",
         currency: "USD",
         expiresAt: "",
@@ -1854,6 +1858,22 @@ export default function LeadDetailPage() {
                 onSubmit={handleCreateQuote}
                 className="space-y-4 p-4 border rounded-md bg-muted/50"
               >
+                <div>
+                  <Label htmlFor="quoteNumber">Estimate # *</Label>
+                  <Input
+                    id="quoteNumber"
+                    type="text"
+                    value={quoteForm.quoteNumber}
+                    onChange={(e) =>
+                      setQuoteForm({
+                        ...quoteForm,
+                        quoteNumber: e.target.value,
+                      })
+                    }
+                    required
+                    placeholder="Enter estimate number"
+                  />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="amount">Amount *</Label>
@@ -2000,6 +2020,11 @@ export default function LeadDetailPage() {
                           </span>
                         </div>
                         <div className="text-sm text-muted-foreground space-y-1">
+                          {quote.quoteNumber && (
+                            <div>
+                              Estimate #: {quote.quoteNumber}
+                            </div>
+                          )}
                           <div>
                             Created:{" "}
                             {new Date(quote.createdAt).toLocaleString()}

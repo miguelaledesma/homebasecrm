@@ -242,6 +242,7 @@ model Appointment {
 
 model Quote {
   id            String      @id @default(cuid())
+  quoteNumber   String?     @unique
   leadId        String
   appointmentId String?
   salesRepId    String
@@ -262,6 +263,7 @@ model Quote {
   @@index([salesRepId])
   @@index([status])
   @@index([leadId])
+  @@index([quoteNumber])
   @@map("quotes")
 }
 

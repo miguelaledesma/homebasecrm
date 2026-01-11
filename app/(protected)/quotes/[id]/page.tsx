@@ -26,6 +26,7 @@ import { formatLeadTypes } from "@/lib/utils"
 
 type Quote = {
   id: string
+  quoteNumber: string | null
   amount: number
   currency: string
   status: QuoteStatus
@@ -442,6 +443,12 @@ export default function QuoteDetailPage() {
             </div>
 
             <div className="pt-4 border-t space-y-2">
+              {quote.quoteNumber && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Estimate #</p>
+                  <p className="text-sm">{quote.quoteNumber}</p>
+                </div>
+              )}
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Created</p>
                 <p className="text-sm">
