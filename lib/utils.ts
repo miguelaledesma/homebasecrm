@@ -72,3 +72,16 @@ export function logAction(action: string, userId: string, userRole: string, deta
   });
 }
 
+// Format date to PST/PDT timezone with readable format
+export function formatPSTDate(date: string | Date): string {
+  return new Date(date).toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+

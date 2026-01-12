@@ -40,6 +40,7 @@ import {
   formatLeadTypes,
   formatLeadType,
   formatPhoneNumber,
+  formatPSTDate,
 } from "@/lib/utils";
 
 type LeadType =
@@ -2407,7 +2408,7 @@ export default function LeadDetailPage() {
                         {note.createdByUser.name || note.createdByUser.email}
                       </span>
                       <span>•</span>
-                      <span>{new Date(note.createdAt).toLocaleString()}</span>
+                      <span>{formatPSTDate(note.createdAt)}</span>
                     </div>
                   </div>
                 ))
