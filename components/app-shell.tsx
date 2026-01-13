@@ -197,8 +197,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Topbar */}
-      <header className="border-b">
-        <div className="flex h-16 items-center justify-between px-4 md:px-6">
+      <header className="border-b w-full max-w-full">
+        <div className="flex h-16 items-center justify-between px-4 md:px-6 w-full max-w-full">
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -321,7 +321,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex w-full max-w-full overflow-x-hidden">
         {/* Mobile Sidebar */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 md:hidden">
@@ -381,7 +381,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 p-4 md:p-6 w-full md:w-auto">{children}</main>
+        <main className="flex-1 p-4 md:p-6 w-full min-w-0 max-w-full overflow-x-hidden">{children}</main>
       </div>
     </div>
   )

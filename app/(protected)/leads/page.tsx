@@ -453,17 +453,17 @@ export default function LeadsPage() {
   }, [isViewingAllLeads, isAdmin, isSalesRep, viewMode]);
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">
+    <div className="space-y-4 md:space-y-6 w-full max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 w-full">
+        <div className="min-w-0 flex-1 w-full sm:w-auto">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold break-words">
             {isSalesRep && viewMode === "my"
               ? "My Leads"
               : isSalesRep && viewMode === "unassigned"
               ? "Unassigned Leads"
               : "Leads"}
           </h1>
-          <p className="text-sm md:text-base text-muted-foreground">
+          <p className="text-xs sm:text-sm md:text-base text-muted-foreground mt-1 break-words">
             {isSalesRep && viewMode === "my"
               ? "Your assigned leads"
               : isSalesRep && viewMode === "unassigned"
@@ -471,10 +471,10 @@ export default function LeadsPage() {
               : "Manage and track your leads"}
           </p>
         </div>
-        <Link href="/leads/new" className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            New Lead
+        <Link href="/leads/new" className="w-full sm:w-auto flex-shrink-0 sm:flex-shrink">
+          <Button className="w-full sm:w-auto whitespace-nowrap [touch-action:manipulation] min-h-[44px] sm:min-h-0">
+            <Plus className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span className="truncate">New Lead</span>
           </Button>
         </Link>
       </div>
@@ -482,24 +482,24 @@ export default function LeadsPage() {
       {/* Alert Banner for Inactive Leads - Show for admins or sales reps on any tab */}
       {!dismissedAlert && inactiveCount > 0 && (isAdmin || isSalesRep) && (
         <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <Bell className="h-5 w-5 text-amber-600 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-amber-900 mb-1">
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm sm:text-base text-amber-900 mb-1">
                   {inactiveCount}{" "}
                   {inactiveCount === 1 ? "lead needs" : "leads need"} follow-up
                 </h3>
-                <p className="text-sm text-amber-700 mb-3">
+                <p className="text-xs sm:text-sm text-amber-700 mb-3">
                   These leads have been inactive for over 48 hours. Please
                   update the status, add a note, or contact an Admin to close or
                   mark as Won.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     size="sm"
                     variant="default"
-                    className="bg-amber-600 hover:bg-amber-700"
+                    className="bg-amber-600 hover:bg-amber-700 w-full sm:w-auto [touch-action:manipulation] min-h-[44px] sm:min-h-0"
                     onClick={() => setShowInactiveOnly(true)}
                   >
                     View Inactive Leads
@@ -507,7 +507,7 @@ export default function LeadsPage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-amber-700 hover:text-amber-900 hover:bg-amber-100"
+                    className="text-amber-700 hover:text-amber-900 hover:bg-amber-100 w-full sm:w-auto [touch-action:manipulation] min-h-[44px] sm:min-h-0"
                     onClick={() => setDismissedAlert(true)}
                   >
                     Dismiss
@@ -516,10 +516,10 @@ export default function LeadsPage() {
               </div>
               <button
                 onClick={() => setDismissedAlert(true)}
-                className="text-amber-600 hover:text-amber-900 transition-colors"
+                className="text-amber-600 hover:text-amber-900 transition-colors flex-shrink-0 [touch-action:manipulation] min-h-[44px] sm:min-h-0 px-2"
                 aria-label="Dismiss alert"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
           </CardContent>
@@ -528,10 +528,10 @@ export default function LeadsPage() {
 
       {/* View Mode Tabs - Only show for sales reps */}
       {isSalesRep && (
-        <div className="flex gap-2 border-b">
+        <div className="flex gap-1 sm:gap-2 border-b overflow-x-auto w-full -mx-4 sm:mx-0 px-4 sm:px-0 scrollbar-hide">
           <button
             onClick={() => setViewMode("my")}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+            className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap flex-shrink-0 [touch-action:manipulation] min-h-[44px] sm:min-h-0 ${
               viewMode === "my"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -541,7 +541,7 @@ export default function LeadsPage() {
           </button>
           <button
             onClick={() => setViewMode("all")}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+            className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap flex-shrink-0 [touch-action:manipulation] min-h-[44px] sm:min-h-0 ${
               viewMode === "all"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -551,28 +551,29 @@ export default function LeadsPage() {
           </button>
           <button
             onClick={() => setViewMode("unassigned")}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+            className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap flex-shrink-0 [touch-action:manipulation] min-h-[44px] sm:min-h-0 ${
               viewMode === "unassigned"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            Unassigned Leads
+            <span className="hidden sm:inline">Unassigned Leads</span>
+            <span className="sm:hidden">Unassigned</span>
           </button>
         </div>
       )}
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border rounded-lg bg-muted/30">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Filter className="h-4 w-4" />
+      <div className="flex flex-col gap-3 p-3 sm:p-4 border rounded-lg bg-muted/30 w-full max-w-full">
+        <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
+          <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
           <span>Filters:</span>
         </div>
-        <div className="flex-1 flex flex-col sm:flex-row gap-3 sm:items-center">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="sm:max-w-[200px]"
+            className="w-full sm:max-w-[200px] text-sm [touch-action:manipulation] min-h-[44px] sm:min-h-0"
           >
             <option value="all">All Statuses</option>
             <option value="NEW">New</option>
@@ -584,7 +585,7 @@ export default function LeadsPage() {
           </Select>
           {/* Show inactive filter only for admins or sales reps viewing their own leads */}
           {(isAdmin || (isSalesRep && viewMode === "my")) && (
-            <label className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 px-3 py-2 rounded-md transition-colors">
+            <label className="flex items-center gap-2 text-xs sm:text-sm cursor-pointer hover:bg-muted/50 px-2 sm:px-3 py-2 rounded-md transition-colors [touch-action:manipulation] min-h-[44px] sm:min-h-0">
               <input
                 type="checkbox"
                 checked={showInactiveOnly}
@@ -592,15 +593,15 @@ export default function LeadsPage() {
                   setShowInactiveOnly(e.target.checked);
                   if (e.target.checked) setDismissedAlert(true);
                 }}
-                className="rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                className="rounded border-amber-300 text-amber-600 focus:ring-amber-500 w-4 h-4 sm:w-5 sm:h-5"
               />
-              <span className="flex items-center gap-1.5">
-                <Bell className="h-4 w-4 text-amber-600" />
-                <span className="text-amber-900 font-medium">
+              <span className="flex items-center gap-1.5 flex-1 min-w-0">
+                <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 flex-shrink-0" />
+                <span className="text-amber-900 font-medium truncate">
                   Show only inactive leads
                 </span>
                 {inactiveCount > 0 && (
-                  <Badge className="ml-1 bg-amber-100 text-amber-800 border-amber-300 text-xs">
+                  <Badge className="ml-1 bg-amber-100 text-amber-800 border-amber-300 text-xs flex-shrink-0">
                     {inactiveCount}
                   </Badge>
                 )}
@@ -609,7 +610,7 @@ export default function LeadsPage() {
           )}
         </div>
         {isViewingAllLeads && (
-          <div className="text-xs text-muted-foreground sm:ml-auto">
+          <div className="text-xs text-muted-foreground sm:ml-auto pt-1 sm:pt-0 border-t sm:border-t-0">
             Read-only view
           </div>
         )}
@@ -630,42 +631,46 @@ export default function LeadsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-4">
-            <Table
-              dataSource={filteredLeads}
-              columns={columns}
-              rowKey="id"
-              pagination={{
-                pageSize: 20,
-                showSizeChanger: true,
-                showTotal: (total: number) => `Total ${total} leads`,
-                pageSizeOptions: ["10", "20", "50", "100"],
-              }}
-              onRow={(record: Lead) => {
-                return {
-                  onClick: () => {
-                    // Only allow navigation if not viewing all leads as sales rep
-                    if (!isViewingAllLeads) {
-                      router.push(`/leads/${record.id}`);
-                    }
-                  },
-                  style: {
-                    cursor: isViewingAllLeads ? "default" : "pointer",
-                    backgroundColor: record.isInactive ? "#fffbeb" : undefined,
-                    borderLeft: record.isInactive
-                      ? "4px solid #fbbf24"
-                      : undefined,
-                    paddingLeft: record.isInactive ? "8px" : undefined,
-                  },
-                };
-              }}
-              scroll={{
-                x: "max-content",
-                y: 600,
-              }}
-              size="middle"
-            />
+        <Card className="w-full max-w-full overflow-hidden">
+          <CardContent className="p-2 sm:p-4 w-full max-w-full overflow-hidden">
+            <div className="overflow-x-auto w-full max-w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <Table
+                dataSource={filteredLeads}
+                columns={columns}
+                rowKey="id"
+                pagination={{
+                  pageSize: 20,
+                  showSizeChanger: true,
+                  showTotal: (total: number) => `Total ${total} leads`,
+                  pageSizeOptions: ["10", "20", "50", "100"],
+                  responsive: true,
+                  showLessItems: true,
+                }}
+                onRow={(record: Lead) => {
+                  return {
+                    onClick: () => {
+                      // Only allow navigation if not viewing all leads as sales rep
+                      if (!isViewingAllLeads) {
+                        router.push(`/leads/${record.id}`);
+                      }
+                    },
+                    style: {
+                      cursor: isViewingAllLeads ? "default" : "pointer",
+                      backgroundColor: record.isInactive ? "#fffbeb" : undefined,
+                      borderLeft: record.isInactive
+                        ? "4px solid #fbbf24"
+                        : undefined,
+                      paddingLeft: record.isInactive ? "8px" : undefined,
+                    },
+                  };
+                }}
+                scroll={{
+                  x: "max-content",
+                  y: 600,
+                }}
+                size="middle"
+              />
+            </div>
           </CardContent>
         </Card>
       )}

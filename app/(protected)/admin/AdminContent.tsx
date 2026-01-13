@@ -282,12 +282,18 @@ export function AdminContent() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
-        <TabsList className="grid w-full max-w-full sm:max-w-md grid-cols-2 h-auto">
-          <TabsTrigger value="users" className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-1.5 text-xs sm:text-sm">
+        <TabsList className="grid w-full grid-cols-2 h-auto p-1 gap-1 sm:gap-0 sm:max-w-md">
+          <TabsTrigger 
+            value="users" 
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-1.5 px-2 sm:px-3 text-xs sm:text-sm font-medium transition-all data-[state=active]:shadow-sm"
+          >
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-            <span>Users</span>
+            <span className="truncate">Users</span>
           </TabsTrigger>
-          <TabsTrigger value="invitations" className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-1.5 text-xs sm:text-sm">
+          <TabsTrigger 
+            value="invitations" 
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-1.5 px-2 sm:px-3 text-xs sm:text-sm font-medium transition-all data-[state=active]:shadow-sm"
+          >
             <UserPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="hidden sm:inline">Invitations</span>
             <span className="sm:hidden">Invite</span>

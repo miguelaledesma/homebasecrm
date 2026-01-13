@@ -201,10 +201,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">
+        <h1 className="text-2xl sm:text-3xl font-bold">
           Welcome{session?.user?.name ? `, ${session.user.name}` : ""}
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
           {isAdmin
             ? "Overview of all leads and appointments"
             : "Your personal performance overview"}
@@ -344,18 +344,22 @@ export default function DashboardPage() {
 
       {isAdmin ? (
         // Admin Dashboard
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card
             className="hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => router.push("/leads?view=all")}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                Total Leads
+              </CardTitle>
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalLeads}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-xl sm:text-2xl font-bold">
+                {stats.totalLeads}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
                 All leads in the system
               </p>
             </CardContent>
@@ -366,16 +370,16 @@ export default function DashboardPage() {
             onClick={() => router.push("/leads?view=unassigned")}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Unassigned Leads
               </CardTitle>
-              <UserPlus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              <div className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">
                 {stats.unassignedLeads || 0}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-1">
                 Need sales rep assignment
               </p>
             </CardContent>
@@ -386,16 +390,16 @@ export default function DashboardPage() {
             onClick={() => router.push("/leads?showOverdue=true")}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Overdue Follow-ups
               </CardTitle>
-              <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+              <div className="text-xl sm:text-2xl font-bold text-orange-600 dark:text-orange-400">
                 {stats.overdueFollowUps || 0}
               </div>
-              <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+              <p className="text-xs text-orange-600 dark:text-orange-400 font-medium mt-1">
                 Require immediate attention
               </p>
             </CardContent>
@@ -406,12 +410,16 @@ export default function DashboardPage() {
             onClick={() => router.push("/won-lost")}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Won Leads</CardTitle>
-              <Award className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                Won Leads
+              </CardTitle>
+              <Award className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.wonLeads}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-xl sm:text-2xl font-bold">
+                {stats.wonLeads}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
                 {stats.winRate}% win rate
               </p>
             </CardContent>
@@ -419,15 +427,19 @@ export default function DashboardPage() {
         </div>
       ) : (
         // Sales Rep Dashboard
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">My Leads</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                My Leads
+              </CardTitle>
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalLeads}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-xl sm:text-2xl font-bold">
+                {stats.totalLeads}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
                 Total assigned leads
               </p>
             </CardContent>
@@ -435,16 +447,16 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 My Appointments
               </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-xl sm:text-2xl font-bold">
                 {stats.totalAppointments}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-1">
                 {stats.scheduledAppointments} upcoming
               </p>
             </CardContent>
@@ -452,16 +464,16 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-xs sm:text-sm font-medium">
                 Conversion Rate
               </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-xl sm:text-2xl font-bold">
                 {stats.leadToAppointmentRate}%
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-1">
                 Leads to appointments
               </p>
             </CardContent>
@@ -469,12 +481,16 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Won Leads</CardTitle>
-              <Award className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                Won Leads
+              </CardTitle>
+              <Award className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.wonLeads}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-xl sm:text-2xl font-bold">
+                {stats.wonLeads}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
                 {stats.winRate}% win rate
               </p>
             </CardContent>
@@ -483,11 +499,13 @@ export default function DashboardPage() {
       )}
 
       {/* Additional Stats Section */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Lead Status Breakdown</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-sm sm:text-base">
+              Lead Status Breakdown
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
               Current lead distribution by status
             </CardDescription>
           </CardHeader>
@@ -558,8 +576,12 @@ export default function DashboardPage() {
         {!isAdmin && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Performance Metrics</CardTitle>
-              <CardDescription>Your key performance indicators</CardDescription>
+              <CardTitle className="text-sm sm:text-base">
+                Performance Metrics
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Your key performance indicators
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex justify-between items-center">
@@ -588,8 +610,10 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Recent Appointments</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-sm sm:text-base">
+              Recent Appointments
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
               {isAdmin
                 ? "System-wide appointment overview"
                 : "Your appointment overview"}
@@ -628,20 +652,24 @@ export default function DashboardPage() {
       {isAdmin && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Quick Actions</CardTitle>
-            <CardDescription>Common admin tasks and views</CardDescription>
+            <CardTitle className="text-sm sm:text-base">
+              Quick Actions
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Common admin tasks and views
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
               <Button
                 variant="outline"
-                className="justify-start h-auto py-3 px-4"
+                className="justify-start h-auto py-2.5 sm:py-3 px-3 sm:px-4 [touch-action:manipulation] min-h-[44px] sm:min-h-0"
                 onClick={() => router.push("/leads?view=unassigned")}
               >
-                <div className="flex items-center gap-3 w-full">
-                  <UserPlus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  <div className="text-left">
-                    <div className="font-semibold text-sm">
+                <div className="flex items-center gap-2 sm:gap-3 w-full">
+                  <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                  <div className="text-left min-w-0 flex-1">
+                    <div className="font-semibold text-xs sm:text-sm truncate">
                       Unassigned Leads
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -652,13 +680,13 @@ export default function DashboardPage() {
               </Button>
               <Button
                 variant="outline"
-                className="justify-start h-auto py-3 px-4"
+                className="justify-start h-auto py-2.5 sm:py-3 px-3 sm:px-4 [touch-action:manipulation] min-h-[44px] sm:min-h-0"
                 onClick={() => router.push("/leads?showOverdue=true")}
               >
-                <div className="flex items-center gap-3 w-full">
-                  <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                  <div className="text-left">
-                    <div className="font-semibold text-sm">
+                <div className="flex items-center gap-2 sm:gap-3 w-full">
+                  <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                  <div className="text-left min-w-0 flex-1">
+                    <div className="font-semibold text-xs sm:text-sm truncate">
                       Overdue Follow-ups
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -669,28 +697,32 @@ export default function DashboardPage() {
               </Button>
               <Button
                 variant="outline"
-                className="justify-start h-auto py-3 px-4"
+                className="justify-start h-auto py-2.5 sm:py-3 px-3 sm:px-4 [touch-action:manipulation] min-h-[44px] sm:min-h-0"
                 onClick={() => router.push("/jobs")}
               >
-                <div className="flex items-center gap-3 w-full">
-                  <Briefcase className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                  <div className="text-left">
-                    <div className="font-semibold text-sm">Jobs</div>
+                <div className="flex items-center gap-2 sm:gap-3 w-full">
+                  <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                  <div className="text-left min-w-0 flex-1">
+                    <div className="font-semibold text-xs sm:text-sm truncate">
+                      Jobs
+                    </div>
                     <div className="text-xs text-muted-foreground">
-                      Leads with work currently being done
+                      Projects being worked on
                     </div>
                   </div>
                 </div>
               </Button>
               <Button
                 variant="outline"
-                className="justify-start h-auto py-3 px-4"
+                className="justify-start h-auto py-2.5 sm:py-3 px-3 sm:px-4 [touch-action:manipulation] min-h-[44px] sm:min-h-0"
                 onClick={() => router.push("/admin")}
               >
-                <div className="flex items-center gap-3 w-full">
-                  <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  <div className="text-left">
-                    <div className="font-semibold text-sm">Team Management</div>
+                <div className="flex items-center gap-2 sm:gap-3 w-full">
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                  <div className="text-left min-w-0 flex-1">
+                    <div className="font-semibold text-xs sm:text-sm truncate">
+                      Team Management
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       Users & roles
                     </div>
