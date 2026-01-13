@@ -20,14 +20,21 @@ import {
   X,
   Bell,
   AlertTriangle,
+  Briefcase,
 } from "lucide-react"
 
-const navigation = [
+const navigation: Array<{
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  adminOnly?: boolean;
+}> = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Leads", href: "/leads", icon: Users },
   { name: "Appointments", href: "/appointments", icon: Calendar },
   { name: "Quotes", href: "/quotes", icon: FileText },
-  { name: "Tasks", href: "/tasks", icon: CheckSquare },
+  // { name: "Tasks", href: "/tasks", icon: CheckSquare }, // Hidden for now
+  { name: "Jobs", href: "/jobs", icon: Briefcase, adminOnly: true },
   { name: "Won & Lost", href: "/won-lost", icon: TrendingUp },
   { name: "Admin", href: "/admin", icon: Settings },
 ]
@@ -180,10 +187,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [notificationsOpen])
 
-  // Filter navigation based on user role - only show Admin and Won & Lost for admins
+  // Filter navigation based on user role - only show Admin, Jobs, and Won & Lost for admins
   const filteredNavigation = navigation.filter(
     (item) =>
-      (item.name !== "Admin" && item.name !== "Won & Lost") ||
+      (!item.adminOnly && item.name !== "Admin" && item.name !== "Won & Lost") ||
       session?.user?.role === "ADMIN"
   )
 

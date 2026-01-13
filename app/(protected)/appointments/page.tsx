@@ -9,15 +9,9 @@ import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, MapPin, User, Filter, AlertTriangle } from "lucide-react"
 import { AppointmentStatus } from "@prisma/client"
-import { AgGridReact } from "ag-grid-react"
-import { ColDef, ModuleRegistry, AllCommunityModule } from "ag-grid-community"
-
-import "ag-grid-community/styles/ag-grid.css"
-import "ag-grid-community/styles/ag-theme-alpine.css"
+import { Table } from "antd"
+import type { ColumnsType } from "antd/es/table"
 import { formatPhoneNumber } from "@/lib/utils"
-
-// Register AG Grid modules
-ModuleRegistry.registerModules([AllCommunityModule])
 
 type Appointment = {
   id: string
@@ -64,6 +58,17 @@ export default function AppointmentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const isSalesRep = session?.user.role === "SALES_REP" || session?.user.role === "CONCIERGE"
   const [viewMode, setViewMode] = useState<ViewMode>(isSalesRep ? "my" : "all")
+
+  // Initialize statusFilter from URL parameters
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlStatus = urlParams.get("status")
+      if (urlStatus && ["SCHEDULED", "COMPLETED", "CANCELLED", "NO_SHOW"].includes(urlStatus)) {
+        setStatusFilter(urlStatus)
+      }
+    }
+  }, [])
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true)
@@ -148,66 +153,67 @@ export default function AppointmentsPage() {
 
   const isViewingAllAppointments = isSalesRep && viewMode === "all"
 
-  const columnDefs: ColDef[] = useMemo(
+  const columns: ColumnsType<Appointment> = useMemo(
     () => {
       // For sales reps viewing all appointments, show only customer name and sales rep
       if (isViewingAllAppointments) {
         return [
           {
-            field: "customer.name",
-            headerName: "Customer",
-            valueGetter: (params: any) => {
-              return `${params.data.lead.customer.firstName} ${params.data.lead.customer.lastName}`
+            title: "Customer",
+            dataIndex: ["lead", "customer", "firstName"],
+            key: "customer",
+            sorter: (a: Appointment, b: Appointment) => {
+              const nameA = `${a.lead.customer.firstName} ${a.lead.customer.lastName}`
+              const nameB = `${b.lead.customer.firstName} ${b.lead.customer.lastName}`
+              return nameA.localeCompare(nameB)
             },
-            flex: 1,
-            minWidth: 200,
-            cellRenderer: (params: any) => {
-              // Don't make it clickable for sales reps viewing all appointments
+            render: (_: any, record: Appointment) => {
               return (
                 <span className="font-medium">
-                  {params.value}
+                  {record.lead.customer.firstName} {record.lead.customer.lastName}
                 </span>
               )
             },
           },
           {
-            field: "salesRep.name",
-            headerName: "Assigned To",
-            valueGetter: (params: any) => {
-              return (
-                params.data.salesRep.name || params.data.salesRep.email
-              )
+            title: "Assigned To",
+            dataIndex: ["salesRep", "name"],
+            key: "assignedTo",
+            sorter: (a: Appointment, b: Appointment) => {
+              const nameA = a.salesRep.name || a.salesRep.email || ""
+              const nameB = b.salesRep.name || b.salesRep.email || ""
+              return nameA.localeCompare(nameB)
             },
-            flex: 1,
-            minWidth: 200,
+            render: (_: any, record: Appointment) => {
+              return record.salesRep.name || record.salesRep.email
+            },
           },
         ]
       }
 
       // Full columns for admins or sales reps viewing their own appointments
-      return [
+      const baseColumns: ColumnsType<Appointment> = [
         {
-          field: "scheduledFor",
-          headerName: "Date & Time",
-          flex: 1,
-          minWidth: 180,
-          valueGetter: (params: any) => {
-            const date = new Date(params.data.scheduledFor)
-            return date.toLocaleString("en-US", {
+          title: "Date & Time",
+          dataIndex: "scheduledFor",
+          key: "scheduledFor",
+          sorter: (a: Appointment, b: Appointment) => {
+            return new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()
+          },
+          defaultSortOrder: "ascend",
+          render: (date: string, record: Appointment) => {
+            const formattedDate = new Date(date).toLocaleString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric",
               hour: "numeric",
               minute: "2-digit",
             })
-          },
-          cellRenderer: (params: any) => {
-            const appointment = params.data as Appointment
-            const isOverdue = isPastDue(appointment)
+            const isOverdue = isPastDue(record)
             return (
               <div className="flex items-center gap-2">
                 <span className={isOverdue ? "text-red-600 dark:text-red-400 font-medium" : ""}>
-                  {params.value}
+                  {formattedDate}
                 </span>
                 {isOverdue && (
                   <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
@@ -215,46 +221,56 @@ export default function AppointmentsPage() {
               </div>
             )
           },
-          sort: "asc",
         },
         {
-          field: "customer.name",
-          headerName: "Customer",
-          valueGetter: (params: any) => {
-            return `${params.data.lead.customer.firstName} ${params.data.lead.customer.lastName}`
+          title: "Customer",
+          dataIndex: ["lead", "customer", "firstName"],
+          key: "customer",
+          sorter: (a: Appointment, b: Appointment) => {
+            const nameA = `${a.lead.customer.firstName} ${a.lead.customer.lastName}`
+            const nameB = `${b.lead.customer.firstName} ${b.lead.customer.lastName}`
+            return nameA.localeCompare(nameB)
           },
-          flex: 1,
-          minWidth: 150,
-          cellRenderer: (params: any) => {
+          render: (_: any, record: Appointment) => {
             return (
               <Link
-                href={`/leads/${params.data.lead.id}`}
+                href={`/leads/${record.lead.id}`}
                 className="text-primary hover:underline font-medium transition-colors"
                 onClick={(e) => e.stopPropagation()}
               >
-                {params.value}
+                {record.lead.customer.firstName} {record.lead.customer.lastName}
               </Link>
             )
           },
         },
         {
-          field: "customer.phone",
-          headerName: "Phone",
-          valueGetter: (params: any) => {
-            return params.data.lead.customer.phone 
-              ? formatPhoneNumber(params.data.lead.customer.phone)
+          title: "Phone",
+          dataIndex: ["lead", "customer", "phone"],
+          key: "phone",
+          sorter: (a: Appointment, b: Appointment) => {
+            const phoneA = a.lead.customer.phone || ""
+            const phoneB = b.lead.customer.phone || ""
+            return phoneA.localeCompare(phoneB)
+          },
+          render: (_: any, record: Appointment) => {
+            return record.lead.customer.phone 
+              ? formatPhoneNumber(record.lead.customer.phone)
               : "-"
           },
-          flex: 1,
-          minWidth: 120,
         },
         {
-          field: "status",
-          headerName: "Status",
-          flex: 1,
-          minWidth: 140,
-          cellRenderer: (params: any) => {
-            const status = params.value as AppointmentStatus
+          title: "Status",
+          dataIndex: "status",
+          key: "status",
+          sorter: (a: Appointment, b: Appointment) => a.status.localeCompare(b.status),
+          filters: [
+            { text: "Scheduled", value: "SCHEDULED" },
+            { text: "Completed", value: "COMPLETED" },
+            { text: "Cancelled", value: "CANCELLED" },
+            { text: "No Show", value: "NO_SHOW" },
+          ],
+          onFilter: (value: any, record: Appointment) => record.status === value,
+          render: (status: AppointmentStatus) => {
             return (
               <span
                 className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(
@@ -266,90 +282,77 @@ export default function AppointmentsPage() {
             )
           },
         },
-        ...(session?.user.role === "ADMIN"
-          ? [
-              {
-                field: "lead.assignedSalesRep.name",
-                headerName: "Sales Rep",
-                valueGetter: (params: any) => {
-                  const assignedSalesRep = params.data.lead?.assignedSalesRep
-                  return (
-                    assignedSalesRep?.name || assignedSalesRep?.email || "Unassigned"
-                  )
-                },
-                flex: 1,
-                minWidth: 150,
-              },
-            ]
-          : []),
-        {
-          field: "actions",
-          headerName: "Actions",
-          flex: 1,
-          minWidth: 200,
-          cellRenderer: (params: any) => {
-            if (params.data.status !== "SCHEDULED") {
-              return (
-                <span className="text-muted-foreground text-sm">-</span>
-              )
-            }
-            return (
-              <div
-                className="flex gap-1.5 flex-wrap"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={(e) =>
-                    handleStatusUpdate(params.data.id, "COMPLETED", e)
-                  }
-                >
-                  Complete
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={(e) =>
-                    handleStatusUpdate(params.data.id, "CANCELLED", e)
-                  }
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={(e) =>
-                    handleStatusUpdate(params.data.id, "NO_SHOW", e)
-                  }
-                >
-                  No Show
-                </Button>
-              </div>
-            )
-          },
-          sortable: false,
-          filter: false,
-        },
       ]
+
+      // Add Sales Rep column for admins
+      if (session?.user.role === "ADMIN") {
+        baseColumns.push({
+          title: "Sales Rep",
+          dataIndex: ["lead", "assignedSalesRep", "name"],
+          key: "salesRep",
+          sorter: (a: Appointment, b: Appointment) => {
+            const nameA = a.lead.assignedSalesRep?.name || a.lead.assignedSalesRep?.email || "Unassigned"
+            const nameB = b.lead.assignedSalesRep?.name || b.lead.assignedSalesRep?.email || "Unassigned"
+            return nameA.localeCompare(nameB)
+          },
+          render: (_: any, record: Appointment) => {
+            const assignedSalesRep = record.lead?.assignedSalesRep
+            return assignedSalesRep?.name || assignedSalesRep?.email || "Unassigned"
+          },
+        })
+      }
+
+      // Add Actions column
+      baseColumns.push({
+        title: "Actions",
+        key: "actions",
+        render: (_: any, record: Appointment) => {
+          if (record.status !== "SCHEDULED") {
+            return <span className="text-muted-foreground text-sm">-</span>
+          }
+          return (
+            <div
+              className="flex gap-1.5 flex-wrap"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={(e) =>
+                  handleStatusUpdate(record.id, "COMPLETED", e)
+                }
+              >
+                Complete
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={(e) =>
+                  handleStatusUpdate(record.id, "CANCELLED", e)
+                }
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={(e) =>
+                  handleStatusUpdate(record.id, "NO_SHOW", e)
+                }
+              >
+                No Show
+              </Button>
+            </div>
+          )
+        },
+      })
+
+      return baseColumns
     },
     [session?.user.role, handleStatusUpdate, isViewingAllAppointments]
-  )
-
-  const defaultColDef = useMemo(
-    () => ({
-      sortable: true,
-      filter: true,
-      resizable: true,
-      cellStyle: {
-        display: "flex",
-        alignItems: "center",
-      },
-    }),
-    []
   )
 
   return (
@@ -433,42 +436,37 @@ export default function AppointmentsPage() {
       ) : (
         <Card>
           <CardContent className="p-4">
-            <div
-              className="ag-theme-alpine rounded-lg overflow-hidden"
-              style={{ height: "650px", width: "100%" }}
-            >
-              <AgGridReact
-                rowData={appointments}
-                columnDefs={columnDefs}
-                defaultColDef={defaultColDef}
-                onRowClicked={(event) => {
-                  // Only allow navigation if not viewing all appointments as sales rep
-                  if (!isViewingAllAppointments) {
-                    router.push(`/leads/${event.data.lead.id}`)
-                  }
-                }}
-                getRowStyle={(params) => {
-                  const appointment = params.data as Appointment
-                  const isOverdue = isPastDue(appointment)
-                  const style: any = {
+            <Table
+              dataSource={appointments}
+              columns={columns}
+              rowKey="id"
+              pagination={{
+                pageSize: 20,
+                showSizeChanger: true,
+                showTotal: (total: number) => `Total ${total} appointments`,
+                pageSizeOptions: ["10", "20", "50", "100"],
+              }}
+              onRow={(record: Appointment) => {
+                const isOverdue = isPastDue(record)
+                return {
+                  onClick: () => {
+                    // Only allow navigation if not viewing all appointments as sales rep
+                    if (!isViewingAllAppointments) {
+                      router.push(`/leads/${record.lead.id}`)
+                    }
+                  },
+                  style: {
                     cursor: isViewingAllAppointments ? "default" : "pointer",
-                  }
-                  if (isOverdue) {
-                    style.backgroundColor = "rgba(254, 242, 242, 0.5)"
-                  }
-                  return style
-                }}
-                pagination={true}
-                paginationPageSize={20}
-                suppressCellFocus={true}
-                animateRows={true}
-                rowHeight={56}
-                headerHeight={48}
-                suppressRowClickSelection={false}
-                enableCellTextSelection={true}
-                ensureDomOrder={true}
-              />
-            </div>
+                    backgroundColor: isOverdue ? "rgba(254, 242, 242, 0.5)" : undefined,
+                  },
+                }
+              }}
+              scroll={{
+                x: "max-content",
+                y: 600,
+              }}
+              size="middle"
+            />
           </CardContent>
         </Card>
       )}

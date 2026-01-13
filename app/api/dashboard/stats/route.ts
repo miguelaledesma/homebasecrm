@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { UserRole, LeadStatus } from "@prisma/client"
+import { getLastActivityTimestamp } from "@/lib/lead-activity"
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,6 +27,8 @@ export async function GET(request: NextRequest) {
         totalAppointments,
         scheduledAppointments,
         pastDueAppointments,
+        unassignedLeads,
+        assignedActiveLeadsForInactivity,
       ] = await Promise.all([
         // Total leads
         prisma.lead.count(),
@@ -77,7 +80,48 @@ export async function GET(request: NextRequest) {
             },
           },
         }),
+        
+        // Unassigned leads (leads with no assigned sales rep)
+        prisma.lead.count({
+          where: { 
+            assignedSalesRepId: null,
+            status: { notIn: [LeadStatus.WON, LeadStatus.LOST] }
+          },
+        }),
+        
+        // Get all assigned leads (not won/lost) to calculate inactive count
+        // We'll calculate inactivity in the next step
+        prisma.lead.findMany({
+          where: {
+            assignedSalesRepId: { not: null },
+            status: { notIn: [LeadStatus.WON, LeadStatus.LOST] }
+          },
+          select: { id: true }
+        }),
       ])
+
+      // Calculate inactive leads count (leads with 48+ hours of no activity)
+      let overdueFollowUps = 0
+      try {
+        const inactivityResults = await Promise.all(
+          assignedActiveLeadsForInactivity.map(async (lead) => {
+            try {
+              const lastActivity = await getLastActivityTimestamp(lead.id)
+              const hoursSinceActivity = lastActivity
+                ? (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60)
+                : null
+              return hoursSinceActivity !== null && hoursSinceActivity > 48
+            } catch (error) {
+              return false
+            }
+          })
+        )
+        overdueFollowUps = inactivityResults.filter(Boolean).length
+      } catch (error) {
+        console.error("Error calculating inactive leads:", error)
+        // If calculation fails, default to 0
+        overdueFollowUps = 0
+      }
 
       // Calculate conversion rates
       const leadToAppointmentRate =
@@ -100,6 +144,8 @@ export async function GET(request: NextRequest) {
             totalAppointments,
             scheduledAppointments,
             pastDueAppointments,
+            unassignedLeads,
+            overdueFollowUps,
             leadToAppointmentRate: parseFloat(leadToAppointmentRate),
             winRate: parseFloat(winRate),
           },

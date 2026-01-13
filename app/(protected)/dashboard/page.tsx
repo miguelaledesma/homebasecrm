@@ -1,179 +1,209 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Users, Calendar, TrendingUp, Target, FileText, CheckCircle, Clock, Award, Bell, AlertCircle, MessageSquare, ArrowRight, AlertTriangle, UserPlus } from "lucide-react"
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Users,
+  Calendar,
+  TrendingUp,
+  Target,
+  FileText,
+  CheckCircle,
+  Clock,
+  Award,
+  Bell,
+  AlertCircle,
+  MessageSquare,
+  ArrowRight,
+  AlertTriangle,
+  UserPlus,
+  Briefcase,
+} from "lucide-react";
 
 interface DashboardStats {
-  totalLeads: number
-  appointmentSetLeads: number
-  newLeads: number
-  assignedLeads: number
-  quotedLeads: number
-  wonLeads: number
-  totalAppointments: number
-  scheduledAppointments: number
-  pastDueAppointments?: number
-  leadToAppointmentRate: number
-  winRate: number
-  leadsWithAppointments?: number
+  totalLeads: number;
+  appointmentSetLeads: number;
+  newLeads: number;
+  assignedLeads: number;
+  quotedLeads: number;
+  wonLeads: number;
+  totalAppointments: number;
+  scheduledAppointments: number;
+  pastDueAppointments?: number;
+  unassignedLeads?: number;
+  overdueFollowUps?: number;
+  leadToAppointmentRate: number;
+  winRate: number;
+  leadsWithAppointments?: number;
 }
 
 type Notification = {
-  id: string
-  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT" | "CONCIERGE_LEAD"
-  read: boolean
-  acknowledged: boolean
-  createdAt: string
+  id: string;
+  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT" | "CONCIERGE_LEAD";
+  read: boolean;
+  acknowledged: boolean;
+  createdAt: string;
   lead: {
-    id: string
+    id: string;
     customer: {
-      firstName: string
-      lastName: string
-    }
+      firstName: string;
+      lastName: string;
+    };
     createdByUser: {
-      name: string | null
-      email: string
-      role: string
-    } | null
-  } | null
+      name: string | null;
+      email: string;
+      role: string;
+    } | null;
+  } | null;
   note: {
-    id: string
-    content: string
+    id: string;
+    content: string;
     createdByUser: {
-      name: string | null
-      email: string
-    }
-  } | null
-}
+      name: string | null;
+      email: string;
+    };
+  } | null;
+};
 
 export default function DashboardPage() {
-  const { data: session } = useSession()
-  const router = useRouter()
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unacknowledgedCount, setUnacknowledgedCount] = useState(0)
-  const [loadingNotifications, setLoadingNotifications] = useState(false)
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unacknowledgedCount, setUnacknowledgedCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const response = await fetch("/api/dashboard/stats")
-        if (!response.ok) throw new Error("Failed to fetch stats")
+        const response = await fetch("/api/dashboard/stats");
+        if (!response.ok) throw new Error("Failed to fetch stats");
 
-        const data = await response.json()
-        setStats(data.stats)
+        const data = await response.json();
+        setStats(data.stats);
       } catch (err: any) {
-        setError(err.message || "Failed to load dashboard stats")
+        setError(err.message || "Failed to load dashboard stats");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    fetchStats()
-  }, [])
+    fetchStats();
+  }, []);
 
-  const pastDueAppointmentsCount = stats?.pastDueAppointments || 0
+  const pastDueAppointmentsCount = stats?.pastDueAppointments || 0;
 
   // Fetch notifications for mobile view
   useEffect(() => {
     async function fetchNotifications() {
-      if (!session?.user) return
+      if (!session?.user) return;
 
       try {
-        setLoadingNotifications(true)
-        const response = await fetch("/api/notifications?limit=5")
-        if (!response.ok) throw new Error("Failed to fetch notifications")
+        setLoadingNotifications(true);
+        const response = await fetch("/api/notifications?limit=5");
+        if (!response.ok) throw new Error("Failed to fetch notifications");
 
-        const data = await response.json()
-        setNotifications(data.notifications || [])
-        setUnacknowledgedCount(data.counts?.unacknowledged || 0)
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+        setUnacknowledgedCount(data.counts?.unacknowledged || 0);
       } catch (error) {
-        console.error("Error fetching notifications:", error)
+        console.error("Error fetching notifications:", error);
       } finally {
-        setLoadingNotifications(false)
+        setLoadingNotifications(false);
       }
     }
 
-    fetchNotifications()
-  }, [session?.user])
+    fetchNotifications();
+  }, [session?.user]);
 
-  const userName = session?.user?.name || "there"
-  const isAdmin = session?.user?.role === "ADMIN"
+  const userName = session?.user?.name || "there";
+  const isAdmin = session?.user?.role === "ADMIN";
 
   if (loading) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Welcome{session?.user?.name ? `, ${session.user.name}` : ""}</h1>
+          <h1 className="text-3xl font-bold">
+            Welcome{session?.user?.name ? `, ${session.user.name}` : ""}
+          </h1>
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Welcome{session?.user?.name ? `, ${session.user.name}` : ""}</h1>
+          <h1 className="text-3xl font-bold">
+            Welcome{session?.user?.name ? `, ${session.user.name}` : ""}
+          </h1>
           <p className="text-destructive">{error}</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!stats) {
-    return null
+    return null;
   }
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "LEAD_INACTIVITY":
-        return <AlertCircle className="h-4 w-4 text-orange-500" />
+        return <AlertCircle className="h-4 w-4 text-orange-500" />;
       case "ADMIN_COMMENT":
-        return <MessageSquare className="h-4 w-4 text-blue-500" />
+        return <MessageSquare className="h-4 w-4 text-blue-500" />;
       case "CONCIERGE_LEAD":
-        return <UserPlus className="h-4 w-4 text-green-500" />
+        return <UserPlus className="h-4 w-4 text-green-500" />;
       default:
-        return <Bell className="h-4 w-4" />
+        return <Bell className="h-4 w-4" />;
     }
-  }
+  };
 
   const getNotificationMessage = (notification: Notification) => {
     if (notification.type === "LEAD_INACTIVITY") {
       const customerName = notification.lead
         ? `${notification.lead.customer.firstName} ${notification.lead.customer.lastName}`
-        : "a lead"
-      return `No activity on ${customerName} for 48+ hours`
+        : "a lead";
+      return `No activity on ${customerName} for 48+ hours`;
     } else if (notification.type === "ADMIN_COMMENT") {
       const adminName =
         notification.note?.createdByUser.name ||
         notification.note?.createdByUser.email ||
-        "Admin"
-      return `${adminName} commented on your lead`
+        "Admin";
+      return `${adminName} commented on your lead`;
     } else if (notification.type === "CONCIERGE_LEAD") {
       const customerName = notification.lead
         ? `${notification.lead.customer.firstName} ${notification.lead.customer.lastName}`
-        : "a new lead"
+        : "a new lead";
       const conciergeName =
         notification.lead?.createdByUser?.name ||
         notification.lead?.createdByUser?.email ||
-        "Concierge"
-      return `New lead from ${conciergeName}: ${customerName}`
+        "Concierge";
+      return `New lead from ${conciergeName}: ${customerName}`;
     }
-    return "New notification"
-  }
+    return "New notification";
+  };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Welcome{session?.user?.name ? `, ${session.user.name}` : ""}</h1>
+        <h1 className="text-3xl font-bold">
+          Welcome{session?.user?.name ? `, ${session.user.name}` : ""}
+        </h1>
         <p className="text-muted-foreground">
           {isAdmin
             ? "Overview of all leads and appointments"
@@ -209,7 +239,13 @@ export default function DashboardPage() {
             </div>
             <CardDescription>
               {unacknowledgedCount > 0 || pastDueAppointmentsCount > 0
-                ? `You have ${unacknowledgedCount + pastDueAppointmentsCount} notification${unacknowledgedCount + pastDueAppointmentsCount !== 1 ? "s" : ""}`
+                ? `You have ${
+                    unacknowledgedCount + pastDueAppointmentsCount
+                  } notification${
+                    unacknowledgedCount + pastDueAppointmentsCount !== 1
+                      ? "s"
+                      : ""
+                  }`
                 : "No new notifications"}
             </CardDescription>
           </CardHeader>
@@ -253,12 +289,14 @@ export default function DashboardPage() {
                     }`}
                     onClick={() => {
                       if (notification.lead) {
-                        router.push(`/leads/${notification.lead.id}`)
+                        router.push(`/leads/${notification.lead.id}`);
                       }
                     }}
                   >
                     <div className="flex items-start gap-2">
-                      <div className="mt-0.5">{getNotificationIcon(notification.type)}</div>
+                      <div className="mt-0.5">
+                        {getNotificationIcon(notification.type)}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium">
                           {getNotificationMessage(notification)}
@@ -282,7 +320,8 @@ export default function DashboardPage() {
                     className="w-full"
                     onClick={() => router.push("/tasks")}
                   >
-                    View {notifications.length - 3} more notification{notifications.length - 3 !== 1 ? "s" : ""}
+                    View {notifications.length - 3} more notification
+                    {notifications.length - 3 !== 1 ? "s" : ""}
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
                 )}
@@ -306,7 +345,10 @@ export default function DashboardPage() {
       {isAdmin ? (
         // Admin Dashboard
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card
+            className="hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => router.push("/leads?view=all")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -319,41 +361,50 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className="hover:shadow-md transition-shadow cursor-pointer border-blue-200 dark:border-blue-800"
+            onClick={() => router.push("/leads?view=unassigned")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Appointment Set
+                Unassigned Leads
               </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <UserPlus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.appointmentSetLeads}
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {stats.unassignedLeads || 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                Leads with appointments scheduled
+                Need sales rep assignment
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className="hover:shadow-md transition-shadow cursor-pointer border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20"
+            onClick={() => router.push("/leads?showOverdue=true")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Scheduled Appointments
+                Overdue Follow-ups
               </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.scheduledAppointments}
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                {stats.overdueFollowUps || 0}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Upcoming appointments
+              <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                Require immediate attention
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className="hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => router.push("/won-lost")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Won Leads</CardTitle>
               <Award className="h-4 w-4 text-muted-foreground" />
@@ -384,7 +435,9 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">My Appointments</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                My Appointments
+              </CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -429,34 +482,75 @@ export default function DashboardPage() {
         </div>
       )}
 
-
       {/* Additional Stats Section */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Lead Status Breakdown</CardTitle>
-            <CardDescription>Current lead distribution</CardDescription>
+            <CardDescription>
+              Current lead distribution by status
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">New</span>
-              <span className="font-semibold">{stats.newLeads}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Assigned</span>
-              <span className="font-semibold">{stats.assignedLeads}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">
-                Appointment Set
+            <div
+              className="flex justify-between items-center p-2 -mx-2 rounded-md hover:bg-blue-50 dark:hover:bg-blue-950/20 cursor-pointer transition-colors border-l-4 border-blue-500"
+              onClick={() => router.push("/leads?status=NEW")}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  New
+                </span>
+                <span className="text-xs text-green-600 dark:text-green-400">
+                  ↑
+                </span>
+              </div>
+              <span className="font-bold text-blue-700 dark:text-blue-300">
+                {stats.newLeads}
               </span>
-              <span className="font-semibold">
+            </div>
+            <div
+              className="flex justify-between items-center p-2 -mx-2 rounded-md hover:bg-green-50 dark:hover:bg-green-950/20 cursor-pointer transition-colors border-l-4 border-green-500"
+              onClick={() => router.push("/leads?status=ASSIGNED")}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                  Assigned
+                </span>
+                <span className="text-xs text-muted-foreground">→</span>
+              </div>
+              <span className="font-bold text-green-700 dark:text-green-300">
+                {stats.assignedLeads}
+              </span>
+            </div>
+            <div
+              className="flex justify-between items-center p-2 -mx-2 rounded-md hover:bg-purple-50 dark:hover:bg-purple-950/20 cursor-pointer transition-colors border-l-4 border-purple-500"
+              onClick={() => router.push("/leads?status=APPOINTMENT_SET")}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                  Appointment Set
+                </span>
+                <span className="text-xs text-green-600 dark:text-green-400">
+                  ↑
+                </span>
+              </div>
+              <span className="font-bold text-purple-700 dark:text-purple-300">
                 {stats.appointmentSetLeads}
               </span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Quoted</span>
-              <span className="font-semibold">{stats.quotedLeads}</span>
+            <div
+              className="flex justify-between items-center p-2 -mx-2 rounded-md hover:bg-orange-50 dark:hover:bg-orange-950/20 cursor-pointer transition-colors border-l-4 border-orange-500"
+              onClick={() => router.push("/leads?status=QUOTED")}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                  Quoted
+                </span>
+                <span className="text-xs text-muted-foreground">→</span>
+              </div>
+              <span className="font-bold text-orange-700 dark:text-orange-300">
+                {stats.quotedLeads}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -494,26 +588,119 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Appointments</CardTitle>
+            <CardTitle className="text-base">Recent Appointments</CardTitle>
             <CardDescription>
-              {isAdmin ? "All appointments" : "Your appointments"}
+              {isAdmin
+                ? "System-wide appointment overview"
+                : "Your appointment overview"}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total</span>
-              <span className="font-semibold">{stats.totalAppointments}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Scheduled</span>
-              <span className="font-semibold">
+          <CardContent className="space-y-3">
+            <div
+              className="flex justify-between items-center p-2 -mx-2 rounded-md hover:bg-accent cursor-pointer transition-colors"
+              onClick={() => router.push("/appointments?status=SCHEDULED")}
+            >
+              <span className="text-sm font-medium">Upcoming</span>
+              <span className="font-bold text-green-600 dark:text-green-400">
                 {stats.scheduledAppointments}
               </span>
+            </div>
+            <div
+              className="flex justify-between items-center p-2 -mx-2 rounded-md hover:bg-accent cursor-pointer transition-colors"
+              onClick={() => router.push("/appointments?status=COMPLETED")}
+            >
+              <span className="text-sm font-medium">Completed</span>
+              <span className="font-bold">
+                {stats.totalAppointments - stats.scheduledAppointments}
+              </span>
+            </div>
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                Total appointments:{" "}
+                <span className="font-semibold">{stats.totalAppointments}</span>
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
-    </div>
-  )
-}
 
+      {/* Quick Actions Section - Admin Only */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Quick Actions</CardTitle>
+            <CardDescription>Common admin tasks and views</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <Button
+                variant="outline"
+                className="justify-start h-auto py-3 px-4"
+                onClick={() => router.push("/leads?view=unassigned")}
+              >
+                <div className="flex items-center gap-3 w-full">
+                  <UserPlus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <div className="text-left">
+                    <div className="font-semibold text-sm">
+                      Unassigned Leads
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {stats.unassignedLeads || 0} leads
+                    </div>
+                  </div>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start h-auto py-3 px-4"
+                onClick={() => router.push("/leads?showOverdue=true")}
+              >
+                <div className="flex items-center gap-3 w-full">
+                  <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                  <div className="text-left">
+                    <div className="font-semibold text-sm">
+                      Overdue Follow-ups
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {stats.overdueFollowUps || 0} leads
+                    </div>
+                  </div>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start h-auto py-3 px-4"
+                onClick={() => router.push("/jobs")}
+              >
+                <div className="flex items-center gap-3 w-full">
+                  <Briefcase className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  <div className="text-left">
+                    <div className="font-semibold text-sm">Jobs</div>
+                    <div className="text-xs text-muted-foreground">
+                      Leads with work currently being done
+                    </div>
+                  </div>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start h-auto py-3 px-4"
+                onClick={() => router.push("/admin")}
+              >
+                <div className="flex items-center gap-3 w-full">
+                  <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  <div className="text-left">
+                    <div className="font-semibold text-sm">Team Management</div>
+                    <div className="text-xs text-muted-foreground">
+                      Users & roles
+                    </div>
+                  </div>
+                </div>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

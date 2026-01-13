@@ -1,412 +1,456 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react"
-import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Filter, AlertCircle, Bell, X } from "lucide-react"
-import { LeadStatus } from "@prisma/client"
-import { AgGridReact } from "ag-grid-react"
-import { ColDef, ModuleRegistry, AllCommunityModule } from "ag-grid-community"
-import { formatLeadTypes, formatLeadType, formatPhoneNumber } from "@/lib/utils"
-
-import "ag-grid-community/styles/ag-grid.css"
-import "ag-grid-community/styles/ag-theme-alpine.css"
-
-// Register AG Grid modules
-ModuleRegistry.registerModules([AllCommunityModule])
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Filter, AlertCircle, Bell, X } from "lucide-react";
+import { LeadStatus } from "@prisma/client";
+import { Table } from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  formatLeadTypes,
+  formatLeadType,
+  formatPhoneNumber,
+} from "@/lib/utils";
 
 type Lead = {
-  id: string
-  leadTypes: string[]
-  description: string | null
-  status: LeadStatus
-  assignedSalesRepId: string | null
-  createdAt: string
+  id: string;
+  leadTypes: string[];
+  description: string | null;
+  status: LeadStatus;
+  assignedSalesRepId: string | null;
+  createdAt: string;
   customer: {
-    id: string
-    firstName: string
-    lastName: string
-    phone: string | null
-    email: string | null
-  }
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    email: string | null;
+  };
   assignedSalesRep: {
-    id: string
-    name: string | null
-    email: string
-  } | null
-  isInactive?: boolean
-  hoursSinceActivity?: number | null
-  lastActivityTimestamp?: string | null
-  needsFollowUp?: boolean
-}
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  isInactive?: boolean;
+  hoursSinceActivity?: number | null;
+  lastActivityTimestamp?: string | null;
+  needsFollowUp?: boolean;
+};
 
-type ViewMode = "my" | "all" | "unassigned"
+type ViewMode = "my" | "all" | "unassigned";
 
 export default function LeadsPage() {
-  const { data: session } = useSession()
-  const router = useRouter()
-  const [leads, setLeads] = useState<Lead[]>([])
-  const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [showInactiveOnly, setShowInactiveOnly] = useState(false)
-  const [dismissedAlert, setDismissedAlert] = useState(false)
-  const isSalesRep = session?.user.role === "SALES_REP" || session?.user.role === "CONCIERGE"
-  const isAdmin = session?.user.role === "ADMIN"
-  
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showInactiveOnly, setShowInactiveOnly] = useState(false);
+  const [dismissedAlert, setDismissedAlert] = useState(false);
+  const isSalesRep =
+    session?.user.role === "SALES_REP" || session?.user.role === "CONCIERGE";
+  const isAdmin = session?.user.role === "ADMIN";
+
   // Initialize viewMode from URL params, localStorage, or default based on role
   const getInitialViewMode = (): ViewMode => {
     if (typeof window !== "undefined") {
       // First check URL params
-      const urlParams = new URLSearchParams(window.location.search)
-      const urlViewMode = urlParams.get("view") as ViewMode | null
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlViewMode = urlParams.get("view") as ViewMode | null;
       if (urlViewMode && ["my", "all", "unassigned"].includes(urlViewMode)) {
-        return urlViewMode
+        return urlViewMode;
       }
-      
+
       // Then check localStorage as fallback
-      const storedViewMode = localStorage.getItem("leadsViewMode") as ViewMode | null
-      if (storedViewMode && ["my", "all", "unassigned"].includes(storedViewMode)) {
-        return storedViewMode
+      const storedViewMode = localStorage.getItem(
+        "leadsViewMode"
+      ) as ViewMode | null;
+      if (
+        storedViewMode &&
+        ["my", "all", "unassigned"].includes(storedViewMode)
+      ) {
+        return storedViewMode;
       }
     }
-    return isSalesRep ? "my" : "all"
-  }
-  
-  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode())
-  
-  // Sync viewMode from URL on mount (in case URL changed externally)
+    return isSalesRep ? "my" : "all";
+  };
+
+  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode());
+
+  // Sync viewMode and statusFilter from URL on mount (in case URL changed externally)
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search)
-      const urlViewMode = urlParams.get("view") as ViewMode | null
-      if (urlViewMode && ["my", "all", "unassigned"].includes(urlViewMode) && urlViewMode !== viewMode) {
-        setViewMode(urlViewMode)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlViewMode = urlParams.get("view") as ViewMode | null;
+      if (
+        urlViewMode &&
+        ["my", "all", "unassigned"].includes(urlViewMode) &&
+        urlViewMode !== viewMode
+      ) {
+        setViewMode(urlViewMode);
+      }
+
+      // Check for status parameter
+      const urlStatus = urlParams.get("status");
+      if (urlStatus && urlStatus !== statusFilter) {
+        setStatusFilter(urlStatus);
+      }
+
+      // Check for showOverdue parameter (which actually means show inactive leads)
+      const showOverdue = urlParams.get("showOverdue");
+      if (showOverdue === "true") {
+        setShowInactiveOnly(true);
+        setDismissedAlert(true);
       }
     }
-  }, [viewMode])
-  
+  }, [viewMode, statusFilter]);
+
   // Update URL and localStorage when viewMode changes
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search)
-      urlParams.set("view", viewMode)
-      
+      const urlParams = new URLSearchParams(window.location.search);
+      urlParams.set("view", viewMode);
+
       // Store in localStorage as backup
-      localStorage.setItem("leadsViewMode", viewMode)
-      
-      const newUrl = `/leads?${urlParams.toString()}`
+      localStorage.setItem("leadsViewMode", viewMode);
+
+      const newUrl = `/leads?${urlParams.toString()}`;
       // Only update if URL actually changed to avoid infinite loops
       if (window.location.pathname + window.location.search !== newUrl) {
-        router.replace(newUrl, { scroll: false })
+        router.replace(newUrl, { scroll: false });
       }
     }
-  }, [viewMode, router])
+  }, [viewMode, router]);
 
   const fetchLeads = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const params = new URLSearchParams()
+      const params = new URLSearchParams();
       if (statusFilter !== "all") {
-        params.append("status", statusFilter)
+        params.append("status", statusFilter);
       }
       if (viewMode === "my" && isSalesRep) {
-        params.append("myLeads", "true")
+        params.append("myLeads", "true");
       } else if (viewMode === "unassigned") {
-        params.append("unassigned", "true")
+        params.append("unassigned", "true");
       }
 
-      const response = await fetch(`/api/leads?${params.toString()}`)
-      if (!response.ok) throw new Error("Failed to fetch leads")
+      const response = await fetch(`/api/leads?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch leads");
 
-      const data = await response.json()
-      setLeads(data.leads)
+      const data = await response.json();
+      setLeads(data.leads);
     } catch (error) {
-      console.error("Error fetching leads:", error)
+      console.error("Error fetching leads:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [statusFilter, viewMode, isSalesRep])
+  }, [statusFilter, viewMode, isSalesRep]);
 
   useEffect(() => {
-    fetchLeads()
-  }, [fetchLeads])
+    fetchLeads();
+  }, [fetchLeads]);
 
   const getStatusColor = (status: LeadStatus) => {
     switch (status) {
       case "NEW":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "ASSIGNED":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "APPOINTMENT_SET":
-        return "bg-purple-100 text-purple-800"
+        return "bg-purple-100 text-purple-800";
       case "QUOTED":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 text-orange-800";
       case "WON":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "LOST":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
-  const isViewingAllLeads = isSalesRep && viewMode === "all"
+  const isViewingAllLeads = isSalesRep && viewMode === "all";
 
   // Filter and sort leads
   const filteredLeads = useMemo(() => {
-    let result = [...leads]
-    
+    let result = [...leads];
+
     // Filter by inactive if needed
     if (showInactiveOnly) {
-      result = result.filter((lead) => lead.isInactive === true)
+      result = result.filter((lead) => lead.isInactive === true);
     }
-    
+
     // Auto-sort: inactive leads first
     result.sort((a, b) => {
-      if (a.isInactive && !b.isInactive) return -1
-      if (!a.isInactive && b.isInactive) return 1
-      return 0
-    })
-    
-    return result
-  }, [leads, showInactiveOnly])
+      if (a.isInactive && !b.isInactive) return -1;
+      if (!a.isInactive && b.isInactive) return 1;
+      return 0;
+    });
+
+    return result;
+  }, [leads, showInactiveOnly]);
 
   // Fetch sales rep's own leads separately to calculate inactive count for banner
-  const [myLeadsForCount, setMyLeadsForCount] = useState<Lead[]>([])
-  
+  const [myLeadsForCount, setMyLeadsForCount] = useState<Lead[]>([]);
+
   const fetchMyLeadsForCount = useCallback(async () => {
     if (isSalesRep) {
       try {
-        const response = await fetch(`/api/leads?myLeads=true`)
+        const response = await fetch(`/api/leads?myLeads=true`);
         if (response.ok) {
-          const data = await response.json()
-          setMyLeadsForCount(data.leads || [])
+          const data = await response.json();
+          setMyLeadsForCount(data.leads || []);
         }
       } catch (error) {
-        console.error("Error fetching my leads for count:", error)
+        console.error("Error fetching my leads for count:", error);
       }
     }
-  }, [isSalesRep])
-  
+  }, [isSalesRep]);
+
   useEffect(() => {
-    fetchMyLeadsForCount()
-  }, [fetchMyLeadsForCount])
-  
+    fetchMyLeadsForCount();
+  }, [fetchMyLeadsForCount]);
+
   // Count inactive leads - use myLeadsForCount for sales reps, otherwise use current leads
   const inactiveCount = useMemo(() => {
-    const leadsToCount = (isSalesRep && myLeadsForCount.length > 0) ? myLeadsForCount : leads
-    return leadsToCount.filter((lead) => lead.isInactive === true).length
-  }, [leads, myLeadsForCount, isSalesRep])
+    const leadsToCount =
+      isSalesRep && myLeadsForCount.length > 0 ? myLeadsForCount : leads;
+    return leadsToCount.filter((lead) => lead.isInactive === true).length;
+  }, [leads, myLeadsForCount, isSalesRep]);
 
   // Format time since activity
-  const formatTimeSinceActivity = (hours: number | null | undefined): string => {
-    if (hours === null || hours === undefined) return "Closed/Inactive"
-    if (hours < 24) return "Today"
-    const days = Math.floor(hours / 24)
-    if (days === 1) return "1 day ago"
-    return `${days} days ago`
-  }
+  const formatTimeSinceActivity = (
+    hours: number | null | undefined
+  ): string => {
+    if (hours === null || hours === undefined) return "Closed/Inactive";
+    if (hours < 24) return "Today";
+    const days = Math.floor(hours / 24);
+    if (days === 1) return "1 day ago";
+    return `${days} days ago`;
+  };
 
-  const columnDefs: ColDef[] = useMemo(
-    () => {
-      // For sales reps viewing all leads, show only name and assigned to
-      if (isViewingAllLeads) {
-        return [
-          {
-            field: "customer.name",
-            headerName: "Customer",
-            valueGetter: (params) => {
-              return `${params.data.customer.firstName} ${params.data.customer.lastName}`
-            },
-            flex: 1,
-            minWidth: 200,
-            cellRenderer: (params: any) => {
-              // Don't make it clickable for sales reps viewing all leads
-              return (
-                <span className="font-medium">
-                  {params.value}
-                </span>
-              )
-            },
-          },
-          {
-            field: "assignedSalesRep.name",
-            headerName: "Assigned To",
-            valueGetter: (params) => {
-              if (!params.data.assignedSalesRep) return "-"
-              return (
-                params.data.assignedSalesRep.name ||
-                params.data.assignedSalesRep.email
-              )
-            },
-            flex: 1,
-            minWidth: 200,
-          },
-        ]
-      }
-
-      // Full columns for admins or sales reps viewing their own leads
+  const columns: ColumnsType<Lead> = useMemo(() => {
+    // For sales reps viewing all leads, show only name and assigned to
+    if (isViewingAllLeads) {
       return [
         {
-          field: "customer.name",
-          headerName: "Customer",
-          valueGetter: (params) => {
-            return `${params.data.customer.firstName} ${params.data.customer.lastName}`
+          title: "Customer",
+          dataIndex: ["customer", "firstName"],
+          key: "customer",
+          sorter: (a: Lead, b: Lead) => {
+            const nameA = `${a.customer.firstName} ${a.customer.lastName}`;
+            const nameB = `${b.customer.firstName} ${b.customer.lastName}`;
+            return nameA.localeCompare(nameB);
           },
-          flex: 1,
-          minWidth: 150,
-          cellRenderer: (params: any) => {
+          render: (_: any, record: Lead) => {
             return (
-              <Link
-                href={`/leads/${params.data.id}`}
-                className="text-primary hover:underline font-medium transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {params.value}
-              </Link>
-            )
-          },
-        },
-        {
-          field: "customer.phone",
-          headerName: "Phone",
-          valueGetter: (params) => 
-            params.data.customer.phone 
-              ? formatPhoneNumber(params.data.customer.phone)
-              : "-",
-          flex: 1,
-          minWidth: 120,
-        },
-        {
-          field: "customer.email",
-          headerName: "Email",
-          valueGetter: (params) => params.data.customer.email || "-",
-          flex: 1,
-          minWidth: 180,
-        },
-        {
-          field: "leadTypes",
-          headerName: "Type",
-          flex: 1,
-          minWidth: 150,
-          maxWidth: 250,
-          valueGetter: (params) => formatLeadTypes(params.data.leadTypes || []),
-          cellRenderer: (params: any) => {
-            const types = params.data.leadTypes || []
-            const maxVisible = 2
-            const visibleTypes = types.slice(0, maxVisible)
-            const remainingCount = types.length - maxVisible
-            
-            if (types.length === 0) {
-              return <span className="text-muted-foreground text-xs">-</span>
-            }
-            
-            return (
-              <div className="flex items-center gap-1 flex-wrap" title={formatLeadTypes(types)}>
-                {visibleTypes.map((type: string, idx: number) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground whitespace-nowrap"
-                  >
-                    {formatLeadType(type)}
-                  </span>
-                ))}
-                {remainingCount > 0 && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground whitespace-nowrap">
-                    +{remainingCount} more
-                  </span>
-                )}
-              </div>
-            )
-          },
-        },
-        {
-          field: "status",
-          headerName: "Status",
-          flex: 1,
-          minWidth: 140,
-          cellRenderer: (params: any) => {
-            const status = params.value as LeadStatus
-            return (
-              <span
-                className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(
-                  status
-                )}`}
-              >
-                {status.replace("_", " ")}
+              <span className="font-medium">
+                {record.customer.firstName} {record.customer.lastName}
               </span>
-            )
+            );
           },
         },
         {
-          field: "assignedSalesRep.name",
-          headerName: "Assigned To",
-          valueGetter: (params) => {
-            if (!params.data.assignedSalesRep) return "-"
+          title: "Assigned To",
+          dataIndex: ["assignedSalesRep", "name"],
+          key: "assignedTo",
+          sorter: (a: Lead, b: Lead) => {
+            const nameA =
+              a.assignedSalesRep?.name || a.assignedSalesRep?.email || "";
+            const nameB =
+              b.assignedSalesRep?.name || b.assignedSalesRep?.email || "";
+            return nameA.localeCompare(nameB);
+          },
+          render: (_: any, record: Lead) => {
+            if (!record.assignedSalesRep) return "-";
             return (
-              params.data.assignedSalesRep.name ||
-              params.data.assignedSalesRep.email
-            )
+              record.assignedSalesRep.name || record.assignedSalesRep.email
+            );
           },
-          flex: 1,
-          minWidth: 150,
         },
-        {
-          field: "createdAt",
-          headerName: "Created",
-          valueGetter: (params) => {
-            return new Date(params.data.createdAt).toLocaleDateString()
-          },
-          flex: 1,
-          minWidth: 100,
-        },
-        // Only show Last Activity column for admins or sales reps viewing their own leads
-        ...((isAdmin || (isSalesRep && viewMode === "my")) ? [{
-          field: "lastActivityTimestamp",
-          headerName: "Last Activity",
-          valueGetter: (params: any) => {
-            return formatTimeSinceActivity(params.data.hoursSinceActivity)
-          },
-          flex: 1,
-          minWidth: 150,
-          cellRenderer: (params: any) => {
-            const isInactive = params.data.isInactive
-            const timeText = params.value
-            
-            return (
-              <div className="flex items-center gap-2">
-                {isInactive && (
-                  <Bell className="h-4 w-4 text-amber-600" />
-                )}
-                <span className={isInactive ? "text-amber-700 font-medium" : ""}>
-                  {timeText}
-                </span>
-              </div>
-            )
-          },
-        }] : []),
-      ]
-    },
-    [isViewingAllLeads, isAdmin, isSalesRep, viewMode]
-  )
+      ];
+    }
 
-  const defaultColDef = useMemo(
-    () => ({
-      sortable: true,
-      filter: true,
-      resizable: true,
-      cellStyle: {
-        display: "flex",
-        alignItems: "center",
+    // Full columns for admins or sales reps viewing their own leads
+    return [
+      {
+        title: "Customer",
+        dataIndex: ["customer", "firstName"],
+        key: "customer",
+        sorter: (a, b) => {
+          const nameA = `${a.customer.firstName} ${a.customer.lastName}`;
+          const nameB = `${b.customer.firstName} ${b.customer.lastName}`;
+          return nameA.localeCompare(nameB);
+        },
+        render: (_, record) => {
+          return (
+            <Link
+              href={`/leads/${record.id}`}
+              className="text-primary hover:underline font-medium transition-colors"
+            >
+              {record.customer.firstName} {record.customer.lastName}
+            </Link>
+          );
+        },
       },
-    }),
-    []
-  )
+      {
+        title: "Phone",
+        dataIndex: ["customer", "phone"],
+        key: "phone",
+        sorter: (a: Lead, b: Lead) => {
+          const phoneA = a.customer.phone || "";
+          const phoneB = b.customer.phone || "";
+          return phoneA.localeCompare(phoneB);
+        },
+        render: (_: any, record: Lead) =>
+          record.customer.phone
+            ? formatPhoneNumber(record.customer.phone)
+            : "-",
+      },
+      {
+        title: "Email",
+        dataIndex: ["customer", "email"],
+        key: "email",
+        sorter: (a, b) => {
+          const emailA = a.customer.email || "";
+          const emailB = b.customer.email || "";
+          return emailA.localeCompare(emailB);
+        },
+        render: (_, record) => record.customer.email || "-",
+      },
+      {
+        title: "Type",
+        dataIndex: "leadTypes",
+        key: "leadTypes",
+        render: (_: any, record: Lead) => {
+          const types = record.leadTypes || [];
+          const maxVisible = 2;
+          const visibleTypes = types.slice(0, maxVisible);
+          const remainingCount = types.length - maxVisible;
+
+          if (types.length === 0) {
+            return <span className="text-muted-foreground text-xs">-</span>;
+          }
+
+          return (
+            <div
+              className="flex items-center gap-1 flex-wrap"
+              title={formatLeadTypes(types)}
+            >
+              {visibleTypes.map((type: string, idx: number) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground whitespace-nowrap"
+                >
+                  {formatLeadType(type)}
+                </span>
+              ))}
+              {remainingCount > 0 && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground whitespace-nowrap">
+                  +{remainingCount} more
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        title: "Status",
+        dataIndex: "status",
+        key: "status",
+        sorter: (a: Lead, b: Lead) => a.status.localeCompare(b.status),
+        filters: [
+          { text: "New", value: "NEW" },
+          { text: "Assigned", value: "ASSIGNED" },
+          { text: "Appointment Set", value: "APPOINTMENT_SET" },
+          { text: "Quoted", value: "QUOTED" },
+          { text: "Won", value: "WON" },
+          { text: "Lost", value: "LOST" },
+        ],
+        onFilter: (value: any, record: Lead) => record.status === value,
+        render: (status: LeadStatus) => {
+          return (
+            <span
+              className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(
+                status
+              )}`}
+            >
+              {status.replace("_", " ")}
+            </span>
+          );
+        },
+      },
+      {
+        title: "Assigned To",
+        dataIndex: ["assignedSalesRep", "name"],
+        key: "assignedTo",
+        sorter: (a: Lead, b: Lead) => {
+          const nameA =
+            a.assignedSalesRep?.name || a.assignedSalesRep?.email || "";
+          const nameB =
+            b.assignedSalesRep?.name || b.assignedSalesRep?.email || "";
+          return nameA.localeCompare(nameB);
+        },
+        render: (_: any, record: Lead) => {
+          if (!record.assignedSalesRep) return "-";
+          return record.assignedSalesRep.name || record.assignedSalesRep.email;
+        },
+      },
+      {
+        title: "Created",
+        dataIndex: "createdAt",
+        key: "createdAt",
+        sorter: (a: Lead, b: Lead) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        render: (date: string) => new Date(date).toLocaleDateString(),
+      },
+      // Only show Last Activity column for admins or sales reps viewing their own leads
+      ...(isAdmin || (isSalesRep && viewMode === "my")
+        ? [
+            {
+              title: "Last Activity",
+              dataIndex: "lastActivityTimestamp",
+              key: "lastActivity",
+              sorter: (a: Lead, b: Lead) => {
+                const hoursA = a.hoursSinceActivity ?? Infinity;
+                const hoursB = b.hoursSinceActivity ?? Infinity;
+                return hoursA - hoursB;
+              },
+              render: (_: any, record: Lead) => {
+                const isInactive = record.isInactive;
+                const timeText = formatTimeSinceActivity(
+                  record.hoursSinceActivity
+                );
+
+                return (
+                  <div className="flex items-center gap-2">
+                    {isInactive && <Bell className="h-4 w-4 text-amber-600" />}
+                    <span
+                      className={isInactive ? "text-amber-700 font-medium" : ""}
+                    >
+                      {timeText}
+                    </span>
+                  </div>
+                );
+              },
+            },
+          ]
+        : []),
+    ];
+  }, [isViewingAllLeads, isAdmin, isSalesRep, viewMode]);
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -443,22 +487,25 @@ export default function LeadsPage() {
               <Bell className="h-5 w-5 text-amber-600 mt-0.5" />
               <div className="flex-1">
                 <h3 className="font-semibold text-amber-900 mb-1">
-                  {inactiveCount} {inactiveCount === 1 ? "lead needs" : "leads need"} follow-up
+                  {inactiveCount}{" "}
+                  {inactiveCount === 1 ? "lead needs" : "leads need"} follow-up
                 </h3>
                 <p className="text-sm text-amber-700 mb-3">
-                  These leads have been inactive for over 48 hours. Please update the status, add a note, or contact an Admin to close or mark as Won.
+                  These leads have been inactive for over 48 hours. Please
+                  update the status, add a note, or contact an Admin to close or
+                  mark as Won.
                 </p>
                 <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="default"
                     className="bg-amber-600 hover:bg-amber-700"
                     onClick={() => setShowInactiveOnly(true)}
                   >
                     View Inactive Leads
                   </Button>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="ghost"
                     className="text-amber-700 hover:text-amber-900 hover:bg-amber-100"
                     onClick={() => setDismissedAlert(true)}
@@ -542,14 +589,16 @@ export default function LeadsPage() {
                 type="checkbox"
                 checked={showInactiveOnly}
                 onChange={(e) => {
-                  setShowInactiveOnly(e.target.checked)
-                  if (e.target.checked) setDismissedAlert(true)
+                  setShowInactiveOnly(e.target.checked);
+                  if (e.target.checked) setDismissedAlert(true);
                 }}
                 className="rounded border-amber-300 text-amber-600 focus:ring-amber-500"
               />
               <span className="flex items-center gap-1.5">
                 <Bell className="h-4 w-4 text-amber-600" />
-                <span className="text-amber-900 font-medium">Show only inactive leads</span>
+                <span className="text-amber-900 font-medium">
+                  Show only inactive leads
+                </span>
                 {inactiveCount > 0 && (
                   <Badge className="ml-1 bg-amber-100 text-amber-800 border-amber-300 text-xs">
                     {inactiveCount}
@@ -583,49 +632,43 @@ export default function LeadsPage() {
       ) : (
         <Card>
           <CardContent className="p-4">
-            <div
-              className="ag-theme-alpine rounded-lg overflow-hidden"
-              style={{ height: "650px", width: "100%" }}
-            >
-              <AgGridReact
-                rowData={filteredLeads}
-                columnDefs={columnDefs}
-                defaultColDef={defaultColDef}
-                onRowClicked={(event) => {
-                  // Only allow navigation if not viewing all leads as sales rep
-                  if (!isViewingAllLeads) {
-                    router.push(`/leads/${event.data.id}`)
-                  }
-                }}
-                {...({
-                  rowStyle: (params: any) => {
-                    const baseStyle: any = { cursor: isViewingAllLeads ? "default" : "pointer" }
-                    // Highlight inactive leads with amber left border and subtle background
-                    if (params.data?.isInactive) {
-                      return { 
-                        ...baseStyle, 
-                        backgroundColor: "#fffbeb", // amber-50
-                        borderLeft: "4px solid #fbbf24", // amber-400
-                        paddingLeft: "8px"
-                      }
+            <Table
+              dataSource={filteredLeads}
+              columns={columns}
+              rowKey="id"
+              pagination={{
+                pageSize: 20,
+                showSizeChanger: true,
+                showTotal: (total: number) => `Total ${total} leads`,
+                pageSizeOptions: ["10", "20", "50", "100"],
+              }}
+              onRow={(record: Lead) => {
+                return {
+                  onClick: () => {
+                    // Only allow navigation if not viewing all leads as sales rep
+                    if (!isViewingAllLeads) {
+                      router.push(`/leads/${record.id}`);
                     }
-                    return baseStyle
-                  }
-                } as any)}
-                pagination={true}
-                paginationPageSize={20}
-                suppressCellFocus={true}
-                animateRows={true}
-                rowHeight={56}
-                headerHeight={48}
-                suppressRowClickSelection={false}
-                enableCellTextSelection={true}
-                ensureDomOrder={true}
-              />
-            </div>
+                  },
+                  style: {
+                    cursor: isViewingAllLeads ? "default" : "pointer",
+                    backgroundColor: record.isInactive ? "#fffbeb" : undefined,
+                    borderLeft: record.isInactive
+                      ? "4px solid #fbbf24"
+                      : undefined,
+                    paddingLeft: record.isInactive ? "8px" : undefined,
+                  },
+                };
+              }}
+              scroll={{
+                x: "max-content",
+                y: 600,
+              }}
+              size="middle"
+            />
           </CardContent>
         </Card>
       )}
     </div>
-  )
+  );
 }
