@@ -198,7 +198,7 @@ export async function PATCH(
       quoteId: params.id,
       leadId: quote.leadId,
       changes: { status, amount, expiresAt, sentAt },
-    })
+    }, session.user.name || session.user.email)
 
     return NextResponse.json({ quote }, { status: 200 })
   } catch (error: any) {
@@ -256,7 +256,7 @@ export async function DELETE(
       leadId: existingQuote.leadId,
       amount: existingQuote.amount,
       status: existingQuote.status,
-    })
+    }, session.user.name || session.user.email)
 
     return NextResponse.json({ success: true }, { status: 200 })
   } catch (error: any) {

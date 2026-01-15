@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { logAction } from "@/lib/utils"
 
 // DELETE /api/tasks/[id] - Delete a task (only if resolved)
 export async function DELETE(
@@ -47,6 +48,13 @@ export async function DELETE(
         where: { id: task.notification.id },
       })
     }
+
+    logAction("Task deleted", session.user.id, session.user.role, {
+      taskId: params.id,
+      leadId: task.leadId,
+      taskType: task.type,
+      taskStatus: task.status,
+    }, session.user.name || session.user.email)
 
     return NextResponse.json(
       { message: "Task deleted successfully" },

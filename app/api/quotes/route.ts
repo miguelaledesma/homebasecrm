@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       amount: quote.amount,
       currency: quote.currency,
       status: quote.status,
-    });
+    }, session.user.name || session.user.email);
 
     return NextResponse.json({ quote }, { status: 201 })
   } catch (error: any) {

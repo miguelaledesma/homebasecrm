@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { UserRole } from "@prisma/client"
+import { logAction } from "@/lib/utils"
 
 export async function PATCH(
   request: NextRequest,
@@ -64,6 +65,12 @@ export async function PATCH(
       },
     })
 
+    logAction("User updated", session.user.id, session.user.role, {
+      targetUserId: userId,
+      targetUserName: user.name || user.email,
+      roleChanged: { from: user.role, to: role },
+    }, session.user.name || session.user.email)
+
     return NextResponse.json({ user: updatedUser }, { status: 200 })
   } catch (error: any) {
     console.error("Error updating user role:", error)
@@ -124,6 +131,12 @@ export async function DELETE(
     await prisma.user.delete({
       where: { id: userId },
     })
+
+    logAction("User deleted", session.user.id, session.user.role, {
+      deletedUserId: userId,
+      deletedUserName: user.name || user.email,
+      deletedUserRole: user.role,
+    }, session.user.name || session.user.email)
 
     return NextResponse.json(
       { message: "User deleted successfully" },

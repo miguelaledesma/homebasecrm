@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { LeadStatus, JobStatus } from "@prisma/client"
-import { logError, logInfo } from "@/lib/utils"
+import { logError, logInfo, logAction } from "@/lib/utils"
 
 const DEAL_LOST_PREFIX = "Lead marked as lost. Reason:"
 const DEAL_WON_NOTE = "Lead marked as won."
@@ -118,11 +118,12 @@ export async function PATCH(
       return updatedLead
     })
 
-    logInfo("PATCH /api/leads/[id]/close", {
-      userId: session.user.id,
+    logAction("Lead closed", session.user.id, session.user.role, {
       leadId,
       status,
-    })
+      jobStatus: status === LeadStatus.WON ? jobStatus : undefined,
+      reason: status === LeadStatus.LOST ? reason : undefined,
+    }, session.user.name || session.user.email)
 
     return NextResponse.json({ lead: result }, { status: 200 })
   } catch (error: any) {

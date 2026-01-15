@@ -63,9 +63,17 @@ export function logError(message: string, error: any, context?: Record<string, a
   });
 }
 
-export function logAction(action: string, userId: string, userRole: string, details?: Record<string, any>) {
+export function logAction(
+  action: string, 
+  userId: string, 
+  userRole: string, 
+  details?: Record<string, any>,
+  username?: string | null
+) {
   const timestamp = new Date().toISOString();
+  const userDisplay = username || userId;
   console.log(`[ACTION] ${timestamp} - ${action}`, {
+    user: userDisplay,
     userId,
     userRole,
     ...details,

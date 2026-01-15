@@ -109,12 +109,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    logAction("Appointment created", session.user.id, session.user.role, {
-      appointmentId: appointment.id,
-      leadId: bodyLeadId,
-      scheduledFor: scheduledFor,
-      salesRepId: salesRepId,
-    });
+    logAction(
+      "Appointment created",
+      session.user.id,
+      session.user.role,
+      {
+        appointmentId: appointment.id,
+        leadId: bodyLeadId,
+        scheduledFor: scheduledFor,
+        salesRepId: salesRepId,
+      },
+      session.user.name || session.user.email
+    );
 
     return NextResponse.json({ appointment }, { status: 201 });
   } catch (error: any) {

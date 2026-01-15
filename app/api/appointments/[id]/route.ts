@@ -174,7 +174,7 @@ export async function PATCH(
       appointmentId: params.id,
       leadId: appointment.leadId,
       statusChanged: status ? { from: existingAppointment.status, to: status } : undefined,
-    });
+    }, session.user.name || session.user.email);
 
     return NextResponse.json({ appointment }, { status: 200 })
   } catch (error: any) {

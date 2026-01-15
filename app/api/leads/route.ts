@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
       assignedTo: assignedSalesRepId || "Unassigned",
       sourceType: sourceType,
       isReferral: sourceType === "REFERRAL",
-    });
+    }, session.user.name || session.user.email);
 
     // If lead was created by a concierge, notify all admins INSTANTLY
     // This happens synchronously in the same request, not via cron job

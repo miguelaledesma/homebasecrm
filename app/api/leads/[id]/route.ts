@@ -154,7 +154,11 @@ export async function PATCH(
     }
 
     // Only ADMIN can set status to LOST or WON
-    if (status && (status === "LOST" || status === "WON") && session.user.role !== "ADMIN") {
+    if (
+      status &&
+      (status === "LOST" || status === "WON") &&
+      session.user.role !== "ADMIN"
+    ) {
       return NextResponse.json(
         { error: "Only admins can set lead status to Lost or Won" },
         { status: 403 }
@@ -175,9 +179,15 @@ export async function PATCH(
           { status: 400 }
         );
       }
-      if (jobStatus && !["SCHEDULED", "IN_PROGRESS", "DONE"].includes(jobStatus)) {
+      if (
+        jobStatus &&
+        !["SCHEDULED", "IN_PROGRESS", "DONE"].includes(jobStatus)
+      ) {
         return NextResponse.json(
-          { error: "Invalid job status. Must be SCHEDULED, IN_PROGRESS, or DONE" },
+          {
+            error:
+              "Invalid job status. Must be SCHEDULED, IN_PROGRESS, or DONE",
+          },
           { status: 400 }
         );
       }
@@ -318,20 +328,26 @@ export async function PATCH(
         lastName: string;
       };
     };
-    logAction("Lead updated", session.user.id, session.user.role, {
-      leadId: params.id,
-      customerName: `${leadWithCustomer.customer.firstName} ${leadWithCustomer.customer.lastName}`,
-      statusChanged: status
-        ? { from: existingLead.status, to: status }
-        : undefined,
-      assignedChanged:
-        assignedSalesRepId !== undefined
-          ? {
-              from: existingLead.assignedSalesRepId,
-              to: assignedSalesRepId,
-            }
+    logAction(
+      "Lead updated",
+      session.user.id,
+      session.user.role,
+      {
+        leadId: params.id,
+        customerName: `${leadWithCustomer.customer.firstName} ${leadWithCustomer.customer.lastName}`,
+        statusChanged: status
+          ? { from: existingLead.status, to: status }
           : undefined,
-    });
+        assignedChanged:
+          assignedSalesRepId !== undefined
+            ? {
+                from: existingLead.assignedSalesRepId,
+                to: assignedSalesRepId,
+              }
+            : undefined,
+      },
+      session.user.name || session.user.email
+    );
 
     return NextResponse.json({ lead }, { status: 200 });
   } catch (error: any) {
@@ -358,8 +374,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Get lead info before deletion for logging (single query)
     const lead = await prisma.lead.findUnique({
       where: { id: params.id },
+      include: { customer: true },
     });
 
     if (!lead) {
@@ -379,6 +397,18 @@ export async function DELETE(
     await prisma.lead.delete({
       where: { id: params.id },
     });
+
+    logAction(
+      "Lead deleted",
+      session.user.id,
+      session.user.role,
+      {
+        leadId: params.id,
+        customerName: `${lead.customer.firstName} ${lead.customer.lastName}`,
+        status: lead.status,
+      },
+      session.user.name || session.user.email
+    );
 
     return NextResponse.json(
       { message: "Lead deleted successfully" },

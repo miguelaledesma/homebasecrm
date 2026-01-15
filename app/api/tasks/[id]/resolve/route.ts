@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { logAction } from "@/lib/utils"
 
 // PATCH /api/tasks/[id]/resolve - Resolve task
 export async function PATCH(
@@ -43,6 +44,12 @@ export async function PATCH(
         where: { id: task.notification.id },
       })
     }
+
+    logAction("Task resolved", session.user.id, session.user.role, {
+      taskId: params.id,
+      leadId: task.leadId,
+      taskType: task.type,
+    }, session.user.name || session.user.email)
 
     return NextResponse.json({ task: updated }, { status: 200 })
   } catch (error: any) {
