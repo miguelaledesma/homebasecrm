@@ -180,6 +180,7 @@ model Lead {
   status             LeadStatus @default(NEW)
   closedDate         DateTime?
   jobStatus          JobStatus? // Only relevant when status is WON
+  jobCompletedDate   DateTime? // Date when job status was set to DONE
   assignedSalesRepId String?
   createdBy          String? // ID of user who created the lead
   createdAt          DateTime   @default(now())

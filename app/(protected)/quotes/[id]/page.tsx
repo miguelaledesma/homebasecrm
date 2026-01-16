@@ -107,6 +107,8 @@ export default function QuoteDetailPage() {
     name: string;
     type: string | null;
   } | null>(null);
+  const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<QuoteStatus | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const quoteId = params.id as string;
@@ -224,6 +226,20 @@ export default function QuoteDetailPage() {
       return;
     }
 
+    // If status is being changed to ACCEPTED, show confirmation
+    if (status === QuoteStatus.ACCEPTED && originalStatus !== QuoteStatus.ACCEPTED) {
+      setPendingStatus(status);
+      setShowAcceptConfirm(true);
+      return;
+    }
+
+    await performSaveChanges();
+  };
+
+  const performSaveChanges = async () => {
+    if (!quote) return;
+
+    const newAmount = parseFloat(amount);
     setUpdating(true);
     try {
       const response = await fetch(`/api/quotes/${quoteId}`, {
@@ -252,6 +268,19 @@ export default function QuoteDetailPage() {
   };
 
   const handleStatusUpdate = async (newStatus: QuoteStatus) => {
+    // If changing to ACCEPTED, show confirmation dialog
+    // Check against the quote's current status, not the local state
+    if (newStatus === QuoteStatus.ACCEPTED && quote && quote.status !== QuoteStatus.ACCEPTED) {
+      setPendingStatus(newStatus);
+      setShowAcceptConfirm(true);
+      return;
+    }
+
+    // For other status changes, proceed normally
+    await performStatusUpdate(newStatus);
+  };
+
+  const performStatusUpdate = async (newStatus: QuoteStatus) => {
     if (!isEditing) {
       // If not in edit mode, update immediately (for non-admin users)
       try {
@@ -274,6 +303,31 @@ export default function QuoteDetailPage() {
     } else {
       // If in edit mode, just update local state
       setStatus(newStatus);
+    }
+  };
+
+  const handleConfirmAccept = async () => {
+    setShowAcceptConfirm(false);
+    if (pendingStatus) {
+      if (isEditing) {
+        // If in edit mode, save all changes including the status
+        await performSaveChanges();
+      } else {
+        // If not in edit mode, just update the status
+        await performStatusUpdate(pendingStatus);
+      }
+      setPendingStatus(null);
+    }
+  };
+
+  const handleCancelAccept = () => {
+    setShowAcceptConfirm(false);
+    setPendingStatus(null);
+    // Revert status dropdown to original value
+    if (quote) {
+      setStatus(quote.status);
+    } else if (originalStatus) {
+      setStatus(originalStatus);
     }
   };
 
@@ -766,6 +820,27 @@ export default function QuoteDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Confirmation Dialog for Accepting Quote */}
+      <AlertDialog open={showAcceptConfirm} onOpenChange={setShowAcceptConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Accept Quote?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Once this quote is accepted, the lead will automatically be marked as WON. 
+              This action cannot be easily undone. Do you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelAccept}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAccept}>
+              Yes, Accept Quote
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

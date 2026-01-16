@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { QuoteStatus, UserRole } from "@prisma/client"
+import { QuoteStatus, UserRole, LeadStatus } from "@prisma/client"
 import { logAction, logError } from "@/lib/utils"
 import { storage } from "@/lib/storage"
 
@@ -163,6 +163,89 @@ export async function PATCH(
       updateData.sentAt = sentAt ? new Date(sentAt) : null
     }
 
+    // Check if status is being changed to ACCEPTED
+    const isChangingToAccepted = status === QuoteStatus.ACCEPTED && existingQuote.status !== QuoteStatus.ACCEPTED
+
+    // If changing to ACCEPTED, we need to update the lead status to WON
+    if (isChangingToAccepted) {
+      // Get the lead to check current status
+      const lead = await prisma.lead.findUnique({
+        where: { id: existingQuote.leadId },
+        select: { id: true, status: true },
+      })
+
+      if (!lead) {
+        return NextResponse.json({ error: "Lead not found" }, { status: 404 })
+      }
+
+      // Update quote and lead in a transaction
+      const result = await prisma.$transaction(async (tx) => {
+        // Update quote
+        const updatedQuote = await tx.quote.update({
+          where: { id: params.id },
+          data: updateData,
+          include: {
+            lead: {
+              include: {
+                customer: true,
+              },
+            },
+            appointment: true,
+            salesRep: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            files: {
+              include: {
+                uploadedBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+
+        // Update lead to WON if not already WON
+        if (lead.status !== LeadStatus.WON) {
+          const now = new Date()
+          await tx.lead.update({
+            where: { id: existingQuote.leadId },
+            data: {
+              status: LeadStatus.WON,
+              closedDate: now,
+            },
+          })
+
+          // Create a note indicating the lead was marked as won via quote acceptance
+          await tx.leadNote.create({
+            data: {
+              leadId: existingQuote.leadId,
+              content: "Lead marked as won (quote accepted).",
+              createdBy: session.user.id,
+            },
+          })
+        }
+
+        return updatedQuote
+      })
+
+      logAction("Quote accepted - lead marked as won", session.user.id, session.user.role, {
+        quoteId: params.id,
+        leadId: result.leadId,
+        changes: { status, amount, expiresAt, sentAt },
+      }, session.user.name || session.user.email)
+
+      return NextResponse.json({ quote: result }, { status: 200 })
+    }
+
+    // Normal update (not changing to ACCEPTED)
     const quote = await prisma.quote.update({
       where: { id: params.id },
       data: updateData,

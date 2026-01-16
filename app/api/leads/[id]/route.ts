@@ -109,6 +109,7 @@ export async function PATCH(
       description,
       leadTypes,
       jobStatus,
+      jobCompletedDate,
       // Customer fields
       firstName,
       lastName,
@@ -243,6 +244,29 @@ export async function PATCH(
     }
     if (jobStatus !== undefined) {
       updateData.jobStatus = jobStatus ? (jobStatus as JobStatus) : null;
+      // If setting jobStatus to DONE, require jobCompletedDate
+      // If setting to something else, clear jobCompletedDate
+      if (jobStatus === "DONE") {
+        if (jobCompletedDate) {
+          // Parse date string (YYYY-MM-DD) and create date at local midnight to avoid timezone issues
+          const [year, month, day] = jobCompletedDate.split("-").map(Number);
+          updateData.jobCompletedDate = new Date(year, month - 1, day);
+        }
+        // If DONE but no date provided, don't update the date (keep existing if any)
+      } else if (jobStatus !== "DONE") {
+        // Clear completion date if status is not DONE
+        updateData.jobCompletedDate = null;
+      }
+    }
+    // Allow updating jobCompletedDate independently (for editing existing DONE jobs)
+    if (jobCompletedDate !== undefined && jobStatus === undefined) {
+      if (jobCompletedDate) {
+        // Parse date string (YYYY-MM-DD) and create date at local midnight to avoid timezone issues
+        const [year, month, day] = jobCompletedDate.split("-").map(Number);
+        updateData.jobCompletedDate = new Date(year, month - 1, day);
+      } else {
+        updateData.jobCompletedDate = null;
+      }
     }
 
     // Update customer if customer fields are provided

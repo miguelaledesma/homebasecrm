@@ -31,6 +31,7 @@ type Lead = {
   status: string;
   jobStatus: JobStatus | null;
   closedDate: string | null;
+  jobCompletedDate: string | null;
   createdAt: string;
   customer: {
     id: string;
@@ -38,12 +39,22 @@ type Lead = {
     lastName: string;
     phone: string | null;
     email: string | null;
+    addressLine1: string | null;
+    addressLine2: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
   };
   assignedSalesRep: {
     id: string;
     name: string | null;
     email: string;
   } | null;
+  quotes: Array<{
+    id: string;
+    quoteNumber: string | null;
+    status: string;
+  }>;
 };
 
 export default function JobsPage() {
@@ -91,12 +102,30 @@ export default function JobsPage() {
     }
   };
 
+  const formatAddress = useCallback((customer: Lead["customer"]) => {
+    const parts = [];
+    if (customer.addressLine1) parts.push(customer.addressLine1);
+    if (customer.addressLine2) parts.push(customer.addressLine2);
+    const cityStateZip = [customer.city, customer.state, customer.zip]
+      .filter(Boolean)
+      .join(", ");
+    if (cityStateZip) parts.push(cityStateZip);
+    return parts.length > 0 ? parts.join("\n") : "-";
+  }, []);
+
+  const getQuoteNumber = useCallback((quotes: Lead["quotes"]) => {
+    if (!quotes || quotes.length === 0) return "-";
+    // Get the most recent quote with a quote number, or just the most recent quote
+    const quoteWithNumber = quotes.find((q) => q.quoteNumber);
+    return quoteWithNumber?.quoteNumber || quotes[0]?.quoteNumber || "-";
+  }, []);
+
   const columns: ColumnsType<Lead> = useMemo(() => {
     return [
       {
-        title: "Customer",
+        title: "Name",
         dataIndex: ["customer", "firstName"],
-        key: "customer",
+        key: "name",
         sorter: (a: Lead, b: Lead) => {
           const nameA = `${a.customer.firstName} ${a.customer.lastName}`;
           const nameB = `${b.customer.firstName} ${b.customer.lastName}`;
@@ -114,27 +143,22 @@ export default function JobsPage() {
         },
       },
       {
-        title: "Phone",
-        dataIndex: ["customer", "phone"],
-        key: "phone",
+        title: "Address",
+        dataIndex: ["customer", "addressLine1"],
+        key: "address",
         sorter: (a: Lead, b: Lead) => {
-          const phoneA = a.customer.phone || "";
-          const phoneB = b.customer.phone || "";
-          return phoneA.localeCompare(phoneB);
+          const addressA = formatAddress(a.customer);
+          const addressB = formatAddress(b.customer);
+          return addressA.localeCompare(addressB);
         },
-        render: (_: any, record: Lead) =>
-          record.customer.phone ? formatPhoneNumber(record.customer.phone) : "-",
-      },
-      {
-        title: "Email",
-        dataIndex: ["customer", "email"],
-        key: "email",
-        sorter: (a: Lead, b: Lead) => {
-          const emailA = a.customer.email || "";
-          const emailB = b.customer.email || "";
-          return emailA.localeCompare(emailB);
+        render: (_: any, record: Lead) => {
+          const address = formatAddress(record.customer);
+          return (
+            <div className="whitespace-pre-line text-sm">
+              {address}
+            </div>
+          );
         },
-        render: (_: any, record: Lead) => record.customer.email || "-",
       },
       {
         title: "Job Type",
@@ -173,6 +197,19 @@ export default function JobsPage() {
         },
       },
       {
+        title: "Quote Number",
+        dataIndex: "quotes",
+        key: "quoteNumber",
+        sorter: (a: Lead, b: Lead) => {
+          const quoteA = getQuoteNumber(a.quotes);
+          const quoteB = getQuoteNumber(b.quotes);
+          return quoteA.localeCompare(quoteB);
+        },
+        render: (_: any, record: Lead) => {
+          return <span className="text-sm">{getQuoteNumber(record.quotes)}</span>;
+        },
+      },
+      {
         title: "Job Status",
         dataIndex: "jobStatus",
         key: "jobStatus",
@@ -182,11 +219,17 @@ export default function JobsPage() {
           return statusA.localeCompare(statusB);
         },
         filters: [
+          { text: "Not Set", value: "not_set" },
           { text: "Scheduled", value: "SCHEDULED" },
           { text: "In Progress", value: "IN_PROGRESS" },
           { text: "Done", value: "DONE" },
         ],
-        onFilter: (value: any, record: Lead) => record.jobStatus === value,
+        onFilter: (value: any, record: Lead) => {
+          if (value === "not_set") {
+            return record.jobStatus === null;
+          }
+          return record.jobStatus === value;
+        },
         render: (status: JobStatus | null) => {
           if (!status) {
             return (
@@ -207,9 +250,9 @@ export default function JobsPage() {
         },
       },
       {
-        title: "Assigned To",
+        title: "Assignee",
         dataIndex: ["assignedSalesRep", "name"],
-        key: "assignedTo",
+        key: "assignee",
         sorter: (a: Lead, b: Lead) => {
           const nameA = a.assignedSalesRep?.name || a.assignedSalesRep?.email || "";
           const nameB = b.assignedSalesRep?.name || b.assignedSalesRep?.email || "";
@@ -221,12 +264,12 @@ export default function JobsPage() {
         },
       },
       {
-        title: "Closed Date",
-        dataIndex: "closedDate",
-        key: "closedDate",
+        title: "Completed Date",
+        dataIndex: "jobCompletedDate",
+        key: "completedDate",
         sorter: (a: Lead, b: Lead) => {
-          const dateA = a.closedDate ? new Date(a.closedDate).getTime() : 0;
-          const dateB = b.closedDate ? new Date(b.closedDate).getTime() : 0;
+          const dateA = a.jobCompletedDate ? new Date(a.jobCompletedDate).getTime() : 0;
+          const dateB = b.jobCompletedDate ? new Date(b.jobCompletedDate).getTime() : 0;
           return dateA - dateB;
         },
         render: (date: string | null) => {
@@ -234,15 +277,8 @@ export default function JobsPage() {
           return new Date(date).toLocaleDateString();
         },
       },
-      {
-        title: "Created",
-        dataIndex: "createdAt",
-        key: "createdAt",
-        sorter: (a: Lead, b: Lead) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        render: (date: string) => new Date(date).toLocaleDateString(),
-      },
     ];
-  }, []);
+  }, [formatAddress, getQuoteNumber]);
 
   // Redirect if not admin
   useEffect(() => {
@@ -264,7 +300,7 @@ export default function JobsPage() {
             Jobs
           </h1>
           <p className="text-sm md:text-base text-muted-foreground">
-            Manage and track won leads with job status
+            Manage and track won leads with job status. Includes jobs that haven&apos;t been assigned a status yet.
           </p>
         </div>
       </div>
@@ -282,6 +318,7 @@ export default function JobsPage() {
             className="sm:max-w-[200px]"
           >
             <option value="all">All Job Statuses</option>
+            <option value="not_set">Not Set</option>
             <option value="SCHEDULED">Scheduled</option>
             <option value="IN_PROGRESS">In Progress</option>
             <option value="DONE">Done</option>
@@ -297,7 +334,7 @@ export default function JobsPage() {
       ) : jobs.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            No jobs found. Jobs are created when leads are marked as Won with a job status.
+            No jobs found. Jobs are created when leads are marked as Won.
           </CardContent>
         </Card>
       ) : (

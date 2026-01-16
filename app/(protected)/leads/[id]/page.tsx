@@ -81,6 +81,7 @@ type Lead = {
   updatedAt: string;
   closedDate: string | null;
   jobStatus: JobStatus | null;
+  jobCompletedDate: string | null;
   referrerFirstName: string | null;
   referrerLastName: string | null;
   referrerPhone: string | null;
@@ -197,6 +198,9 @@ export default function LeadDetailPage() {
   );
   const [closing, setClosing] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
+  const [showCompletionDateModal, setShowCompletionDateModal] = useState(false);
+  const [pendingJobStatus, setPendingJobStatus] = useState<JobStatus | null>(null);
+  const [jobCompletedDate, setJobCompletedDate] = useState<string>("");
 
   // Customer fields
   const [customerFirstName, setCustomerFirstName] = useState<string>("");
@@ -311,6 +315,12 @@ export default function LeadDetailPage() {
       setDescription(data.lead.description || "");
       setSelectedLeadTypes(data.lead.leadTypes || []);
       setJobStatus(data.lead.jobStatus || null);
+      // Set jobCompletedDate if it exists (for editing)
+      if (data.lead.jobCompletedDate) {
+        setJobCompletedDate(new Date(data.lead.jobCompletedDate).toISOString().split("T")[0]);
+      } else {
+        setJobCompletedDate("");
+      }
 
       // Set customer fields
       setCustomerFirstName(data.lead.customer.firstName || "");
@@ -682,6 +692,7 @@ export default function LeadDetailPage() {
           description: description || null,
           leadTypes: selectedLeadTypes,
           jobStatus: status === "WON" ? jobStatus || null : null,
+          jobCompletedDate: jobStatus === "DONE" && jobCompletedDate ? jobCompletedDate : undefined,
           // Customer fields
           firstName: customerFirstName,
           lastName: customerLastName,
@@ -712,10 +723,41 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleConfirmCompletionDate = () => {
+    if (!jobCompletedDate) {
+      alert("Please enter a completion date");
+      return;
+    }
+    
+    // If we're in the close dialog flow, close the lead with completion date
+    if (closingStatus === "WON" && showCloseDialog) {
+      setShowCompletionDateModal(false);
+      handleCloseLead("WON", undefined, pendingJobStatus, jobCompletedDate);
+      setPendingJobStatus(null);
+      setJobCompletedDate("");
+    } else {
+      // Regular edit mode - just update job status
+      setJobStatus(pendingJobStatus);
+      setShowCompletionDateModal(false);
+      setPendingJobStatus(null);
+    }
+  };
+
+  const handleCancelCompletionDate = () => {
+    setShowCompletionDateModal(false);
+    setPendingJobStatus(null);
+    setJobCompletedDate("");
+    // Revert job status to previous value
+    if (lead) {
+      setJobStatus(lead.jobStatus);
+    }
+  };
+
   const handleCloseLead = async (
     newStatus: "WON" | "LOST",
     reason?: string,
-    jobStatus?: JobStatus | null
+    jobStatus?: JobStatus | null,
+    jobCompletedDate?: string | null
   ) => {
     if (!lead) return;
     setClosing(true);
@@ -727,7 +769,10 @@ export default function LeadDetailPage() {
         body: JSON.stringify({
           status: newStatus,
           ...(newStatus === "LOST" ? { reason } : {}),
-          ...(newStatus === "WON" && jobStatus ? { jobStatus } : {}),
+          ...(newStatus === "WON" && jobStatus ? { 
+            jobStatus,
+            ...(jobStatus === "DONE" && jobCompletedDate ? { jobCompletedDate } : {})
+          } : {}),
         }),
       });
 
@@ -1073,7 +1118,14 @@ export default function LeadDetailPage() {
                     if (closingStatus === "LOST" && closeReason && !closing) {
                       handleCloseLead("LOST", closeReason);
                     } else if (closingStatus === "WON" && !closing) {
-                      handleCloseLead("WON", undefined, closeJobStatus);
+                      // If setting jobStatus to DONE, show completion date modal first
+                      if (closeJobStatus === "DONE") {
+                        setPendingJobStatus(closeJobStatus);
+                        setShowCompletionDateModal(true);
+                        // Don't close the close dialog yet, wait for completion date
+                      } else {
+                        handleCloseLead("WON", undefined, closeJobStatus);
+                      }
                     }
                   }}
                   disabled={
@@ -1332,13 +1384,18 @@ export default function LeadDetailPage() {
                         <Select
                           id="jobStatus"
                           value={jobStatus || ""}
-                          onChange={(e) =>
-                            setJobStatus(
-                              e.target.value
-                                ? (e.target.value as JobStatus)
-                                : null
-                            )
-                          }
+                          onChange={(e) => {
+                            const newStatus = e.target.value
+                              ? (e.target.value as JobStatus)
+                              : null;
+                            // If changing to DONE, show completion date modal
+                            if (newStatus === "DONE" && jobStatus !== "DONE") {
+                              setPendingJobStatus(newStatus);
+                              setShowCompletionDateModal(true);
+                            } else {
+                              setJobStatus(newStatus);
+                            }
+                          }}
                         >
                           <option value="">Not set</option>
                           <option value="SCHEDULED">Scheduled</option>
@@ -2419,6 +2476,39 @@ export default function LeadDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Completion Date Modal */}
+      <AlertDialog open={showCompletionDateModal} onOpenChange={setShowCompletionDateModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Enter Completion Date</AlertDialogTitle>
+            <AlertDialogDescription>
+              When was this job completed? Please enter the date the job was finished.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="completionDate" className="text-sm font-medium mb-2 block">
+              Completion Date
+            </Label>
+            <Input
+              id="completionDate"
+              type="date"
+              value={jobCompletedDate}
+              onChange={(e) => setJobCompletedDate(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+              className="w-full"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelCompletionDate}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCompletionDate}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

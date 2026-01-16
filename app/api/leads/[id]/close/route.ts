@@ -20,7 +20,12 @@ export async function PATCH(
 
     const leadId = params.id
     const body = await request.json()
-    const { status, reason, jobStatus } = body as { status?: LeadStatus; reason?: string; jobStatus?: JobStatus | null }
+    const { status, reason, jobStatus, jobCompletedDate } = body as { 
+      status?: LeadStatus; 
+      reason?: string; 
+      jobStatus?: JobStatus | null;
+      jobCompletedDate?: string | null;
+    }
 
     if (!status || (status !== LeadStatus.WON && status !== LeadStatus.LOST)) {
       return NextResponse.json(
@@ -66,13 +71,27 @@ export async function PATCH(
     const now = new Date()
 
     const result = await prisma.$transaction(async (tx) => {
+      const updateData: any = {
+        status,
+        closedDate: now,
+      };
+      
+      if (status === LeadStatus.WON && jobStatus !== undefined) {
+        updateData.jobStatus = jobStatus;
+        // If setting jobStatus to DONE, set jobCompletedDate
+        if (jobStatus === "DONE" && jobCompletedDate) {
+          // Parse date string (YYYY-MM-DD) and create date at local midnight to avoid timezone issues
+          const [year, month, day] = jobCompletedDate.split("-").map(Number);
+          updateData.jobCompletedDate = new Date(year, month - 1, day);
+        } else if (jobStatus !== "DONE") {
+          // Clear completion date if status is not DONE
+          updateData.jobCompletedDate = null;
+        }
+      }
+      
       const updatedLead = await tx.lead.update({
         where: { id: leadId },
-        data: {
-          status,
-          closedDate: now,
-          ...(status === LeadStatus.WON && jobStatus !== undefined ? { jobStatus } : {}),
-        },
+        data: updateData,
         include: {
           customer: true,
           assignedSalesRep: {

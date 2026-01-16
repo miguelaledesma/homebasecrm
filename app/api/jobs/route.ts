@@ -21,12 +21,18 @@ export async function GET(request: NextRequest) {
 
     const where: any = {
       status: LeadStatus.WON,
-      jobStatus: { not: null }, // Only show leads with a job status
+      // Removed jobStatus filter - now shows all WON leads including those without a job status
     };
 
     // Filter by job status if provided
     if (jobStatus && jobStatus !== "all") {
-      where.jobStatus = jobStatus as JobStatus;
+      if (jobStatus === "not_set") {
+        // Filter for jobs without a status
+        where.jobStatus = null;
+      } else {
+        // Filter for specific job status
+        where.jobStatus = jobStatus as JobStatus;
+      }
     }
 
     const jobs = await prisma.lead.findMany({
@@ -38,6 +44,16 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             email: true,
+          },
+        },
+        quotes: {
+          select: {
+            id: true,
+            quoteNumber: true,
+            status: true,
+          },
+          orderBy: {
+            createdAt: "desc", // Get most recent quote first
           },
         },
       },
