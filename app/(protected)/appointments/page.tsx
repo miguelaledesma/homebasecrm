@@ -45,7 +45,7 @@ type Appointment = {
     id: string
     name: string | null
     email: string
-  }
+  } | null
 }
 
 type ViewMode = "my" | "all"
@@ -180,11 +180,12 @@ export default function AppointmentsPage() {
             dataIndex: ["salesRep", "name"],
             key: "assignedTo",
             sorter: (a: Appointment, b: Appointment) => {
-              const nameA = a.salesRep.name || a.salesRep.email || ""
-              const nameB = b.salesRep.name || b.salesRep.email || ""
+              const nameA = a.salesRep?.name || a.salesRep?.email || "Deleted User"
+              const nameB = b.salesRep?.name || b.salesRep?.email || "Deleted User"
               return nameA.localeCompare(nameB)
             },
             render: (_: any, record: Appointment) => {
+              if (!record.salesRep) return "Deleted User"
               return record.salesRep.name || record.salesRep.email
             },
           },

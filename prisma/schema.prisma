@@ -225,7 +225,7 @@ model Lead {
 model Appointment {
   id               String            @id @default(cuid())
   leadId           String
-  salesRepId       String
+  salesRepId       String?
   scheduledFor     DateTime
   siteAddressLine1 String?
   siteAddressLine2 String?
@@ -239,7 +239,7 @@ model Appointment {
 
   // Relations
   lead     Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  salesRep User    @relation(fields: [salesRepId], references: [id])
+  salesRep User?   @relation(fields: [salesRepId], references: [id], onDelete: SetNull)
   quotes   Quote[]
 
   @@index([salesRepId])
@@ -255,7 +255,7 @@ model Quote {
   quoteNumber   String?     @unique
   leadId        String
   appointmentId String?
-  salesRepId    String
+  salesRepId    String?
   amount        Float
   currency      String      @default("USD")
   sentAt        DateTime?
@@ -267,7 +267,7 @@ model Quote {
   // Relations
   lead        Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
   appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
-  salesRep    User         @relation(fields: [salesRepId], references: [id])
+  salesRep    User?        @relation(fields: [salesRepId], references: [id], onDelete: SetNull)
   files       QuoteFile[]
 
   @@index([salesRepId])
@@ -282,12 +282,12 @@ model QuoteFile {
   quoteId          String
   fileUrl          String
   fileType         String?
-  uploadedByUserId String
+  uploadedByUserId String?
   uploadedAt       DateTime @default(now())
 
   // Relations
   quote      Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  uploadedBy User  @relation(fields: [uploadedByUserId], references: [id])
+  uploadedBy User? @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
 
   @@map("quote_files")
 }
@@ -296,13 +296,13 @@ model LeadNote {
   id        String   @id @default(cuid())
   leadId    String
   content   String
-  createdBy String
+  createdBy String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
   lead          Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  createdByUser User           @relation("LeadNoteCreator", fields: [createdBy], references: [id])
+  createdByUser User?          @relation("LeadNoteCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   notifications Notification[]
 
   @@index([leadId])

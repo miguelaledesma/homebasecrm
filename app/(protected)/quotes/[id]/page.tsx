@@ -70,7 +70,7 @@ type Quote = {
     id: string;
     name: string | null;
     email: string;
-  };
+  } | null;
   files: Array<{
     id: string;
     fileUrl: string;
@@ -81,7 +81,7 @@ type Quote = {
       id: string;
       name: string | null;
       email: string;
-    };
+    } | null;
   }>;
 };
 
@@ -362,10 +362,10 @@ export default function QuoteDetailPage() {
 
   const canEdit = session?.user.role === "ADMIN";
   const canDelete = session?.user.role === "ADMIN";
-  const canUpdateStatus = canEdit || quote.salesRep.id === session?.user.id;
+  const canUpdateStatus = canEdit || (quote.salesRep?.id === session?.user.id);
   // Upload permissions: ADMIN can upload to any quote, SALES_REP can upload to their own quotes
   const canUpload =
-    session?.user.role === "ADMIN" || quote.salesRep.id === session?.user.id;
+    session?.user.role === "ADMIN" || (quote.salesRep?.id === session?.user.id);
 
   return (
     <div className="space-y-6">
@@ -534,7 +534,7 @@ export default function QuoteDetailPage() {
                 Sales Rep
               </p>
               <p className="text-sm">
-                {quote.salesRep.name || quote.salesRep.email}
+                {quote.salesRep?.name || quote.salesRep?.email || "Deleted User"}
               </p>
             </div>
 
@@ -665,7 +665,7 @@ export default function QuoteDetailPage() {
                   // Check if user can delete this file (ADMIN or file uploader)
                   const canDeleteFile =
                     session?.user.role === "ADMIN" ||
-                    file.uploadedBy.id === session?.user.id;
+                    (file.uploadedBy?.id === session?.user.id);
 
                   return (
                     <div
@@ -683,8 +683,12 @@ export default function QuoteDetailPage() {
                             {" • "}
                             Uploaded{" "}
                             {new Date(file.uploadedAt).toLocaleString()}
-                            {file.uploadedBy.name && (
+                            {file.uploadedBy?.name ? (
                               <> by {file.uploadedBy.name}</>
+                            ) : file.uploadedBy ? (
+                              <> by {file.uploadedBy.email}</>
+                            ) : (
+                              <> by Deleted User</>
                             )}
                           </p>
                         </div>

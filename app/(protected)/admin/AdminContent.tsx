@@ -651,8 +651,14 @@ export function AdminContent() {
               <br />
               <br />
               <strong className="text-destructive">This action cannot be undone.</strong>{" "}
-              All leads assigned to this user will be unassigned, and all associated
-              appointments, quotes, and notes will be deleted.
+              <br />
+              <br />
+              <strong>What will happen:</strong>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>All leads assigned to this user will be unassigned</li>
+                <li>Appointments, quotes, notes, and files will be preserved but will show &quot;Deleted User&quot; as the creator/assignee</li>
+                <li>Tasks and notifications assigned to this user will be deleted</li>
+              </ul>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0">

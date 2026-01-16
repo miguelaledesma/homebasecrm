@@ -167,23 +167,18 @@ export async function PATCH(
     }
 
     // Validate jobStatus - only allowed for WON leads
-    if (jobStatus !== undefined) {
-      if (status && status !== "WON" && existingLead.status !== "WON") {
+    // Only validate if jobStatus is actually being set to a value (not null/undefined)
+    if (jobStatus !== undefined && jobStatus !== null) {
+      // Check if the lead will have WON status (either already WON or being set to WON)
+      const willBeWON = status === "WON" || existingLead.status === "WON";
+      if (!willBeWON) {
         return NextResponse.json(
           { error: "Job status can only be set for leads with WON status" },
           { status: 400 }
         );
       }
-      if (existingLead.status !== "WON" && status !== "WON") {
-        return NextResponse.json(
-          { error: "Job status can only be set for leads with WON status" },
-          { status: 400 }
-        );
-      }
-      if (
-        jobStatus &&
-        !["SCHEDULED", "IN_PROGRESS", "DONE"].includes(jobStatus)
-      ) {
+      // Validate jobStatus value
+      if (!["SCHEDULED", "IN_PROGRESS", "DONE"].includes(jobStatus)) {
         return NextResponse.json(
           {
             error:

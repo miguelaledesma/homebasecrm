@@ -125,9 +125,13 @@ export async function DELETE(
       data: { assignedSalesRepId: null },
     })
 
-    // Delete the user (cascading deletes will handle related records)
-    // Note: Prisma will handle cascading deletes based on schema relations
-    // - appointments, quotes, uploadedQuoteFiles, leadNotes will be deleted via onDelete: Cascade
+    // Delete the user (Prisma will handle related records based on schema relations)
+    // - appointments.salesRepId will be set to null (onDelete: SetNull) - appointments preserved
+    // - quotes.salesRepId will be set to null (onDelete: SetNull) - quotes preserved
+    // - quoteFiles.uploadedByUserId will be set to null (onDelete: SetNull) - files preserved
+    // - leadNotes.createdBy will be set to null (onDelete: SetNull) - notes preserved
+    // - tasks will be deleted (onDelete: Cascade) - tasks removed
+    // - notifications will be deleted (onDelete: Cascade) - notifications removed
     await prisma.user.delete({
       where: { id: userId },
     })

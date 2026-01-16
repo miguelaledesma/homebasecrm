@@ -1569,7 +1569,7 @@ export default function LeadDetailPage() {
                   </>
                 ) : (
                   <>
-                    {lead.assignedSalesRep && (
+                    {lead.assignedSalesRep ? (
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">
                           Assigned To
@@ -1578,6 +1578,13 @@ export default function LeadDetailPage() {
                           {lead.assignedSalesRep.name ||
                             lead.assignedSalesRep.email}
                         </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Assigned To
+                        </p>
+                        <p className="text-muted-foreground">Unassigned</p>
                       </div>
                     )}
                     {lead.createdByUser && (
@@ -1852,7 +1859,7 @@ export default function LeadDetailPage() {
                     session?.user.role === "ADMIN" ||
                     ((session?.user.role === "SALES_REP" ||
                       session?.user.role === "CONCIERGE") &&
-                      appointment.salesRep.id === session.user.id);
+                      appointment.salesRep?.id === session.user.id);
 
                   return (
                     <div
@@ -2093,8 +2100,9 @@ export default function LeadDetailPage() {
                               <div className="text-xs text-muted-foreground">
                                 Sales Rep:{" "}
                                 <span className="font-medium">
-                                  {appointment.salesRep.name ||
-                                    appointment.salesRep.email}
+                                  {appointment.salesRep?.name ||
+                                    appointment.salesRep?.email ||
+                                    "Deleted User"}
                                 </span>
                               </div>
                             </div>
@@ -2464,7 +2472,7 @@ export default function LeadDetailPage() {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
                       <span className="font-medium">
-                        {note.createdByUser.name || note.createdByUser.email}
+                        {note.createdByUser?.name || note.createdByUser?.email || "Deleted User"}
                       </span>
                       <span>•</span>
                       <span>{formatPSTDate(note.createdAt)}</span>

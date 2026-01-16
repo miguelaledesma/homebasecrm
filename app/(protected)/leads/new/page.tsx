@@ -218,7 +218,7 @@ export default function NewLeadPage() {
     { value: "TURF", label: "Turf" },
     { value: "LANDSCAPING", label: "Landscaping" },
     { value: "MONTHLY_YARD_MAINTENANCE", label: "Monthly Yard Maintenance" },
-    { value: "LABOR", label: "Labor" },
+    { value: "LABOR", label: "Labor Only" },
     { value: "OTHER", label: "Other" },
   ];
 

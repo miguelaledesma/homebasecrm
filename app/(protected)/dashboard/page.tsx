@@ -181,9 +181,9 @@ export default function DashboardPage() {
       return `No activity on ${customerName} for 48+ hours`;
     } else if (notification.type === "ADMIN_COMMENT") {
       const adminName =
-        notification.note?.createdByUser.name ||
-        notification.note?.createdByUser.email ||
-        "Admin";
+        notification.note?.createdByUser?.name ||
+        notification.note?.createdByUser?.email ||
+        "Deleted User";
       return `${adminName} commented on your lead`;
     } else if (notification.type === "CONCIERGE_LEAD") {
       const customerName = notification.lead
