@@ -1,23 +1,45 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
-type SourceType = "CALL_IN" | "WALK_IN" | "REFERRAL"
-type LeadType = "FLOOR" | "CARPET" | "TILE_STONE" | "MATERIALS" | "KITCHEN" | "BATH" | "ADUS" | "PAINTING" | "ROOFING" | "STUCCO" | "CONCRETE" | "TURF" | "LANDSCAPING" | "MONTHLY_YARD_MAINTENANCE" | "OTHER"
-type HearAboutUs = "YELP" | "FACEBOOK" | "DRIVING_BY" | "OTHER"
+type SourceType = "CALL_IN" | "WALK_IN" | "REFERRAL";
+type LeadType =
+  | "FLOOR"
+  | "CARPET"
+  | "TILE_STONE"
+  | "MATERIALS"
+  | "KITCHEN"
+  | "BATH"
+  | "ADUS"
+  | "PAINTING"
+  | "ROOFING"
+  | "STUCCO"
+  | "CONCRETE"
+  | "TURF"
+  | "LANDSCAPING"
+  | "MONTHLY_YARD_MAINTENANCE"
+  | "LABOR"
+  | "OTHER";
+type HearAboutUs = "YELP" | "FACEBOOK" | "DRIVING_BY" | "OTHER";
 
 export default function NewLeadPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
     // Customer info
@@ -46,135 +68,141 @@ export default function NewLeadPage() {
     // Marketing attribution
     hearAboutUs: "" as HearAboutUs | "",
     hearAboutUsOther: "",
-  })
-  
+  });
+
   const [referrerMatch, setReferrerMatch] = useState<{
-    found: boolean
-    isCustomer: boolean
+    found: boolean;
+    isCustomer: boolean;
     customer?: {
-      id: string
-      firstName: string
-      lastName: string
-      phone: string | null
-      email: string | null
-    }
-  } | null>(null)
-  const [searchingReferrer, setSearchingReferrer] = useState(false)
+      id: string;
+      firstName: string;
+      lastName: string;
+      phone: string | null;
+      email: string | null;
+    };
+  } | null>(null);
+  const [searchingReferrer, setSearchingReferrer] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    
+    e.preventDefault();
+    setError("");
+
     // Validate: if OTHER is selected, description is required
     if (formData.leadTypes.includes("OTHER") && !formData.description.trim()) {
-      setError("Description is required when 'Other' is selected")
-      return
+      setError("Description is required when 'Other' is selected");
+      return;
     }
-    
+
     // Validate: at least one lead type must be selected
     if (formData.leadTypes.length === 0) {
-      setError("Please select at least one work type")
-      return
+      setError("Please select at least one work type");
+      return;
     }
-    
+
     // Validate: if contractor is selected, license number is required
     if (formData.isContractor && !formData.contractorLicenseNumber.trim()) {
-      setError("Contractor License Number is required when 'Contractor' is selected")
-      return
+      setError(
+        "Contractor License Number is required when 'Contractor' is selected"
+      );
+      return;
     }
-    
-    setLoading(true)
+
+    setLoading(true);
 
     try {
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
-      })
+      });
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to create lead")
+        const data = await response.json();
+        throw new Error(data.error || "Failed to create lead");
       }
 
-      const data = await response.json()
-      router.push(`/leads/${data.lead.id}`)
-      router.refresh()
+      const data = await response.json();
+      router.push(`/leads/${data.lead.id}`);
+      router.refresh();
     } catch (err: any) {
-      setError(err.message || "An error occurred")
+      setError(err.message || "An error occurred");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-  
+  };
+
   const handleLeadTypeChange = (leadType: LeadType, checked: boolean) => {
     if (checked) {
       setFormData({
         ...formData,
         leadTypes: [...formData.leadTypes, leadType],
-      })
+      });
     } else {
       setFormData({
         ...formData,
         leadTypes: formData.leadTypes.filter((type) => type !== leadType),
-      })
+      });
     }
-  }
-  
+  };
+
   // Search for referrer when phone or email changes
-  const searchReferrer = useCallback(
-    async (phone: string, email: string) => {
-      if (!phone && !email) {
-        setReferrerMatch(null)
-        return
-      }
+  const searchReferrer = useCallback(async (phone: string, email: string) => {
+    if (!phone && !email) {
+      setReferrerMatch(null);
+      return;
+    }
 
-      setSearchingReferrer(true)
-      try {
-        const params = new URLSearchParams()
-        if (phone) params.append("phone", phone)
-        if (email) params.append("email", email)
+    setSearchingReferrer(true);
+    try {
+      const params = new URLSearchParams();
+      if (phone) params.append("phone", phone);
+      if (email) params.append("email", email);
 
-        const response = await fetch(`/api/referrers/search?${params.toString()}`)
-        const data = await response.json()
+      const response = await fetch(
+        `/api/referrers/search?${params.toString()}`
+      );
+      const data = await response.json();
 
-        if (response.ok) {
-          setReferrerMatch(data)
-          // Auto-populate name if customer found
-          if (data.found && data.isCustomer && data.customer) {
-            setFormData((prev) => ({
-              ...prev,
-              referrerFirstName: data.customer.firstName,
-              referrerLastName: data.customer.lastName,
-            }))
-          }
-        } else {
-          setReferrerMatch(null)
+      if (response.ok) {
+        setReferrerMatch(data);
+        // Auto-populate name if customer found
+        if (data.found && data.isCustomer && data.customer) {
+          setFormData((prev) => ({
+            ...prev,
+            referrerFirstName: data.customer.firstName,
+            referrerLastName: data.customer.lastName,
+          }));
         }
-      } catch (error) {
-        console.error("Error searching referrer:", error)
-        setReferrerMatch(null)
-      } finally {
-        setSearchingReferrer(false)
+      } else {
+        setReferrerMatch(null);
       }
-    },
-    []
-  )
+    } catch (error) {
+      console.error("Error searching referrer:", error);
+      setReferrerMatch(null);
+    } finally {
+      setSearchingReferrer(false);
+    }
+  }, []);
 
   // Debounced search for referrer
   useEffect(() => {
     if (formData.sourceType !== "REFERRAL") {
-      setReferrerMatch(null)
-      return
+      setReferrerMatch(null);
+      return;
     }
 
     const timeoutId = setTimeout(() => {
-      searchReferrer(formData.referrerPhone, formData.referrerEmail)
-    }, 500) // Wait 500ms after user stops typing
+      searchReferrer(formData.referrerPhone, formData.referrerEmail);
+    }, 500); // Wait 500ms after user stops typing
 
-    return () => clearTimeout(timeoutId)
-  }, [formData.referrerPhone, formData.referrerEmail, formData.sourceType, searchReferrer])
-  
+    return () => clearTimeout(timeoutId);
+  }, [
+    formData.referrerPhone,
+    formData.referrerEmail,
+    formData.sourceType,
+    searchReferrer,
+  ]);
+
   const leadTypeOptions: { value: LeadType; label: string }[] = [
     { value: "FLOOR", label: "Flooring" },
     { value: "CARPET", label: "Carpet" },
@@ -190,14 +218,17 @@ export default function NewLeadPage() {
     { value: "TURF", label: "Turf" },
     { value: "LANDSCAPING", label: "Landscaping" },
     { value: "MONTHLY_YARD_MAINTENANCE", label: "Monthly Yard Maintenance" },
+    { value: "LABOR", label: "Labor" },
     { value: "OTHER", label: "Other" },
-  ]
+  ];
 
   return (
     <div className="space-y-4 md:space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">New Lead</h1>
-        <p className="text-sm md:text-base text-muted-foreground">Capture a new lead and customer information</p>
+        <p className="text-sm md:text-base text-muted-foreground">
+          Capture a new lead and customer information
+        </p>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -206,7 +237,9 @@ export default function NewLeadPage() {
           <Card>
             <CardHeader>
               <CardTitle>Customer Information</CardTitle>
-              <CardDescription>Enter the customer&apos;s contact details</CardDescription>
+              <CardDescription>
+                Enter the customer&apos;s contact details
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -334,7 +367,9 @@ export default function NewLeadPage() {
               </div>
 
               <div>
-                <Label htmlFor="hearAboutUs">Where did you hear about us?</Label>
+                <Label htmlFor="hearAboutUs">
+                  Where did you hear about us?
+                </Label>
                 <Select
                   id="hearAboutUs"
                   value={formData.hearAboutUs}
@@ -343,7 +378,10 @@ export default function NewLeadPage() {
                       ...formData,
                       hearAboutUs: e.target.value as HearAboutUs | "",
                       // Clear other text if not "OTHER"
-                      hearAboutUsOther: e.target.value === "OTHER" ? formData.hearAboutUsOther : "",
+                      hearAboutUsOther:
+                        e.target.value === "OTHER"
+                          ? formData.hearAboutUsOther
+                          : "",
                     })
                   }
                 >
@@ -362,7 +400,10 @@ export default function NewLeadPage() {
                     id="hearAboutUsOther"
                     value={formData.hearAboutUsOther}
                     onChange={(e) =>
-                      setFormData({ ...formData, hearAboutUsOther: e.target.value })
+                      setFormData({
+                        ...formData,
+                        hearAboutUsOther: e.target.value,
+                      })
                     }
                     placeholder="How did you hear about us?"
                   />
@@ -377,18 +418,24 @@ export default function NewLeadPage() {
               <CardHeader>
                 <CardTitle>Referrer Information</CardTitle>
                 <CardDescription>
-                  Who referred this customer? Enter phone or email to check if they&apos;re an existing customer.
+                  Who referred this customer? Enter phone or email to check if
+                  they&apos;re an existing customer.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="referrerFirstName">Referrer First Name</Label>
+                    <Label htmlFor="referrerFirstName">
+                      Referrer First Name
+                    </Label>
                     <Input
                       id="referrerFirstName"
                       value={formData.referrerFirstName}
                       onChange={(e) =>
-                        setFormData({ ...formData, referrerFirstName: e.target.value })
+                        setFormData({
+                          ...formData,
+                          referrerFirstName: e.target.value,
+                        })
                       }
                       placeholder="First name"
                     />
@@ -399,7 +446,10 @@ export default function NewLeadPage() {
                       id="referrerLastName"
                       value={formData.referrerLastName}
                       onChange={(e) =>
-                        setFormData({ ...formData, referrerLastName: e.target.value })
+                        setFormData({
+                          ...formData,
+                          referrerLastName: e.target.value,
+                        })
                       }
                       placeholder="Last name"
                     />
@@ -414,7 +464,10 @@ export default function NewLeadPage() {
                       type="tel"
                       value={formData.referrerPhone}
                       onChange={(e) =>
-                        setFormData({ ...formData, referrerPhone: e.target.value })
+                        setFormData({
+                          ...formData,
+                          referrerPhone: e.target.value,
+                        })
                       }
                       placeholder="(555) 123-4567"
                     />
@@ -426,7 +479,10 @@ export default function NewLeadPage() {
                       type="email"
                       value={formData.referrerEmail}
                       onChange={(e) =>
-                        setFormData({ ...formData, referrerEmail: e.target.value })
+                        setFormData({
+                          ...formData,
+                          referrerEmail: e.target.value,
+                        })
                       }
                       placeholder="referrer@example.com"
                     />
@@ -437,7 +493,9 @@ export default function NewLeadPage() {
                 {formData.referrerPhone || formData.referrerEmail ? (
                   <div className="mt-2">
                     {searchingReferrer ? (
-                      <p className="text-sm text-muted-foreground">Searching...</p>
+                      <p className="text-sm text-muted-foreground">
+                        Searching...
+                      </p>
                     ) : referrerMatch?.found && referrerMatch?.isCustomer ? (
                       <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950 p-3 rounded-md">
                         <span>✓</span>
@@ -457,7 +515,8 @@ export default function NewLeadPage() {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Enter phone or email to check if referrer is an existing customer
+                    Enter phone or email to check if referrer is an existing
+                    customer
                   </p>
                 )}
               </CardContent>
@@ -476,7 +535,10 @@ export default function NewLeadPage() {
                 <div className="mt-2 space-y-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                     {leadTypeOptions.map((option) => (
-                      <div key={option.value} className="flex items-center space-x-2">
+                      <div
+                        key={option.value}
+                        className="flex items-center space-x-2"
+                      >
                         <Checkbox
                           id={`leadType-${option.value}`}
                           checked={formData.leadTypes.includes(option.value)}
@@ -562,7 +624,8 @@ export default function NewLeadPage() {
                   {formData.isContractor && (
                     <div className="ml-6 mt-2">
                       <Label htmlFor="contractorLicenseNumber">
-                        Contractor License # <span className="text-destructive">*</span>
+                        Contractor License #{" "}
+                        <span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="contractorLicenseNumber"
@@ -604,6 +667,5 @@ export default function NewLeadPage() {
         </div>
       </form>
     </div>
-  )
+  );
 }
-

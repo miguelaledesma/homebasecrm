@@ -58,6 +58,7 @@ type LeadType =
   | "TURF"
   | "LANDSCAPING"
   | "MONTHLY_YARD_MAINTENANCE"
+  | "LABOR"
   | "OTHER";
 import {
   AlertDialog,
@@ -279,6 +280,7 @@ export default function LeadDetailPage() {
     { value: "TURF", label: "Turf" },
     { value: "LANDSCAPING", label: "Landscaping" },
     { value: "MONTHLY_YARD_MAINTENANCE", label: "Monthly Yard Maintenance" },
+    { value: "LABOR", label: "Labor" },
     { value: "OTHER", label: "Other" },
   ];
 

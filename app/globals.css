@@ -142,9 +142,7 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-}
-
-/* Prevent body from scrolling horizontally */
+}/* Prevent body from scrolling horizontally */
 html,
 body {
   overflow-x: hidden;

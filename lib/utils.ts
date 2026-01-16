@@ -22,6 +22,7 @@ export function formatLeadType(type: string): string {
     TURF: "Turf",
     LANDSCAPING: "Landscaping",
     MONTHLY_YARD_MAINTENANCE: "Monthly Yard Maintenance",
+    LABOR: "Labor",
     OTHER: "Other",
   }
   return typeMap[type] || type

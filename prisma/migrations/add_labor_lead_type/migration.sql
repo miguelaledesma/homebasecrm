@@ -1,0 +1,2 @@
+-- Add LABOR to LeadType enum
+ALTER TYPE "LeadType" ADD VALUE IF NOT EXISTS 'LABOR';
