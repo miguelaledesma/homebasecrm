@@ -73,6 +73,7 @@ import {
 
 type Lead = {
   id: string;
+  customerNumber?: string | null;
   leadTypes: string[];
   description: string | null;
   status: LeadStatus;
@@ -919,6 +920,9 @@ export default function LeadDetailPage() {
             <h1 className="text-3xl font-bold">Lead Details</h1>
             <p className="text-muted-foreground">
               {lead.customer.firstName} {lead.customer.lastName}
+              {lead.customerNumber && (
+                <span className="ml-2 font-mono text-sm">({lead.customerNumber})</span>
+              )}
             </p>
           </div>
         </div>
@@ -1451,6 +1455,14 @@ export default function LeadDetailPage() {
                   </>
                 ) : (
                   <>
+                    {lead.customerNumber && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Customer Number
+                        </p>
+                        <p className="font-mono text-lg">{lead.customerNumber}</p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">
                         Status

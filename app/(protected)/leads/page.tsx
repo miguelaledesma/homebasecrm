@@ -26,6 +26,7 @@ import {
 
 type Lead = {
   id: string;
+  customerNumber?: string | null;
   leadTypes: string[];
   description: string | null;
   status: LeadStatus;
@@ -286,6 +287,22 @@ export default function LeadsPage() {
 
     // Full columns for admins or sales reps viewing their own leads
     return [
+      {
+        title: "Customer #",
+        dataIndex: "customerNumber",
+        key: "customerNumber",
+        width: 120,
+        sorter: (a: Lead, b: Lead) => {
+          const numA = a.customerNumber || "";
+          const numB = b.customerNumber || "";
+          return numA.localeCompare(numB);
+        },
+        render: (_: any, record: Lead) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {record.customerNumber || "-"}
+          </span>
+        ),
+      },
       {
         title: "Customer",
         dataIndex: ["customer", "firstName"],

@@ -163,9 +163,15 @@ export async function POST(request: NextRequest) {
     // Set status to ASSIGNED if auto-assigned, otherwise NEW
     const initialStatus: LeadStatus = assignedSalesRepId ? "ASSIGNED" : "NEW";
 
+    // Generate customer number: 105-XXXXXX (using timestamp + random to ensure uniqueness)
+    // Get the count of existing leads for sequential numbering
+    const leadCount = await prisma.lead.count();
+    const customerNumber = `105-${String(leadCount + 1).padStart(6, '0')}`;
+
     // Create lead
     const lead = await prisma.lead.create({
       data: {
+        customerNumber,
         customerId: customer.id,
         leadTypes: leadTypes as LeadType[],
         description: description || null,

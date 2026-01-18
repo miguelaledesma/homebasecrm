@@ -18,7 +18,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "db:seed:once": "tsx scripts/seed-once.ts"
+    "db:seed:once": "tsx scripts/seed-once.ts",
+    "db:backfill-customer-numbers": "tsx scripts/backfill-customer-numbers.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
