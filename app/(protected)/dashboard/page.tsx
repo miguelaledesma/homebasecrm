@@ -27,6 +27,7 @@ import {
   AlertTriangle,
   UserPlus,
   Briefcase,
+  DollarSign,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -41,6 +42,7 @@ interface DashboardStats {
   pastDueAppointments?: number;
   unassignedLeads?: number;
   overdueFollowUps?: number;
+  jobsPendingFinancials?: number;
   leadToAppointmentRate: number;
   winRate: number;
   leadsWithAppointments?: number;
@@ -255,9 +257,7 @@ export default function DashboardPage() {
                 Loading notifications...
               </div>
             ) : notifications.length === 0 && pastDueAppointmentsCount === 0 ? (
-              <div className="text-center text-sm text-muted-foreground py-4">
-                No notifications
-              </div>
+              null
             ) : (
               <div className="space-y-3">
                 {pastDueAppointmentsCount > 0 && (
@@ -424,6 +424,28 @@ export default function DashboardPage() {
               </p>
             </CardContent>
           </Card>
+
+          {stats.jobsPendingFinancials !== undefined && stats.jobsPendingFinancials > 0 && (
+            <Card
+              className="hover:shadow-md transition-shadow cursor-pointer border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
+              onClick={() => router.push("/quotes?status=ACCEPTED")}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs sm:text-sm font-medium">
+                  Financials Pending
+                </CardTitle>
+                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-amber-600 dark:text-amber-400">
+                  {stats.jobsPendingFinancials}
+                </div>
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-1">
+                  Completed jobs need expense tracking
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       ) : (
         // Sales Rep Dashboard

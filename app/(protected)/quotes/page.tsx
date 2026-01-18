@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
@@ -16,6 +17,7 @@ import {
   ChevronRight,
   Filter,
   Loader2,
+  AlertTriangle,
 } from "lucide-react"
 import { QuoteStatus } from "@prisma/client"
 import { formatLeadTypes } from "@/lib/utils"
@@ -29,9 +31,11 @@ type Quote = {
   sentAt: string | null
   expiresAt: string | null
   createdAt: string
+  expenses?: Record<string, number> | null
   lead: {
     id: string
     leadTypes: string[]
+    jobStatus?: string | null
     customer: {
       id: string
       firstName: string
@@ -57,9 +61,20 @@ type PaginationInfo = {
 
 export default function QuotesPage() {
   const { data: session } = useSession()
+  const searchParams = useSearchParams()
+  
+  // Initialize filter from URL query parameters
+  const getInitialStatusFilter = () => {
+    const statusParam = searchParams.get("status")
+    if (statusParam && ["DRAFT", "SENT", "ACCEPTED", "DECLINED", "EXPIRED"].includes(statusParam)) {
+      return statusParam
+    }
+    return "all"
+  }
+  
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [statusFilter, setStatusFilter] = useState<string>(getInitialStatusFilter())
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState<PaginationInfo | null>(null)
 
@@ -239,6 +254,16 @@ export default function QuotesPage() {
                               >
                                 {quote.status}
                               </Badge>
+                              {/* Show Needs Financials badge for ACCEPTED quotes with DONE job status but no expenses */}
+                              {quote.status === "ACCEPTED" &&
+                                quote.lead.jobStatus === "DONE" &&
+                                (!quote.expenses || Object.keys(quote.expenses).length === 0) &&
+                                session?.user.role === "ADMIN" && (
+                                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700">
+                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    Needs Financials
+                                  </Badge>
+                                )}
                             </div>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                               <Link

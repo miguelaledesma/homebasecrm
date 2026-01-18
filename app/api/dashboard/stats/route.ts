@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
         pastDueAppointments,
         unassignedLeads,
         assignedActiveLeadsForInactivity,
+        jobsPendingFinancials,
       ] = await Promise.all([
         // Total leads
         prisma.lead.count(),
@@ -98,6 +99,21 @@ export async function GET(request: NextRequest) {
           },
           select: { id: true }
         }),
+        
+        // Jobs pending financials - get all ACCEPTED quotes with DONE job status
+        // We'll filter for empty expenses in the next step
+        prisma.quote.findMany({
+          where: {
+            status: "ACCEPTED",
+            lead: {
+              jobStatus: "DONE"
+            }
+          },
+          select: { 
+            id: true,
+            expenses: true 
+          }
+        }),
       ])
 
       // Calculate inactive leads count (leads with 48+ hours of no activity)
@@ -123,6 +139,11 @@ export async function GET(request: NextRequest) {
         overdueFollowUps = 0
       }
 
+      // Calculate jobs pending financials count (quotes with no expenses or empty expenses object)
+      const jobsPendingFinancialsCount = jobsPendingFinancials.filter(quote => {
+        return !quote.expenses || Object.keys(quote.expenses).length === 0
+      }).length
+
       // Calculate conversion rates
       const leadToAppointmentRate =
         totalLeads > 0
@@ -146,6 +167,7 @@ export async function GET(request: NextRequest) {
             pastDueAppointments,
             unassignedLeads,
             overdueFollowUps,
+            jobsPendingFinancials: jobsPendingFinancialsCount,
             leadToAppointmentRate: parseFloat(leadToAppointmentRate),
             winRate: parseFloat(winRate),
           },

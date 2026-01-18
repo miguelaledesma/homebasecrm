@@ -197,8 +197,17 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         lead: {
-          include: {
-            customer: true,
+          select: {
+            id: true,
+            leadTypes: true,
+            jobStatus: true,
+            customer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
           },
         },
         appointment: true,

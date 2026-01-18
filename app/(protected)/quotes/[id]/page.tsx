@@ -41,6 +41,7 @@ import {
   Eye,
   Plus,
   TrendingUp,
+  AlertTriangle,
 } from "lucide-react";
 import { QuoteStatus, JobStatus } from "@prisma/client";
 import { formatLeadTypes } from "@/lib/utils";
@@ -119,6 +120,7 @@ export default function QuoteDetailPage() {
   const [editingExpenseKey, setEditingExpenseKey] = useState<string | null>(null);
   const [expenseForm, setExpenseForm] = useState<{ label: string; amount: string }>({ label: "", amount: "" });
   const [savingExpenses, setSavingExpenses] = useState(false);
+  const financialsRef = useRef<HTMLDivElement>(null);
 
   const quoteId = params.id as string;
 
@@ -364,6 +366,11 @@ export default function QuoteDetailPage() {
   const handleAddExpense = () => {
     setEditingExpenseKey("new"); // Use "new" as a marker for adding a new expense
     setExpenseForm({ label: "", amount: "" });
+    
+    // Scroll to the financials section
+    if (financialsRef.current) {
+      financialsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   const handleSaveExpense = async () => {
@@ -872,12 +879,43 @@ export default function QuoteDetailPage() {
       {quote.status === "ACCEPTED" &&
         quote.lead.jobStatus === "DONE" &&
         session?.user.role === "ADMIN" && (
-          <AntCard
-            style={{
-              marginTop: 24,
-              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-            }}
-          >
+          <>
+            {/* Alert banner when no expenses are recorded */}
+            {(!quote.expenses || Object.keys(quote.expenses).length === 0) && (
+              <Card className="mt-6 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                        No expenses recorded yet
+                      </h3>
+                      <p className="text-sm text-amber-800 dark:text-amber-200">
+                        Add expenses to track profitability for this completed job. This helps maintain accurate financial records.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={handleAddExpense}
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add First Expense
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            <AntCard
+              ref={financialsRef}
+              style={{
+                marginTop: 24,
+                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+              }}
+            >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
               <div>
                 <h2 style={{ fontSize: 24, fontWeight: 600, margin: 0, marginBottom: 4 }}>
@@ -1107,6 +1145,7 @@ export default function QuoteDetailPage() {
               </div>
             </div>
           </AntCard>
+          </>
         )}
 
       {/* File Viewer Modal */}
