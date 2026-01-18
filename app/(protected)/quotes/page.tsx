@@ -174,32 +174,26 @@ export default function QuotesPage() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-lg">Filters</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 max-w-xs">
-              <label className="text-sm font-medium mb-2 block">Status</label>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Statuses</option>
-                <option value="DRAFT">Draft</option>
-                <option value="SENT">Sent</option>
-                <option value="ACCEPTED">Accepted</option>
-                <option value="DECLINED">Declined</option>
-                <option value="EXPIRED">Expired</option>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4 border rounded-lg bg-muted/30 w-full max-w-full">
+        <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
+          <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+          <span>Filters:</span>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full sm:max-w-[200px] text-sm [touch-action:manipulation] min-h-[44px] sm:min-h-0"
+          >
+            <option value="all">All Statuses</option>
+            <option value="DRAFT">Draft</option>
+            <option value="SENT">Sent</option>
+            <option value="ACCEPTED">Accepted</option>
+            <option value="DECLINED">Declined</option>
+            <option value="EXPIRED">Expired</option>
+          </Select>
+        </div>
+      </div>
 
       {/* Quotes List */}
       {loading ? (
