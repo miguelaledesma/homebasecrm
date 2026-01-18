@@ -41,7 +41,7 @@ export async function DELETE(
 
     // Check permissions: ADMIN can delete any file, users can delete their own files
     const canDelete =
-      session.user.role === "ADMIN" || file.uploadedBy.id === session.user.id
+      session.user.role === "ADMIN" || file.uploadedBy?.id === session.user.id
 
     if (!canDelete) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })

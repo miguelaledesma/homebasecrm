@@ -261,6 +261,7 @@ model Quote {
   sentAt        DateTime?
   expiresAt     DateTime?
   status        QuoteStatus @default(DRAFT)
+  expenses      Json?       // Flexible JSON object for expense tracking: { "category": amount }
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 

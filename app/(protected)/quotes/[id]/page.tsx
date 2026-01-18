@@ -39,9 +39,12 @@ import {
   X,
   User,
   Eye,
+  Plus,
+  TrendingUp,
 } from "lucide-react";
-import { QuoteStatus } from "@prisma/client";
+import { QuoteStatus, JobStatus } from "@prisma/client";
 import { formatLeadTypes } from "@/lib/utils";
+import { Card as AntCard, Tag, Input as AntInput, Button as AntButton, List, Progress, Divider, Space } from "antd";
 
 type Quote = {
   id: string;
@@ -51,11 +54,14 @@ type Quote = {
   status: QuoteStatus;
   sentAt: string | null;
   expiresAt: string | null;
+  expenses: Record<string, number> | null;
   createdAt: string;
   updatedAt: string;
   lead: {
     id: string;
     leadTypes: string[];
+    jobStatus: JobStatus | null;
+    jobCompletedDate: string | null;
     customer: {
       id: string;
       firstName: string;
@@ -110,6 +116,9 @@ export default function QuoteDetailPage() {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<QuoteStatus | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingExpenseKey, setEditingExpenseKey] = useState<string | null>(null);
+  const [expenseForm, setExpenseForm] = useState<{ label: string; amount: string }>({ label: "", amount: "" });
+  const [savingExpenses, setSavingExpenses] = useState(false);
 
   const quoteId = params.id as string;
 
@@ -351,6 +360,100 @@ export default function QuoteDetailPage() {
       setDeleting(false);
     }
   };
+
+  const handleAddExpense = () => {
+    setEditingExpenseKey("new"); // Use "new" as a marker for adding a new expense
+    setExpenseForm({ label: "", amount: "" });
+  };
+
+  const handleSaveExpense = async () => {
+    if (!quote || !expenseForm.label.trim() || !expenseForm.amount) return;
+
+    const amount = parseFloat(expenseForm.amount);
+    if (isNaN(amount) || amount < 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    setSavingExpenses(true);
+    try {
+      const currentExpenses = quote.expenses || {};
+      const updatedExpenses = { ...currentExpenses, [expenseForm.label.trim()]: amount };
+
+      // If editing (not adding new), remove old key if label changed
+      if (editingExpenseKey && editingExpenseKey !== "new" && editingExpenseKey !== expenseForm.label.trim()) {
+        delete updatedExpenses[editingExpenseKey];
+      }
+
+      const response = await fetch(`/api/quotes/${quoteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expenses: updatedExpenses }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update expenses");
+      }
+
+      setEditingExpenseKey(null);
+      setExpenseForm({ label: "", amount: "" });
+      fetchQuote();
+    } catch (error: any) {
+      alert(error.message || "Failed to update expenses");
+    } finally {
+      setSavingExpenses(false);
+    }
+  };
+
+  const handleEditExpense = (key: string, amount: number) => {
+    setEditingExpenseKey(key);
+    setExpenseForm({ label: key, amount: amount.toString() });
+  };
+
+  const handleDeleteExpense = async (key: string) => {
+    if (!quote) return;
+
+    if (!confirm(`Are you sure you want to delete "${key}"?`)) {
+      return;
+    }
+
+    setSavingExpenses(true);
+    try {
+      const currentExpenses = quote.expenses || {};
+      const updatedExpenses = { ...currentExpenses };
+      delete updatedExpenses[key];
+
+      const response = await fetch(`/api/quotes/${quoteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expenses: updatedExpenses }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete expense");
+      }
+
+      fetchQuote();
+    } catch (error: any) {
+      alert(error.message || "Failed to delete expense");
+    } finally {
+      setSavingExpenses(false);
+    }
+  };
+
+  const handleCancelExpenseEdit = () => {
+    setEditingExpenseKey(null);
+    setExpenseForm({ label: "", amount: "" });
+  };
+
+  // Calculate totals
+  const totalExpenses = quote
+    ? Object.values(quote.expenses || {}).reduce((sum, val) => sum + val, 0)
+    : 0;
+  const profit = quote ? quote.amount - totalExpenses : 0;
+  const profitMargin = quote && quote.amount > 0 ? (profit / quote.amount) * 100 : 0;
 
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
@@ -764,6 +867,247 @@ export default function QuoteDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Job Financials Section - Only show for ACCEPTED quotes with DONE job status and ADMIN users */}
+      {quote.status === "ACCEPTED" &&
+        quote.lead.jobStatus === "DONE" &&
+        session?.user.role === "ADMIN" && (
+          <AntCard
+            style={{
+              marginTop: 24,
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+              <div>
+                <h2 style={{ fontSize: 24, fontWeight: 600, margin: 0, marginBottom: 4 }}>
+                  Job Financials
+                </h2>
+                <p style={{ color: "#666", margin: 0, fontSize: 14 }}>
+                  Track expenses and profit for this job
+                </p>
+              </div>
+              <Tag
+                color="blue"
+                style={{
+                  fontSize: 12,
+                  padding: "4px 12px",
+                  borderRadius: 16,
+                  textTransform: "capitalize",
+                }}
+              >
+                {quote.lead.jobStatus?.toLowerCase().replace("_", " ")}
+              </Tag>
+            </div>
+
+            {quote.lead.jobCompletedDate && (
+              <div style={{ marginBottom: 16, color: "#666", fontSize: 14 }}>
+                Completed: {new Date(quote.lead.jobCompletedDate).toLocaleDateString("en-US", {
+                  month: "numeric",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </div>
+            )}
+
+            <Divider style={{ margin: "16px 0" }} />
+
+            {/* Revenue Section */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Revenue</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <DollarSign className="h-6 w-6" style={{ color: "#1890ff" }} />
+                <span
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 600,
+                    color: "#000",
+                  }}
+                >
+                  {new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: quote.currency,
+                  }).format(quote.amount)}
+                </span>
+                <span style={{ color: "#999", fontSize: 14, marginLeft: 8 }}>Quote Amount</span>
+              </div>
+            </div>
+
+            <Divider style={{ margin: "16px 0" }} />
+
+            {/* Expenses Section */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div style={{ fontSize: 14, color: "#666" }}>Expenses</div>
+                {!editingExpenseKey && (
+                  <AntButton
+                    type="primary"
+                    icon={<Plus className="h-4 w-4" />}
+                    onClick={handleAddExpense}
+                    disabled={savingExpenses}
+                  >
+                    Add Expense
+                  </AntButton>
+                )}
+              </div>
+
+              {editingExpenseKey !== null ? (
+                <div style={{ padding: 16, backgroundColor: "#f5f5f5", borderRadius: 8, marginBottom: 16 }}>
+                  <Space direction="vertical" size={12} style={{ display: "flex", maxWidth: 500 }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Expense Label</div>
+                      <AntInput
+                        placeholder="e.g., Labor - Week 1"
+                        value={expenseForm.label}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, label: e.target.value })}
+                        disabled={savingExpenses}
+                        style={{ maxWidth: 500 }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Amount</div>
+                      <AntInput
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        prefix="$"
+                        value={expenseForm.amount}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                        disabled={savingExpenses}
+                        style={{ maxWidth: 300 }}
+                      />
+                    </div>
+                    <Space>
+                      <AntButton
+                        type="primary"
+                        onClick={handleSaveExpense}
+                        loading={savingExpenses}
+                      >
+                        Save
+                      </AntButton>
+                      <AntButton onClick={handleCancelExpenseEdit} disabled={savingExpenses}>
+                        Cancel
+                      </AntButton>
+                    </Space>
+                  </Space>
+                </div>
+              ) : null}
+
+              {quote.expenses && Object.keys(quote.expenses).length > 0 ? (
+                <List
+                  dataSource={Object.entries(quote.expenses)}
+                  renderItem={([key, value]) => (
+                    <List.Item
+                      style={{
+                        padding: "12px 0",
+                        borderBottom: "1px solid #f0f0f0",
+                      }}
+                      actions={[
+                        <AntButton
+                          key="edit"
+                          type="link"
+                          size="small"
+                          icon={<Edit2 className="h-4 w-4" />}
+                          onClick={() => handleEditExpense(key, value)}
+                          disabled={savingExpenses || editingExpenseKey !== null}
+                        />,
+                        <AntButton
+                          key="delete"
+                          type="link"
+                          danger
+                          size="small"
+                          icon={<Trash2 className="h-4 w-4" />}
+                          onClick={() => handleDeleteExpense(key)}
+                          disabled={savingExpenses || editingExpenseKey !== null}
+                        />,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={<span style={{ fontSize: 14 }}>{key}</span>}
+                        description={
+                          <span style={{ fontSize: 16, fontWeight: 500 }}>
+                            {new Intl.NumberFormat("en-US", {
+                              style: "currency",
+                              currency: quote.currency,
+                            }).format(value)}
+                          </span>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              ) : (
+                <div style={{ textAlign: "center", padding: 24, color: "#999", fontSize: 14 }}>
+                  No expenses added yet. Click &quot;Add Expense&quot; to get started.
+                </div>
+              )}
+
+              {quote.expenses && Object.keys(quote.expenses).length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    padding: "12px 0",
+                    borderTop: "2px solid #e8e8e8",
+                    marginTop: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>Total Expenses</span>
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>
+                    {new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: quote.currency,
+                    }).format(totalExpenses)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Net Profit Section */}
+            <div
+              style={{
+                marginTop: 24,
+                padding: 20,
+                backgroundColor: "#fafafa",
+                borderRadius: 8,
+                border: "1px solid #e8e8e8",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <TrendingUp className="h-5 w-5" style={{ color: profit >= 0 ? "#52c41a" : "#ff4d4f" }} />
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>Net Profit</span>
+                </div>
+                <span
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 600,
+                    color: profit >= 0 ? "#52c41a" : "#ff4d4f",
+                  }}
+                >
+                  {new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: quote.currency,
+                  }).format(profit)}
+                </span>
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 14, color: "#666" }}>
+                    {profitMargin.toFixed(1)}% margin
+                  </span>
+                </div>
+                <Progress
+                  percent={Math.min(Math.max(profitMargin, 0), 100)}
+                  strokeColor={profit >= 0 ? "#52c41a" : "#ff4d4f"}
+                  showInfo={false}
+                  style={{ marginTop: 4 }}
+                />
+              </div>
+            </div>
+          </AntCard>
+        )}
 
       {/* File Viewer Modal */}
       {viewingFile && (

@@ -121,7 +121,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { status, amount, expiresAt, sentAt } = body
+    const { status, amount, expiresAt, sentAt, expenses } = body
 
     // Check if quote exists and user has permission
     const existingQuote = await prisma.quote.findUnique({
@@ -132,12 +132,39 @@ export async function PATCH(
       return NextResponse.json({ error: "Quote not found" }, { status: 404 })
     }
 
-    // Only admins can edit quotes (amount, expiresAt, etc.)
+    // Only admins can edit quotes (amount, expiresAt, expenses, etc.)
     // Sales reps can only update status of their own quotes
-    const isUpdatingAmountOrExpires = amount !== undefined || expiresAt !== undefined
+    const isUpdatingAmountOrExpires = amount !== undefined || expiresAt !== undefined || expenses !== undefined
     
     if (isUpdatingAmountOrExpires && session.user.role !== UserRole.ADMIN) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Validate expenses if provided
+    if (expenses !== undefined) {
+      if (expenses !== null) {
+        if (typeof expenses !== "object" || Array.isArray(expenses)) {
+          return NextResponse.json(
+            { error: "Expenses must be an object with string keys and numeric values, or null" },
+            { status: 400 }
+          )
+        }
+        // Validate each value is a number
+        for (const [key, value] of Object.entries(expenses)) {
+          if (typeof key !== "string") {
+            return NextResponse.json(
+              { error: "Expense keys must be strings" },
+              { status: 400 }
+            )
+          }
+          if (typeof value !== "number" || isNaN(value) || value < 0) {
+            return NextResponse.json(
+              { error: `Expense value for "${key}" must be a non-negative number` },
+              { status: 400 }
+            )
+          }
+        }
+      }
     }
 
     // Sales reps and concierges can only update status of their own quotes
@@ -161,6 +188,9 @@ export async function PATCH(
     }
     if (sentAt !== undefined) {
       updateData.sentAt = sentAt ? new Date(sentAt) : null
+    }
+    if (expenses !== undefined) {
+      updateData.expenses = expenses // Prisma will handle JSON serialization
     }
 
     // Check if status is being changed to ACCEPTED
@@ -239,7 +269,7 @@ export async function PATCH(
       logAction("Quote accepted - lead marked as won", session.user.id, session.user.role, {
         quoteId: params.id,
         leadId: result.leadId,
-        changes: { status, amount, expiresAt, sentAt },
+        changes: { status, amount, expiresAt, sentAt, expenses },
       }, session.user.name || session.user.email)
 
       return NextResponse.json({ quote: result }, { status: 200 })
@@ -280,7 +310,7 @@ export async function PATCH(
     logAction("Quote updated", session.user.id, session.user.role, {
       quoteId: params.id,
       leadId: quote.leadId,
-      changes: { status, amount, expiresAt, sentAt },
+      changes: { status, amount, expiresAt, sentAt, expenses },
     }, session.user.name || session.user.email)
 
     return NextResponse.json({ quote }, { status: 200 })
