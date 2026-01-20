@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "HearAboutUs" ADD VALUE 'RETURNING_CUSTOMER';

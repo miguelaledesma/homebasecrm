@@ -34,7 +34,7 @@ type LeadType =
   | "MONTHLY_YARD_MAINTENANCE"
   | "LABOR"
   | "OTHER";
-type HearAboutUs = "YELP" | "FACEBOOK" | "DRIVING_BY" | "OTHER";
+type HearAboutUs = "YELP" | "FACEBOOK" | "DRIVING_BY" | "RETURNING_CUSTOMER" | "OTHER";
 
 export default function NewLeadPage() {
   const router = useRouter();
@@ -82,6 +82,24 @@ export default function NewLeadPage() {
     };
   } | null>(null);
   const [searchingReferrer, setSearchingReferrer] = useState(false);
+
+  const [customerMatch, setCustomerMatch] = useState<{
+    found: boolean;
+    isCustomer: boolean;
+    customer?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      phone: string | null;
+      email: string | null;
+      addressLine1: string | null;
+      addressLine2: string | null;
+      city: string | null;
+      state: string | null;
+      zip: string | null;
+    };
+  } | null>(null);
+  const [searchingCustomer, setSearchingCustomer] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,6 +221,67 @@ export default function NewLeadPage() {
     searchReferrer,
   ]);
 
+  // Search for customer when phone or email changes
+  const searchCustomer = useCallback(async (phone: string, email: string) => {
+    if (!phone && !email) {
+      setCustomerMatch(null);
+      return;
+    }
+
+    setSearchingCustomer(true);
+    try {
+      const params = new URLSearchParams();
+      if (phone) params.append("phone", phone);
+      if (email) params.append("email", email);
+
+      const response = await fetch(
+        `/api/customers/search?${params.toString()}`
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        setCustomerMatch(data);
+      } else {
+        setCustomerMatch(null);
+      }
+    } catch (error) {
+      console.error("Error searching customer:", error);
+      setCustomerMatch(null);
+    } finally {
+      setSearchingCustomer(false);
+    }
+  }, []);
+
+  // Debounced search for customer
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchCustomer(formData.phone, formData.email);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.phone, formData.email, searchCustomer]);
+
+  // Handle click on customer match to auto-fill form
+  const handleCustomerMatchClick = () => {
+    if (customerMatch?.found && customerMatch?.customer) {
+      const customer = customerMatch.customer;
+      setFormData((prev) => ({
+        ...prev,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        phone: customer.phone || prev.phone,
+        email: customer.email || prev.email,
+        addressLine1: customer.addressLine1 || prev.addressLine1,
+        addressLine2: customer.addressLine2 || prev.addressLine2,
+        city: customer.city || prev.city,
+        state: customer.state || prev.state,
+        zip: customer.zip || prev.zip,
+        hearAboutUs: "RETURNING_CUSTOMER",
+        hearAboutUsOther: "",
+      }));
+    }
+  };
+
   const leadTypeOptions: { value: LeadType; label: string }[] = [
     { value: "FLOOR", label: "Flooring" },
     { value: "CARPET", label: "Carpet" },
@@ -291,6 +370,32 @@ export default function NewLeadPage() {
                   />
                 </div>
               </div>
+
+              {/* Show customer match status */}
+              {(formData.phone || formData.email) && (
+                <div className="mt-2">
+                  {searchingCustomer ? (
+                    <p className="text-sm text-muted-foreground">
+                      Searching...
+                    </p>
+                  ) : customerMatch?.found && customerMatch?.isCustomer ? (
+                    <div
+                      onClick={handleCustomerMatchClick}
+                      className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 p-3 rounded-md cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors"
+                    >
+                      <span>✓</span>
+                      <span>
+                        Returning customer found:{" "}
+                        <strong>
+                          {customerMatch.customer?.firstName}{" "}
+                          {customerMatch.customer?.lastName}
+                        </strong>
+                        . Click to auto-fill form.
+                      </span>
+                    </div>
+                  ) : customerMatch?.found === false ? null : null}
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="addressLine1">Address Line 1</Label>
@@ -389,6 +494,7 @@ export default function NewLeadPage() {
                   <option value="YELP">Yelp</option>
                   <option value="FACEBOOK">Facebook</option>
                   <option value="DRIVING_BY">Driving By</option>
+                  <option value="RETURNING_CUSTOMER">Returning Customer</option>
                   <option value="OTHER">Other</option>
                 </Select>
               </div>

@@ -1680,6 +1680,7 @@ export default function LeadDetailPage() {
                       {lead.hearAboutUs === "YELP" && "Yelp"}
                       {lead.hearAboutUs === "FACEBOOK" && "Facebook"}
                       {lead.hearAboutUs === "DRIVING_BY" && "Driving By"}
+                      {lead.hearAboutUs === "RETURNING_CUSTOMER" && "Returning Customer"}
                       {lead.hearAboutUs === "OTHER" &&
                         (lead.hearAboutUsOther || "Other")}
                     </p>
