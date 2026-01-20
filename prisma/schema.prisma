@@ -285,6 +285,7 @@ model QuoteFile {
   quoteId          String
   fileUrl          String
   fileType         String?
+  isProfitLoss     Boolean  @default(false) // True if this is a profit & loss file for financials
   uploadedByUserId String?
   uploadedAt       DateTime @default(now())
 

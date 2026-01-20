@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
         }),
         
         // Jobs pending financials - get all ACCEPTED quotes with DONE job status
-        // We'll filter for empty expenses in the next step
+        // We'll filter for quotes without P&L files in the next step
         prisma.quote.findMany({
           where: {
             status: "ACCEPTED",
@@ -111,7 +111,6 @@ export async function GET(request: NextRequest) {
           },
           select: { 
             id: true,
-            expenses: true 
           }
         }),
       ])
@@ -139,9 +138,20 @@ export async function GET(request: NextRequest) {
         overdueFollowUps = 0
       }
 
-      // Calculate jobs pending financials count (quotes with no expenses or empty expenses object)
+      // Calculate jobs pending financials count (quotes without P&L files)
+      const quoteIds = jobsPendingFinancials.map(q => q.id)
+      const plFiles = await prisma.quoteFile.findMany({
+        where: {
+          quoteId: { in: quoteIds },
+          isProfitLoss: true,
+        },
+        select: {
+          quoteId: true,
+        },
+      })
+      const quotesWithPL = new Set(plFiles.map(f => f.quoteId))
       const jobsPendingFinancialsCount = jobsPendingFinancials.filter(quote => {
-        return !quote.expenses || Object.keys(quote.expenses).length === 0
+        return !quotesWithPL.has(quote.id)
       }).length
 
       // Calculate conversion rates

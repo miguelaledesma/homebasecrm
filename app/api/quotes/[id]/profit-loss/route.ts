@@ -14,21 +14,33 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check if quote exists and user has permission
+    // Only ADMIN can upload P&L files
+    if (session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Check if quote exists
     const quote = await prisma.quote.findUnique({
       where: { id: params.id },
+      include: {
+        lead: {
+          select: {
+            jobStatus: true,
+          },
+        },
+      },
     })
 
     if (!quote) {
       return NextResponse.json({ error: "Quote not found" }, { status: 404 })
     }
 
-    // Check permissions: ADMIN can upload to any quote, SALES_REP and CONCIERGE only to their own
-    if (
-      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") &&
-      quote.salesRepId !== session.user.id
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    // Only allow P&L uploads for ACCEPTED quotes with DONE job status
+    if (quote.status !== "ACCEPTED" || quote.lead.jobStatus !== "DONE") {
+      return NextResponse.json(
+        { error: "P&L files can only be uploaded for accepted quotes with completed jobs" },
+        { status: 400 }
+      )
     }
 
     const formData = await request.formData()
@@ -50,7 +62,7 @@ export async function POST(
       )
     }
 
-    // Allowed file types (adjust as needed)
+    // Allowed file types for P&L documents
     const allowedTypes = [
       "application/pdf",
       "application/msword",
@@ -59,10 +71,9 @@ export async function POST(
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "image/jpeg",
       "image/png",
-      "image/gif",
       "text/plain",
     ]
-    const allowedExtensions = ["pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg", "png", "gif", "txt"]
+    const allowedExtensions = ["pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg", "png", "txt"]
 
     const fileExtension = file.name.split(".").pop()?.toLowerCase()
     const isValidType =
@@ -78,10 +89,31 @@ export async function POST(
       )
     }
 
+    // Delete existing P&L file if one exists (only one P&L file per quote)
+    const existingPLFile = await prisma.quoteFile.findFirst({
+      where: {
+        quoteId: params.id,
+        isProfitLoss: true,
+      },
+    })
+
+    if (existingPLFile) {
+      // Delete from storage
+      try {
+        await storage.deleteFile(existingPLFile.fileUrl)
+      } catch (error) {
+        console.warn("Failed to delete existing P&L file from storage:", error)
+      }
+      // Delete from database
+      await prisma.quoteFile.delete({
+        where: { id: existingPLFile.id },
+      })
+    }
+
     // Generate unique filename to avoid conflicts
     const timestamp = Date.now()
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
-    const fileKey = `quotes/${params.id}/${timestamp}-${sanitizedFileName}`
+    const fileKey = `financials/${params.id}/${timestamp}-${sanitizedFileName}`
 
     // Upload file to Railway storage
     const filePath = await storage.uploadFile(file, fileKey)
@@ -89,12 +121,13 @@ export async function POST(
     // Get file type from file
     const fileType = file.type || fileExtension || "unknown"
 
-    // Create quote file record (store the path, not full URL)
+    // Create quote file record with isProfitLoss flag
     const quoteFile = await prisma.quoteFile.create({
       data: {
         quoteId: params.id,
         fileUrl: filePath, // Store the S3 key/path, not the full URL
         fileType,
+        isProfitLoss: true,
         uploadedByUserId: session.user.id,
       },
       include: {
@@ -119,7 +152,7 @@ export async function POST(
       console.warn("Failed to generate presigned URL:", error)
     }
 
-    // Extract original filename from S3 key (format: quotes/{quoteId}/{timestamp}-{filename})
+    // Extract original filename from S3 key
     const extractFileName = (s3Key: string): string => {
       if (s3Key.startsWith("data:")) {
         return "Uploaded file"
@@ -142,9 +175,9 @@ export async function POST(
       { status: 201 }
     )
   } catch (error: any) {
-    console.error("Error uploading file:", error)
+    console.error("Error uploading P&L file:", error)
     return NextResponse.json(
-      { error: error.message || "Failed to upload file" },
+      { error: error.message || "Failed to upload P&L file" },
       { status: 500 }
     )
   }
@@ -160,7 +193,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check if quote exists and user has permission
+    // Only ADMIN can view P&L files
+    if (session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Check if quote exists
     const quote = await prisma.quote.findUnique({
       where: { id: params.id },
     })
@@ -169,18 +207,11 @@ export async function GET(
       return NextResponse.json({ error: "Quote not found" }, { status: 404 })
     }
 
-    // SALES_REP and CONCIERGE can only see files for their quotes
-    if (
-      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") &&
-      quote.salesRepId !== session.user.id
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-
-    const files = await prisma.quoteFile.findMany({
-      where: { 
+    // Get P&L file for this quote
+    const plFile = await prisma.quoteFile.findFirst({
+      where: {
         quoteId: params.id,
-        isProfitLoss: false, // Exclude P&L files from regular files list
+        isProfitLoss: true,
       },
       include: {
         uploadedBy: {
@@ -196,6 +227,10 @@ export async function GET(
       },
     })
 
+    if (!plFile) {
+      return NextResponse.json({ file: null }, { status: 200 })
+    }
+
     // Helper function to extract filename from S3 key
     const extractFileName = (s3Key: string): string => {
       if (s3Key.startsWith("data:")) {
@@ -208,37 +243,93 @@ export async function GET(
       return match ? match[1] : filename
     }
 
-    // Generate presigned URLs for each file (if using Railway S3)
-    const filesWithUrls = await Promise.all(
-      files.map(async (file) => {
-        const originalS3Key = file.fileUrl // Store original S3 key before generating presigned URL
-        let downloadUrl = file.fileUrl
-        try {
-          // Check if it's a data URL (mock storage) or needs presigned URL
-          if (!file.fileUrl.startsWith("data:")) {
-            if (storage.getFileUrl) {
-              downloadUrl = await storage.getFileUrl(file.fileUrl, 3600) // 1 hour expiry
-            }
-          }
-        } catch (error) {
-          console.warn(`Failed to generate presigned URL for file ${file.id}:`, error)
+    // Generate presigned URL for the file (if using Railway S3)
+    let downloadUrl = plFile.fileUrl
+    try {
+      // Check if it's a data URL (mock storage) or needs presigned URL
+      if (!plFile.fileUrl.startsWith("data:")) {
+        if (storage.getFileUrl) {
+          downloadUrl = await storage.getFileUrl(plFile.fileUrl, 3600) // 1 hour expiry
         }
+      }
+    } catch (error) {
+      console.warn(`Failed to generate presigned URL for P&L file:`, error)
+    }
 
-        return {
-          ...file,
-          fileUrl: downloadUrl,
-          fileName: extractFileName(originalS3Key), // Include original filename
-        }
-      })
-    )
-
-    return NextResponse.json({ files: filesWithUrls }, { status: 200 })
-  } catch (error: any) {
-    console.error("Error fetching files:", error)
     return NextResponse.json(
-      { error: error.message || "Failed to fetch files" },
+      {
+        file: {
+          ...plFile,
+          fileUrl: downloadUrl,
+          fileName: extractFileName(plFile.fileUrl),
+        },
+      },
+      { status: 200 }
+    )
+  } catch (error: any) {
+    console.error("Error fetching P&L file:", error)
+    return NextResponse.json(
+      { error: error.message || "Failed to fetch P&L file" },
       { status: 500 }
     )
   }
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Only ADMIN can delete P&L files
+    if (session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Check if quote exists
+    const quote = await prisma.quote.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!quote) {
+      return NextResponse.json({ error: "Quote not found" }, { status: 404 })
+    }
+
+    // Find P&L file
+    const plFile = await prisma.quoteFile.findFirst({
+      where: {
+        quoteId: params.id,
+        isProfitLoss: true,
+      },
+    })
+
+    if (!plFile) {
+      return NextResponse.json({ error: "P&L file not found" }, { status: 404 })
+    }
+
+    // Delete from storage
+    try {
+      await storage.deleteFile(plFile.fileUrl)
+    } catch (error) {
+      console.warn("Failed to delete P&L file from storage:", error)
+      // Continue with database deletion even if storage deletion fails
+    }
+
+    // Delete from database
+    await prisma.quoteFile.delete({
+      where: { id: plFile.id },
+    })
+
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (error: any) {
+    console.error("Error deleting P&L file:", error)
+    return NextResponse.json(
+      { error: error.message || "Failed to delete P&L file" },
+      { status: 500 }
+    )
+  }
+}

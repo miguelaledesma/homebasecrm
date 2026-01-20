@@ -39,13 +39,11 @@ import {
   X,
   User,
   Eye,
-  Plus,
-  TrendingUp,
   AlertTriangle,
 } from "lucide-react";
 import { QuoteStatus, JobStatus } from "@prisma/client";
 import { formatLeadTypes } from "@/lib/utils";
-import { Card as AntCard, Tag, Input as AntInput, Button as AntButton, List, Progress, Divider, Space } from "antd";
+import { Card as AntCard, Tag, Divider } from "antd";
 
 type Quote = {
   id: string;
@@ -117,9 +115,22 @@ export default function QuoteDetailPage() {
   const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<QuoteStatus | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [editingExpenseKey, setEditingExpenseKey] = useState<string | null>(null);
-  const [expenseForm, setExpenseForm] = useState<{ label: string; amount: string }>({ label: "", amount: "" });
-  const [savingExpenses, setSavingExpenses] = useState(false);
+  const profitLossFileInputRef = useRef<HTMLInputElement>(null);
+  const [profitLossFile, setProfitLossFile] = useState<{
+    id: string;
+    fileUrl: string;
+    fileName?: string;
+    fileType: string | null;
+    uploadedAt: string;
+    uploadedBy: {
+      id: string;
+      name: string | null;
+      email: string;
+    } | null;
+  } | null>(null);
+  const [uploadingPL, setUploadingPL] = useState(false);
+  const [deletingPL, setDeletingPL] = useState(false);
+  const [isDraggingPL, setIsDraggingPL] = useState(false);
   const financialsRef = useRef<HTMLDivElement>(null);
 
   const quoteId = params.id as string;
@@ -151,6 +162,31 @@ export default function QuoteDetailPage() {
       setLoading(false);
     }
   }, [quoteId, router]);
+
+  const fetchProfitLossFile = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/quotes/${quoteId}/profit-loss`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          setProfitLossFile(null);
+          return;
+        }
+        throw new Error("Failed to fetch P&L file");
+      }
+      const data = await response.json();
+      setProfitLossFile(data.file);
+    } catch (error) {
+      console.error("Error fetching P&L file:", error);
+      setProfitLossFile(null);
+    }
+  }, [quoteId]);
+
+  useEffect(() => {
+    // Fetch P&L file if quote is ACCEPTED and job is DONE and user is ADMIN
+    if (quote && quote.status === "ACCEPTED" && quote.lead.jobStatus === "DONE" && session?.user.role === "ADMIN") {
+      fetchProfitLossFile();
+    }
+  }, [quote, session, fetchProfitLossFile]);
 
   useEffect(() => {
     if (quoteId) {
@@ -363,104 +399,94 @@ export default function QuoteDetailPage() {
     }
   };
 
-  const handleAddExpense = () => {
-    setEditingExpenseKey("new"); // Use "new" as a marker for adding a new expense
-    setExpenseForm({ label: "", amount: "" });
-    
-    // Scroll to the financials section
-    if (financialsRef.current) {
-      financialsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
-
-  const handleSaveExpense = async () => {
-    if (!quote || !expenseForm.label.trim() || !expenseForm.amount) return;
-
-    const amount = parseFloat(expenseForm.amount);
-    if (isNaN(amount) || amount < 0) {
-      alert("Please enter a valid amount");
-      return;
-    }
-
-    setSavingExpenses(true);
+  const handleProfitLossFileUpload = async (file: File) => {
+    setUploadingPL(true);
     try {
-      const currentExpenses = quote.expenses || {};
-      const updatedExpenses = { ...currentExpenses, [expenseForm.label.trim()]: amount };
+      const formData = new FormData();
+      formData.append("file", file);
 
-      // If editing (not adding new), remove old key if label changed
-      if (editingExpenseKey && editingExpenseKey !== "new" && editingExpenseKey !== expenseForm.label.trim()) {
-        delete updatedExpenses[editingExpenseKey];
-      }
-
-      const response = await fetch(`/api/quotes/${quoteId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expenses: updatedExpenses }),
+      const response = await fetch(`/api/quotes/${quoteId}/profit-loss`, {
+        method: "POST",
+        body: formData,
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Failed to update expenses");
+        throw new Error(data.error || "Failed to upload P&L file");
       }
 
-      setEditingExpenseKey(null);
-      setExpenseForm({ label: "", amount: "" });
-      fetchQuote();
+      const result = await response.json();
+      setProfitLossFile(result.file);
+      
+      // Scroll to the financials section
+      if (financialsRef.current) {
+        financialsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     } catch (error: any) {
-      alert(error.message || "Failed to update expenses");
+      alert(error.message || "Failed to upload P&L file");
     } finally {
-      setSavingExpenses(false);
+      setUploadingPL(false);
+      if (profitLossFileInputRef.current) {
+        profitLossFileInputRef.current.value = "";
+      }
     }
   };
 
-  const handleEditExpense = (key: string, amount: number) => {
-    setEditingExpenseKey(key);
-    setExpenseForm({ label: key, amount: amount.toString() });
+  const handleProfitLossFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleProfitLossFileUpload(file);
+    }
   };
 
-  const handleDeleteExpense = async (key: string) => {
-    if (!quote) return;
+  const handleProfitLossFileDelete = async () => {
+    if (!profitLossFile) return;
 
-    if (!confirm(`Are you sure you want to delete "${key}"?`)) {
+    if (!confirm("Are you sure you want to delete the Profit & Loss file?")) {
       return;
     }
 
-    setSavingExpenses(true);
+    setDeletingPL(true);
     try {
-      const currentExpenses = quote.expenses || {};
-      const updatedExpenses = { ...currentExpenses };
-      delete updatedExpenses[key];
-
-      const response = await fetch(`/api/quotes/${quoteId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expenses: updatedExpenses }),
+      const response = await fetch(`/api/quotes/${quoteId}/profit-loss`, {
+        method: "DELETE",
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Failed to delete expense");
+        throw new Error(data.error || "Failed to delete P&L file");
       }
 
-      fetchQuote();
+      setProfitLossFile(null);
     } catch (error: any) {
-      alert(error.message || "Failed to delete expense");
+      alert(error.message || "Failed to delete P&L file");
     } finally {
-      setSavingExpenses(false);
+      setDeletingPL(false);
     }
   };
 
-  const handleCancelExpenseEdit = () => {
-    setEditingExpenseKey(null);
-    setExpenseForm({ label: "", amount: "" });
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPL(true);
   };
 
-  // Calculate totals
-  const totalExpenses = quote
-    ? Object.values(quote.expenses || {}).reduce((sum, val) => sum + val, 0)
-    : 0;
-  const profit = quote ? quote.amount - totalExpenses : 0;
-  const profitMargin = quote && quote.amount > 0 ? (profit / quote.amount) * 100 : 0;
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPL(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPL(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleProfitLossFileUpload(file);
+    }
+  };
 
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
@@ -880,8 +906,8 @@ export default function QuoteDetailPage() {
         quote.lead.jobStatus === "DONE" &&
         session?.user.role === "ADMIN" && (
           <>
-            {/* Alert banner when no expenses are recorded */}
-            {(!quote.expenses || Object.keys(quote.expenses).length === 0) && (
+            {/* Alert banner when no P&L file is uploaded */}
+            {!profitLossFile && (
               <Card className="mt-6 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-4">
@@ -890,20 +916,12 @@ export default function QuoteDetailPage() {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
-                        No expenses recorded yet
+                        No Profit & Loss file uploaded yet
                       </h3>
                       <p className="text-sm text-amber-800 dark:text-amber-200">
-                        Add expenses to track profitability for this completed job. This helps maintain accurate financial records.
+                        Upload the Profit & Loss document for this completed job to maintain accurate financial records.
                       </p>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={handleAddExpense}
-                      className="bg-amber-600 hover:bg-amber-700 text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add First Expense
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -922,7 +940,7 @@ export default function QuoteDetailPage() {
                   Job Financials
                 </h2>
                 <p style={{ color: "#666", margin: 0, fontSize: 14 }}>
-                  Track expenses and profit for this job
+                  Upload Profit & Loss document for this completed job
                 </p>
               </div>
               <Tag
@@ -973,176 +991,111 @@ export default function QuoteDetailPage() {
 
             <Divider style={{ margin: "16px 0" }} />
 
-            {/* Expenses Section */}
+            {/* Profit & Loss File Section */}
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <div style={{ fontSize: 14, color: "#666" }}>Expenses</div>
-                {!editingExpenseKey && (
-                  <AntButton
-                    type="primary"
-                    icon={<Plus className="h-4 w-4" />}
-                    onClick={handleAddExpense}
-                    disabled={savingExpenses}
+              <div style={{ fontSize: 14, color: "#666", marginBottom: 16 }}>Profit & Loss Document</div>
+              
+              {profitLossFile ? (
+                <div style={{ marginBottom: 16 }}>
+                  <div
+                    style={{
+                      padding: 16,
+                      border: "1px solid #e8e8e8",
+                      borderRadius: 8,
+                      backgroundColor: "#fafafa",
+                    }}
                   >
-                    Add Expense
-                  </AntButton>
-                )}
-              </div>
-
-              {editingExpenseKey !== null ? (
-                <div style={{ padding: 16, backgroundColor: "#f5f5f5", borderRadius: 8, marginBottom: 16 }}>
-                  <Space direction="vertical" size={12} style={{ display: "flex", maxWidth: 500 }}>
-                    <div>
-                      <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Expense Label</div>
-                      <AntInput
-                        placeholder="e.g., Labor - Week 1"
-                        value={expenseForm.label}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, label: e.target.value })}
-                        disabled={savingExpenses}
-                        style={{ maxWidth: 500 }}
-                      />
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <FileText className="h-5 w-5" style={{ color: "#1890ff" }} />
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>
+                            {profitLossFile.fileName || "Profit & Loss Document"}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#999" }}>
+                            Uploaded {new Date(profitLossFile.uploadedAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                            {profitLossFile.uploadedBy?.name ? ` by ${profitLossFile.uploadedBy.name}` : ""}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setViewingFile({
+                              url: profitLossFile.fileUrl,
+                              name: profitLossFile.fileName || "Profit & Loss Document",
+                              type: profitLossFile.fileType,
+                            })
+                          }
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(profitLossFile.fileUrl, "_blank")}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleProfitLossFileDelete}
+                          disabled={deletingPL}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          {deletingPL ? "Deleting..." : "Delete"}
+                        </Button>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Amount</div>
-                      <AntInput
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        prefix="$"
-                        value={expenseForm.amount}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                        disabled={savingExpenses}
-                        style={{ maxWidth: 300 }}
-                      />
-                    </div>
-                    <Space>
-                      <AntButton
-                        type="primary"
-                        onClick={handleSaveExpense}
-                        loading={savingExpenses}
-                      >
-                        Save
-                      </AntButton>
-                      <AntButton onClick={handleCancelExpenseEdit} disabled={savingExpenses}>
-                        Cancel
-                      </AntButton>
-                    </Space>
-                  </Space>
+                  </div>
                 </div>
-              ) : null}
-
-              {quote.expenses && Object.keys(quote.expenses).length > 0 ? (
-                <List
-                  dataSource={Object.entries(quote.expenses)}
-                  renderItem={([key, value]) => (
-                    <List.Item
-                      style={{
-                        padding: "12px 0",
-                        borderBottom: "1px solid #f0f0f0",
-                      }}
-                      actions={[
-                        <AntButton
-                          key="edit"
-                          type="link"
-                          size="small"
-                          icon={<Edit2 className="h-4 w-4" />}
-                          onClick={() => handleEditExpense(key, value)}
-                          disabled={savingExpenses || editingExpenseKey !== null}
-                        />,
-                        <AntButton
-                          key="delete"
-                          type="link"
-                          danger
-                          size="small"
-                          icon={<Trash2 className="h-4 w-4" />}
-                          onClick={() => handleDeleteExpense(key)}
-                          disabled={savingExpenses || editingExpenseKey !== null}
-                        />,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        title={<span style={{ fontSize: 14 }}>{key}</span>}
-                        description={
-                          <span style={{ fontSize: 16, fontWeight: 500 }}>
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: quote.currency,
-                            }).format(value)}
-                          </span>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
               ) : (
-                <div style={{ textAlign: "center", padding: 24, color: "#999", fontSize: 14 }}>
-                  No expenses added yet. Click &quot;Add Expense&quot; to get started.
-                </div>
-              )}
-
-              {quote.expenses && Object.keys(quote.expenses).length > 0 && (
                 <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    padding: "12px 0",
-                    borderTop: "2px solid #e8e8e8",
-                    marginTop: 8,
+                    padding: 32,
+                    border: `2px dashed ${isDraggingPL ? "#1890ff" : "#d9d9d9"}`,
+                    borderRadius: 8,
+                    backgroundColor: isDraggingPL ? "#f0f7ff" : "#fafafa",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
                   }}
+                  onClick={() => profitLossFileInputRef.current?.click()}
                 >
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>Total Expenses</span>
-                  <span style={{ fontSize: 16, fontWeight: 600 }}>
-                    {new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: quote.currency,
-                    }).format(totalExpenses)}
-                  </span>
+                  <input
+                    ref={profitLossFileInputRef}
+                    type="file"
+                    onChange={handleProfitLossFileChange}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt"
+                    style={{ display: "none" }}
+                  />
+                  <Upload className="h-12 w-12 mx-auto mb-4" style={{ color: "#999" }} />
+                  <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 8, color: "#000" }}>
+                    {isDraggingPL ? "Drop file here" : "Click to upload or drag and drop"}
+                  </div>
+                  <div style={{ fontSize: 14, color: "#999" }}>
+                    PDF, Word, Excel, Images, or Text files (max 10 MB)
+                  </div>
+                  {uploadingPL && (
+                    <div style={{ marginTop: 16, fontSize: 14, color: "#1890ff" }}>
+                      Uploading...
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-
-            {/* Net Profit Section */}
-            <div
-              style={{
-                marginTop: 24,
-                padding: 20,
-                backgroundColor: "#fafafa",
-                borderRadius: 8,
-                border: "1px solid #e8e8e8",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <TrendingUp className="h-5 w-5" style={{ color: profit >= 0 ? "#52c41a" : "#ff4d4f" }} />
-                  <span style={{ fontSize: 16, fontWeight: 600 }}>Net Profit</span>
-                </div>
-                <span
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 600,
-                    color: profit >= 0 ? "#52c41a" : "#ff4d4f",
-                  }}
-                >
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: quote.currency,
-                  }).format(profit)}
-                </span>
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 14, color: "#666" }}>
-                    {profitMargin.toFixed(1)}% margin
-                  </span>
-                </div>
-                <Progress
-                  percent={Math.min(Math.max(profitMargin, 0), 100)}
-                  strokeColor={profit >= 0 ? "#52c41a" : "#ff4d4f"}
-                  showInfo={false}
-                  style={{ marginTop: 4 }}
-                />
-              </div>
             </div>
           </AntCard>
           </>

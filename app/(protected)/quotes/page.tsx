@@ -31,7 +31,6 @@ type Quote = {
   sentAt: string | null
   expiresAt: string | null
   createdAt: string
-  expenses?: Record<string, number> | null
   lead: {
     id: string
     leadTypes: string[]
@@ -45,6 +44,7 @@ type Quote = {
   files: Array<{
     id: string
   }>
+  hasProfitLossFile?: boolean // Indicates if P&L file exists
   salesRep?: {
     id: string
     name: string | null
@@ -248,10 +248,10 @@ export default function QuotesPage() {
                               >
                                 {quote.status}
                               </Badge>
-                              {/* Show Needs Financials badge for ACCEPTED quotes with DONE job status but no expenses */}
+                              {/* Show Needs Financials badge for ACCEPTED quotes with DONE job status but no P&L file */}
                               {quote.status === "ACCEPTED" &&
                                 quote.lead.jobStatus === "DONE" &&
-                                (!quote.expenses || Object.keys(quote.expenses).length === 0) &&
+                                !quote.hasProfitLossFile &&
                                 session?.user.role === "ADMIN" && (
                                   <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700">
                                     <AlertTriangle className="h-3 w-3 mr-1" />

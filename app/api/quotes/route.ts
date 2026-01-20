@@ -219,12 +219,24 @@ export async function GET(request: NextRequest) {
           },
         },
         files: {
+          where: {
+            isProfitLoss: false, // Exclude P&L files from regular files list
+          },
           include: {
             uploadedBy: {
               select: {
                 id: true,
                 name: true,
                 email: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            files: {
+              where: {
+                isProfitLoss: true,
               },
             },
           },
@@ -237,9 +249,16 @@ export async function GET(request: NextRequest) {
       take: limitNum,
     })
 
+    // Add hasProfitLossFile flag to each quote
+    const quotesWithPLFlag = quotes.map(quote => ({
+      ...quote,
+      hasProfitLossFile: (quote._count?.files || 0) > 0,
+      _count: undefined, // Remove _count from response
+    }))
+
     return NextResponse.json(
       {
-        quotes,
+        quotes: quotesWithPLFlag,
         pagination: {
           page: pageNum,
           limit: limitNum,

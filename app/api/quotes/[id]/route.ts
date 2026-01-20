@@ -33,6 +33,9 @@ export async function GET(
           },
         },
         files: {
+          where: {
+            isProfitLoss: false, // Exclude P&L files from regular files list
+          },
           include: {
             uploadedBy: {
               select: {
