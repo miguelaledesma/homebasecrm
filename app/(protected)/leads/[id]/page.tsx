@@ -610,7 +610,7 @@ export default function LeadDetailPage() {
       fetchQuotes();
       fetchNotes();
     }
-    if (session?.user.role === "ADMIN") {
+    if (session?.user.role === "ADMIN" || session?.user.role === "CONCIERGE") {
       fetchSalesReps();
     }
   }, [
@@ -878,11 +878,13 @@ export default function LeadDetailPage() {
     return <div className="text-center py-8">Lead not found</div>;
   }
 
-  // Check if this is a read-only view for sales rep or concierge
+  // Check if this is a read-only view:
+  // - SALES_REP is read-only for leads not assigned to them
+  // - Limited data view from API
+  // - CONCIERGE can view and edit all leads
   const isReadOnly =
     (lead as any)._readOnly ||
-    ((session?.user?.role === "SALES_REP" ||
-      session?.user?.role === "CONCIERGE") &&
+    (session?.user?.role === "SALES_REP" &&
       lead.assignedSalesRepId !== session?.user?.id);
 
   const hasChanges =
@@ -1537,7 +1539,7 @@ export default function LeadDetailPage() {
 
                 {isEditMode ? (
                   <>
-                    {session?.user.role === "ADMIN" && (
+                    {(session?.user.role === "ADMIN" || session?.user.role === "CONCIERGE") && (
                       <div>
                         <Label
                           htmlFor="assignedSalesRep"
@@ -1556,7 +1558,7 @@ export default function LeadDetailPage() {
                           {salesReps.map((rep) => (
                             <option key={rep.id} value={rep.id}>
                               {rep.name || rep.email}{" "}
-                              {rep.role === "ADMIN" ? "(Admin)" : "(Sales Rep)"}
+                              {rep.role === "ADMIN" ? "(Admin)" : rep.role === "CONCIERGE" ? "(Concierge)" : "(Sales Rep)"}
                             </option>
                           ))}
                         </Select>
@@ -2432,7 +2434,7 @@ export default function LeadDetailPage() {
         </Card>
       )}
 
-      {/* Notes Section - Only show if not read-only */}
+      {/* Notes Section - Show for all users who can access the lead */}
       {!isReadOnly && (
         <Card>
           <CardHeader>

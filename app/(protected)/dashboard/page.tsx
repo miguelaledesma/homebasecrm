@@ -131,6 +131,7 @@ export default function DashboardPage() {
 
   const userName = session?.user?.name || "there";
   const isAdmin = session?.user?.role === "ADMIN";
+  const isConcierge = session?.user?.role === "CONCIERGE";
 
   if (loading) {
     return (
@@ -342,8 +343,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {isAdmin ? (
-        // Admin Dashboard
+      {isAdmin && !isConcierge ? (
+        // Admin Dashboard (only for ADMIN, not CONCIERGE)
         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card
             className="hover:shadow-md transition-shadow cursor-pointer"

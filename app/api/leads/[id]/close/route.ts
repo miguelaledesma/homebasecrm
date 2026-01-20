@@ -56,7 +56,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 })
     }
 
-    // Access control: Admin can close any lead. Sales rep / concierge can close only their leads.
+    // Access control: 
+    // - Admin can close any lead
+    // - CONCIERGE can close their assigned leads
+    // - Sales rep can close only their assigned leads
     if (
       (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE") &&
       existingLead.assignedSalesRepId !== session.user.id

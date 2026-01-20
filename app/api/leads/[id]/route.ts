@@ -50,10 +50,10 @@ export async function GET(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // SALES_REP and CONCIERGE can view any lead, but with limited data if not assigned to them
+    // SALES_REP can view any lead, but with limited data if not assigned to them
+    // CONCIERGE can view all leads with full data
     if (
-      (session.user.role === "SALES_REP" ||
-        session.user.role === "CONCIERGE") &&
+      session.user.role === "SALES_REP" &&
       lead.assignedSalesRepId !== session.user.id
     ) {
       // Return limited lead data for read-only viewing
@@ -132,24 +132,24 @@ export async function PATCH(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // SALES_REP and CONCIERGE can only update their own leads
+    // SALES_REP can only update their own leads
+    // CONCIERGE can update their own leads and reassign
     if (
-      (session.user.role === "SALES_REP" ||
-        session.user.role === "CONCIERGE") &&
+      session.user.role === "SALES_REP" &&
       existingLead.assignedSalesRepId !== session.user.id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Only ADMIN can assign or change sales rep assignment
-    // Check if assignment is being changed (new value different from existing, or being set when currently null)
+    // ADMIN and CONCIERGE can assign or change sales rep assignment
+    // SALES_REP cannot reassign
     if (
       assignedSalesRepId !== undefined &&
       assignedSalesRepId !== existingLead.assignedSalesRepId &&
-      session.user.role !== "ADMIN"
+      session.user.role === "SALES_REP"
     ) {
       return NextResponse.json(
-        { error: "Only admins can assign sales reps" },
+        { error: "Sales reps cannot reassign leads" },
         { status: 403 }
       );
     }

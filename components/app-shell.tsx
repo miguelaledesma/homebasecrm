@@ -187,11 +187,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [notificationsOpen])
 
-  // Filter navigation based on user role - only show Admin, Jobs, and Won & Lost for admins
+  // Filter navigation based on user role:
+  // - Admin, Jobs, and Won & Lost only for ADMIN
+  // - CONCIERGE should not see Admin, Jobs, Won & Lost
   const filteredNavigation = navigation.filter(
-    (item) =>
-      (!item.adminOnly && item.name !== "Admin" && item.name !== "Won & Lost") ||
-      session?.user?.role === "ADMIN"
+    (item) => {
+      if (item.adminOnly || item.name === "Admin" || item.name === "Won & Lost") {
+        return session?.user?.role === "ADMIN"
+      }
+      return true
+    }
   )
 
   return (

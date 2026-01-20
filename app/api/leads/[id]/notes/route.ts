@@ -27,10 +27,12 @@ export async function GET(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Check access: ADMIN can see all, SALES_REP and CONCIERGE only their assigned leads
+    // Check access: 
+    // - ADMIN can see all
+    // - SALES_REP only their assigned leads
+    // - CONCIERGE can see all leads (can add notes to any lead)
     if (
-      (session.user.role === "SALES_REP" ||
-        session.user.role === "CONCIERGE") &&
+      session.user.role === "SALES_REP" &&
       lead.assignedSalesRepId !== session.user.id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -95,10 +97,12 @@ export async function POST(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Check access: ADMIN can see all, SALES_REP and CONCIERGE only their assigned leads
+    // Check access: 
+    // - ADMIN can see all
+    // - SALES_REP only their assigned leads
+    // - CONCIERGE can see all leads (can add notes to any lead)
     if (
-      (session.user.role === "SALES_REP" ||
-        session.user.role === "CONCIERGE") &&
+      session.user.role === "SALES_REP" &&
       lead.assignedSalesRepId !== session.user.id
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

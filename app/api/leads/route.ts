@@ -446,11 +446,11 @@ export async function GET(request: NextRequest) {
       } as any));
     }
 
-    // For sales reps/concierges viewing all leads (not their own and not unassigned), strip out sensitive data
+    // For sales reps viewing all leads (not their own and not unassigned), strip out sensitive data
+    // CONCIERGE can see all leads with full data
     // Unassigned leads show full data so sales reps/concierges can claim them
     if (
-      (session.user.role === UserRole.SALES_REP ||
-        session.user.role === UserRole.CONCIERGE) &&
+      session.user.role === UserRole.SALES_REP &&
       !myLeads &&
       !unassigned
     ) {

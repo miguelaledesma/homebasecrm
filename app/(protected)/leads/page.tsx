@@ -63,6 +63,7 @@ export default function LeadsPage() {
   const isSalesRep =
     session?.user.role === "SALES_REP" || session?.user.role === "CONCIERGE";
   const isAdmin = session?.user.role === "ADMIN";
+  const isConcierge = session?.user.role === "CONCIERGE";
 
   // Initialize viewMode from URL params, localStorage, or default based on role
   const getInitialViewMode = (): ViewMode => {
@@ -183,7 +184,10 @@ export default function LeadsPage() {
     }
   };
 
-  const isViewingAllLeads = isSalesRep && viewMode === "all";
+  // SALES_REP viewing all leads = read-only (can't click)
+  // CONCIERGE viewing all leads = can click and view (can add notes)
+  const isViewingAllLeads = 
+    session?.user.role === "SALES_REP" && viewMode === "all";
 
   // Filter and sort leads
   const filteredLeads = useMemo(() => {
@@ -626,7 +630,8 @@ export default function LeadsPage() {
             </label>
           )}
         </div>
-        {isViewingAllLeads && (
+        {/* Only show read-only message for SALES_REP viewing all leads, not CONCIERGE */}
+        {isViewingAllLeads && session?.user.role === "SALES_REP" && (
           <div className="text-xs text-muted-foreground sm:ml-auto pt-1 sm:pt-0 border-t sm:border-t-0">
             Read-only view
           </div>
@@ -666,7 +671,8 @@ export default function LeadsPage() {
                 onRow={(record: Lead) => {
                   return {
                     onClick: () => {
-                      // Only allow navigation if not viewing all leads as sales rep
+                      // Allow navigation for all users except SALES_REP viewing all leads
+                      // CONCIERGE can click and view any lead
                       if (!isViewingAllLeads) {
                         router.push(`/leads/${record.id}`);
                       }
