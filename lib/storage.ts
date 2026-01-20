@@ -54,13 +54,21 @@ export class RailwayS3StorageService implements StorageService {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
+    // Sanitize filename for S3 metadata (remove invalid header characters)
+    // S3 metadata values must be valid HTTP header values (no newlines, control chars, etc.)
+    // Remove control characters (0x00-0x1F and 0x7F) but keep Unicode characters
+    const sanitizedFilename = file.name
+      .replace(/[\x00-\x1F\x7F]/g, "") // Remove control characters
+      .replace(/\r\n|\r|\n/g, " ") // Replace newlines with spaces
+      .trim()
+
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: path,
       Body: buffer,
       ContentType: file.type || "application/octet-stream",
       Metadata: {
-        originalName: file.name,
+        originalName: sanitizedFilename || "file", // Fallback to "file" if empty after sanitization
       },
     })
 
