@@ -7,6 +7,7 @@ import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/logo"
 import { NotificationsList } from "@/components/notifications-list"
+import { GlobalSearch } from "@/components/global-search"
 import {
   LayoutDashboard,
   Users,
@@ -21,6 +22,7 @@ import {
   Bell,
   AlertTriangle,
   Briefcase,
+  Search,
 } from "lucide-react"
 
 const navigation: Array<{
@@ -78,6 +80,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [unacknowledgedCount, setUnacknowledgedCount] = useState(0)
   const [pastDueAppointmentsCount, setPastDueAppointmentsCount] = useState(0)
   const [loadingNotifications, setLoadingNotifications] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   // Fetch notifications and past-due appointments count
   const fetchNotifications = useCallback(async () => {
@@ -204,7 +207,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Topbar */}
       <header className="border-b w-full max-w-full">
         <div className="flex h-16 items-center justify-between px-4 md:px-6 w-full max-w-full">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <Button
               variant="ghost"
               size="sm"
@@ -218,6 +221,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2 md:gap-4">
             {session?.user && (
               <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSearchOpen(true)}
+                  title="Search"
+                >
+                  <Search className="h-5 w-5" />
+                </Button>
                 <div className="relative hidden md:block" ref={notificationsRef}>
                   <Button
                     variant="ghost"
@@ -327,6 +338,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <div className="flex w-full max-w-full overflow-x-hidden">
+        {/* Search Modal */}
+        {searchOpen && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 md:pt-20">
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+              onClick={() => setSearchOpen(false)}
+            />
+            {/* Search Content */}
+            <div className="relative w-full max-w-2xl mx-4 transform transition-all duration-300 animate-in fade-in slide-in-from-top-4">
+              <div className="bg-background rounded-lg shadow-xl border overflow-hidden">
+                <GlobalSearch 
+                  onResultClick={() => setSearchOpen(false)} 
+                  onClose={() => setSearchOpen(false)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Mobile Sidebar */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 md:hidden">
