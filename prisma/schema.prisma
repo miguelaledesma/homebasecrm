@@ -114,6 +114,7 @@ model User {
   notifications       Notification[]
   tasks               Task[]
   passwordResetTokens PasswordResetToken[]
+  crewMemberships     CrewMember[]
 
   @@map("users")
 }
@@ -182,6 +183,7 @@ model Lead {
   status             LeadStatus @default(NEW)
   closedDate         DateTime?
   jobStatus          JobStatus? // Only relevant when status is WON
+  jobScheduledDate   DateTime? // Date when job is scheduled to start
   jobCompletedDate   DateTime? // Date when job status was set to DONE
   assignedSalesRepId String?
   createdBy          String? // ID of user who created the lead
@@ -215,6 +217,7 @@ model Lead {
   notes            LeadNote[]
   notifications    Notification[]
   tasks            Task[]
+  crewAssignments  JobCrewAssignment[]
 
   @@index([status])
   @@index([assignedSalesRepId])
@@ -362,4 +365,50 @@ model Task {
   @@index([userId, status])
   @@index([leadId])
   @@map("tasks")
+}
+
+model Crew {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  memberNames Json?    // Array of external member names: ["John Doe", "Jane Smith"]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  members        CrewMember[]
+  jobAssignments JobCrewAssignment[]
+
+  @@map("crews")
+}
+
+model CrewMember {
+  crewId String
+  userId String
+
+  // Relations
+  crew Crew @relation(fields: [crewId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([crewId, userId])
+  @@index([crewId])
+  @@index([userId])
+  @@map("crew_members")
+}
+
+model JobCrewAssignment {
+  id         String   @id @default(cuid())
+  leadId     String   // References Lead (job)
+  crewId     String
+  assignedAt DateTime @default(now())
+  assignedBy String?  // User ID who made the assignment
+
+  // Relations
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  crew Crew @relation(fields: [crewId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, crewId]) // Prevent duplicate assignments
+  @@index([leadId])
+  @@index([crewId])
+  @@map("job_crew_assignments")
 }

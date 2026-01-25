@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Briefcase,
   Search,
+  UserCog,
 } from "lucide-react"
 
 const navigation: Array<{
@@ -37,6 +38,7 @@ const navigation: Array<{
   { name: "Quotes", href: "/quotes", icon: FileText },
   // { name: "Tasks", href: "/tasks", icon: CheckSquare }, // Hidden for now
   { name: "Jobs", href: "/jobs", icon: Briefcase, adminOnly: true },
+  { name: "Crews", href: "/crews", icon: UserCog, adminOnly: true },
   { name: "Won & Lost", href: "/won-lost", icon: TrendingUp },
   { name: "Admin", href: "/admin", icon: Settings },
 ]

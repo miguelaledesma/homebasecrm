@@ -20,11 +20,12 @@ export async function PATCH(
 
     const leadId = params.id
     const body = await request.json()
-    const { status, reason, jobStatus, jobCompletedDate } = body as { 
+    const { status, reason, jobStatus, jobCompletedDate, jobScheduledDate } = body as { 
       status?: LeadStatus; 
       reason?: string; 
       jobStatus?: JobStatus | null;
       jobCompletedDate?: string | null;
+      jobScheduledDate?: string | null;
     }
 
     if (!status || (status !== LeadStatus.WON && status !== LeadStatus.LOST)) {
@@ -89,6 +90,15 @@ export async function PATCH(
         } else if (jobStatus !== "DONE") {
           // Clear completion date if status is not DONE
           updateData.jobCompletedDate = null;
+        }
+        // If setting jobStatus to SCHEDULED, set jobScheduledDate
+        if (jobStatus === "SCHEDULED" && jobScheduledDate) {
+          // Parse date string (YYYY-MM-DD) and create date at local midnight to avoid timezone issues
+          const [year, month, day] = jobScheduledDate.split("-").map(Number);
+          updateData.jobScheduledDate = new Date(year, month - 1, day);
+        } else if (jobStatus !== "SCHEDULED") {
+          // Clear scheduled date if status is not SCHEDULED
+          updateData.jobScheduledDate = null;
         }
       }
       

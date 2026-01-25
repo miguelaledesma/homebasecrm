@@ -37,7 +37,16 @@ export async function GET(request: NextRequest) {
 
     const jobs = await prisma.lead.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        leadTypes: true,
+        description: true,
+        status: true,
+        jobStatus: true,
+        jobScheduledDate: true,
+        closedDate: true,
+        jobCompletedDate: true,
+        createdAt: true,
         customer: true,
         assignedSalesRep: {
           select: {
@@ -54,6 +63,16 @@ export async function GET(request: NextRequest) {
           },
           orderBy: {
             createdAt: "desc", // Get most recent quote first
+          },
+        },
+        crewAssignments: {
+          include: {
+            crew: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },

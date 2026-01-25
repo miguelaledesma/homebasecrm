@@ -14,10 +14,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Briefcase } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Filter, Briefcase, UserCog, Plus, X } from "lucide-react";
 import { JobStatus } from "@prisma/client";
 import { Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   formatLeadTypes,
   formatLeadType,
@@ -30,6 +42,7 @@ type Lead = {
   description: string | null;
   status: string;
   jobStatus: JobStatus | null;
+  jobScheduledDate: string | null;
   closedDate: string | null;
   jobCompletedDate: string | null;
   createdAt: string;
@@ -55,14 +68,36 @@ type Lead = {
     quoteNumber: string | null;
     status: string;
   }>;
+  crewAssignments: Array<{
+    id: string;
+    crew: {
+      id: string;
+      name: string;
+    };
+  }>;
+};
+
+type Crew = {
+  id: string;
+  name: string;
 };
 
 export default function JobsPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [jobs, setJobs] = useState<Lead[]>([]);
+  const [crews, setCrews] = useState<Crew[]>([]);
   const [loading, setLoading] = useState(true);
   const [jobStatusFilter, setJobStatusFilter] = useState<string>("all");
+  const [assigningCrewJobId, setAssigningCrewJobId] = useState<string | null>(null);
+  const [selectedCrewId, setSelectedCrewId] = useState<string>("");
+  const [showSchedulingModal, setShowSchedulingModal] = useState(false);
+  const [schedulingJobId, setSchedulingJobId] = useState<string | null>(null);
+  const [jobScheduledDate, setJobScheduledDate] = useState<string>("");
+  const [schedulingCrewIds, setSchedulingCrewIds] = useState<string[]>([]);
+  const [allCrews, setAllCrews] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingCrews, setLoadingCrews] = useState(false);
+  const [crewFetchError, setCrewFetchError] = useState<string | null>(null);
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
@@ -84,9 +119,197 @@ export default function JobsPage() {
     }
   }, [jobStatusFilter]);
 
+  const fetchCrews = useCallback(async () => {
+    try {
+      const response = await fetch("/api/crews");
+      if (!response.ok) throw new Error("Failed to fetch crews");
+      const data = await response.json();
+      setCrews(data.crews || []);
+    } catch (error) {
+      console.error("Error fetching crews:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCrews();
+  }, [fetchCrews]);
+
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
+
+  // Fetch all available crews when scheduling modal opens
+  useEffect(() => {
+    if (showSchedulingModal && session?.user?.role === "ADMIN") {
+      setLoadingCrews(true);
+      setCrewFetchError(null);
+      setAllCrews([]);
+      
+      fetch("/api/crews")
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || "Failed to fetch crews");
+          }
+          return data;
+        })
+        .then((data) => {
+          const crews = data.crews || [];
+          
+          if (!Array.isArray(crews)) {
+            throw new Error("Invalid response format from server");
+          }
+          
+          // Map to the format we need (id and name)
+          const mappedCrews = crews
+            .map((crew: any) => {
+              if (!crew || !crew.id || !crew.name) {
+                return null;
+              }
+              return {
+                id: crew.id,
+                name: crew.name,
+              };
+            })
+            .filter((crew): crew is { id: string; name: string } => crew !== null);
+          
+          setAllCrews(mappedCrews);
+          setCrewFetchError(null);
+          setLoadingCrews(false);
+        })
+        .catch((error) => {
+          console.error("Error fetching crews:", error);
+          setCrewFetchError(error.message || "Failed to load crews. Please try again.");
+          setAllCrews([]);
+          setLoadingCrews(false);
+        });
+    }
+  }, [showSchedulingModal, session?.user?.role]);
+
+  const handleAssignCrew = useCallback(async (jobId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    
+    // Find the job to check its status
+    const job = jobs.find((j) => j.id === jobId);
+    
+    // If job status is "Not set" (null), show scheduling modal
+    if (job && job.jobStatus === null) {
+      setSchedulingJobId(jobId);
+      // Pre-fill scheduled date if it exists, otherwise leave empty
+      setJobScheduledDate(job.jobScheduledDate ? new Date(job.jobScheduledDate).toISOString().split("T")[0] : "");
+      setSchedulingCrewIds([]);
+      setShowSchedulingModal(true);
+    } else {
+      // Job is already scheduled/in progress, just assign crew directly
+      setAssigningCrewJobId(jobId);
+      setSelectedCrewId("");
+    }
+  }, [jobs]);
+
+  const handleSaveCrewAssignment = useCallback(async (jobId: string) => {
+    if (!selectedCrewId) return;
+
+    try {
+      const response = await fetch(`/api/jobs/${jobId}/crews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ crewId: selectedCrewId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to assign crew");
+      }
+
+      setAssigningCrewJobId(null);
+      setSelectedCrewId("");
+      fetchJobs();
+    } catch (error: any) {
+      console.error("Error assigning crew:", error);
+      alert(error.message || "Failed to assign crew");
+    }
+  }, [selectedCrewId, fetchJobs]);
+
+  const handleUnassignCrew = async (jobId: string, crewId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to unassign this crew?")) return;
+
+    try {
+      const response = await fetch(`/api/jobs/${jobId}/crews?crewId=${crewId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to unassign crew");
+      }
+
+      fetchJobs();
+    } catch (error: any) {
+      console.error("Error unassigning crew:", error);
+      alert(error.message || "Failed to unassign crew");
+    }
+  };
+
+  const handleCancelScheduling = () => {
+    setShowSchedulingModal(false);
+    setSchedulingJobId(null);
+    setJobScheduledDate("");
+    setSchedulingCrewIds([]);
+    setCrewFetchError(null);
+  };
+
+  const handleConfirmScheduling = async () => {
+    if (!schedulingJobId) return;
+    
+    if (!jobScheduledDate) {
+      alert("Please enter a scheduled start date");
+      return;
+    }
+
+    try {
+      // Update job status to SCHEDULED and set scheduled date
+      const response = await fetch(`/api/leads/${schedulingJobId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobStatus: "SCHEDULED",
+          jobScheduledDate: jobScheduledDate,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to schedule job");
+      }
+
+      // Assign crews if any were selected
+      if (schedulingCrewIds.length > 0) {
+        for (const crewId of schedulingCrewIds) {
+          try {
+            await fetch(`/api/jobs/${schedulingJobId}/crews`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ crewId }),
+            });
+          } catch (error) {
+            console.error(`Error assigning crew ${crewId}:`, error);
+          }
+        }
+      }
+
+      setShowSchedulingModal(false);
+      setSchedulingJobId(null);
+      setJobScheduledDate("");
+      setSchedulingCrewIds([]);
+      fetchJobs();
+    } catch (error: any) {
+      console.error("Error confirming scheduling:", error);
+      alert(error.message || "Failed to schedule job. Please try again.");
+    }
+  };
 
   const getJobStatusColor = (status: JobStatus | null) => {
     if (!status) return "bg-gray-100 text-gray-800";
@@ -277,8 +500,98 @@ export default function JobsPage() {
           return new Date(date).toLocaleDateString();
         },
       },
+      {
+        title: "Assigned Crews",
+        key: "crews",
+        render: (_: any, record: Lead) => {
+          const assignedCrews = record.crewAssignments || [];
+          const isAssigning = assigningCrewJobId === record.id;
+
+          if (isAssigning) {
+            const availableCrews = crews.filter(
+              (c) => !assignedCrews.some((ac) => ac.crew.id === c.id)
+            );
+
+            return (
+              <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                <Select
+                  value={selectedCrewId}
+                  onChange={(e) => setSelectedCrewId(e.target.value)}
+                  className="w-full"
+                >
+                  <option value="">Select a crew...</option>
+                  {availableCrews.map((crew) => (
+                    <option key={crew.id} value={crew.id}>
+                      {crew.name}
+                    </option>
+                  ))}
+                </Select>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleSaveCrewAssignment(record.id)}
+                    disabled={!selectedCrewId}
+                    className="h-7 text-xs"
+                  >
+                    Assign
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setAssigningCrewJobId(null);
+                      setSelectedCrewId("");
+                    }}
+                    className="h-7 text-xs"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            );
+          }
+
+          const maxVisibleCrews = 2;
+          const visibleCrews = assignedCrews.slice(0, maxVisibleCrews);
+          const remainingCount = assignedCrews.length - maxVisibleCrews;
+
+          return (
+            <div className="flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
+              {assignedCrews.length === 0 ? (
+                <span className="text-muted-foreground text-xs">None</span>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {visibleCrews.map((assignment) => (
+                    <Badge
+                      key={assignment.id}
+                      variant="secondary"
+                      className="text-xs px-1.5 py-0.5"
+                    >
+                      {assignment.crew.name}
+                    </Badge>
+                  ))}
+                  {remainingCount > 0 && (
+                    <Badge variant="outline" className="text-xs px-1.5 py-0.5">
+                      +{remainingCount}
+                    </Badge>
+                  )}
+                </div>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={(e) => handleAssignCrew(record.id, e)}
+                className="h-6 text-xs px-2 w-fit"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                {assignedCrews.length === 0 ? "Assign" : "Add"}
+              </Button>
+            </div>
+          );
+        },
+      },
     ];
-  }, [formatAddress, getQuoteNumber]);
+  }, [formatAddress, getQuoteNumber, assigningCrewJobId, selectedCrewId, crews, handleAssignCrew, handleSaveCrewAssignment]);
 
   // Redirect if not admin
   useEffect(() => {
@@ -368,6 +681,107 @@ export default function JobsPage() {
             />
           </CardContent>
         </Card>
+      )}
+
+      {/* Scheduling Modal */}
+      {session?.user?.role === "ADMIN" && (
+        <AlertDialog
+          open={showSchedulingModal}
+          onOpenChange={(open) => {
+            if (!open) {
+              handleCancelScheduling();
+            }
+          }}
+        >
+          <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Schedule Job</AlertDialogTitle>
+              <AlertDialogDescription>
+                Set the start date for this job and assign crews.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-4 space-y-4">
+              <div>
+                <Label htmlFor="scheduledDate" className="text-sm font-medium mb-2 block">
+                  Start Date *
+                </Label>
+                <Input
+                  id="scheduledDate"
+                  type="date"
+                  value={jobScheduledDate}
+                  onChange={(e) => setJobScheduledDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="w-full"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium mb-2 block">
+                  Assign Crews (Optional)
+                </Label>
+                {loadingCrews ? (
+                  <div className="text-sm text-muted-foreground mb-2">
+                    Loading crews...
+                  </div>
+                ) : crewFetchError ? (
+                  <div className="text-sm text-destructive text-center py-4 border border-destructive rounded-md">
+                    {crewFetchError}
+                  </div>
+                ) : allCrews.length === 0 ? (
+                  <div className="text-sm text-muted-foreground text-center py-4 border rounded-md">
+                    No crews available. Create crews in the Crews Management page.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3">
+                    {allCrews.length > 0 ? (
+                      allCrews.map((crew) => (
+                        <div key={crew.id} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id={`scheduling-crew-${crew.id}`}
+                            checked={schedulingCrewIds.includes(crew.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSchedulingCrewIds([...schedulingCrewIds, crew.id]);
+                              } else {
+                                setSchedulingCrewIds(
+                                  schedulingCrewIds.filter((id) => id !== crew.id)
+                                );
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          <label
+                            htmlFor={`scheduling-crew-${crew.id}`}
+                            className="text-sm cursor-pointer flex-1"
+                          >
+                            {crew.name}
+                          </label>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-muted-foreground text-center py-2">
+                        No crews to display
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCancelScheduling}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmScheduling}
+                disabled={!jobScheduledDate}
+              >
+                Schedule Job
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );
