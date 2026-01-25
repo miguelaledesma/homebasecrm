@@ -35,6 +35,7 @@ const navigation: Array<{
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Leads", href: "/leads", icon: Users },
   { name: "Appointments", href: "/appointments", icon: Calendar },
+  { name: "Calendar", href: "/calendar", icon: Calendar, adminOnly: true },
   { name: "Quotes", href: "/quotes", icon: FileText },
   // { name: "Tasks", href: "/tasks", icon: CheckSquare }, // Hidden for now
   { name: "Jobs", href: "/jobs", icon: Briefcase, adminOnly: true },

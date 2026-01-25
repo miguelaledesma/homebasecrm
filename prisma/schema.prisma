@@ -115,6 +115,7 @@ model User {
   tasks               Task[]
   passwordResetTokens PasswordResetToken[]
   crewMemberships     CrewMember[]
+  calendarReminders   CalendarReminder[]
 
   @@map("users")
 }
@@ -411,4 +412,21 @@ model JobCrewAssignment {
   @@index([leadId])
   @@index([crewId])
   @@map("job_crew_assignments")
+}
+
+model CalendarReminder {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  scheduledFor DateTime
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([scheduledFor])
+  @@map("calendar_reminders")
 }
