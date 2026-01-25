@@ -38,7 +38,7 @@ const navigation: Array<{
   { name: "Leads", href: "/leads", icon: Users },
   { name: "Appointments", href: "/appointments", icon: Calendar },
   { name: "Calendar", href: "/calendar", icon: Calendar, adminOnly: true, beta: true },
-  { name: "Financials & Quotes", href: "/quotes", icon: FileText },
+  { name: "Quotes", href: "/quotes", icon: FileText },
   // { name: "Tasks", href: "/tasks", icon: CheckSquare }, // Hidden for now
   { name: "Jobs", href: "/jobs", icon: Briefcase, adminOnly: true },
   { name: "Crews", href: "/crews", icon: UserCog, adminOnly: true },
@@ -389,7 +389,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     >
                       <Icon className="h-5 w-5" />
                       <span className="flex items-center gap-2">
-                        {item.name}
+                        {item.href === "/quotes" && session?.user?.role === "ADMIN"
+                          ? "Financials & Quotes"
+                          : item.name}
                         {item.beta && (
                           <Badge variant="secondary" className="text-xs px-1.5 py-0">
                             Beta
@@ -422,7 +424,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <Icon className="h-5 w-5" />
                   <span className="flex items-center gap-2">
-                    {item.name}
+                    {item.href === "/quotes" && session?.user?.role === "ADMIN"
+                      ? "Financials & Quotes"
+                      : item.name}
                     {item.beta && (
                       <Badge variant="secondary" className="text-xs px-1.5 py-0">
                         Beta

@@ -166,7 +166,9 @@ export default function QuotesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Financials & Quotes</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {session?.user?.role === "ADMIN" ? "Financials & Quotes" : "Quotes"}
+          </h1>
           <p className="text-muted-foreground mt-1">
             {pagination ? `Total: ${pagination.total} quote${pagination.total !== 1 ? "s" : ""}` : "Manage your quotes"}
           </p>
