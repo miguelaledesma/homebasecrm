@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Logo } from "@/components/logo"
 import { NotificationsList } from "@/components/notifications-list"
 import { GlobalSearch } from "@/components/global-search"
@@ -31,12 +32,13 @@ const navigation: Array<{
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
+  beta?: boolean;
 }> = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Leads", href: "/leads", icon: Users },
   { name: "Appointments", href: "/appointments", icon: Calendar },
-  { name: "Calendar", href: "/calendar", icon: Calendar, adminOnly: true },
-  { name: "Quotes", href: "/quotes", icon: FileText },
+  { name: "Calendar", href: "/calendar", icon: Calendar, adminOnly: true, beta: true },
+  { name: "Financials & Quotes", href: "/quotes", icon: FileText },
   // { name: "Tasks", href: "/tasks", icon: CheckSquare }, // Hidden for now
   { name: "Jobs", href: "/jobs", icon: Briefcase, adminOnly: true },
   { name: "Crews", href: "/crews", icon: UserCog, adminOnly: true },
@@ -386,7 +388,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       }`}
                     >
                       <Icon className="h-5 w-5" />
-                      {item.name}
+                      <span className="flex items-center gap-2">
+                        {item.name}
+                        {item.beta && (
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                            Beta
+                          </Badge>
+                        )}
+                      </span>
                     </Link>
                   )
                 })}
@@ -412,7 +421,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   }`}
                 >
                   <Icon className="h-5 w-5" />
-                  {item.name}
+                  <span className="flex items-center gap-2">
+                    {item.name}
+                    {item.beta && (
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                        Beta
+                      </Badge>
+                    )}
+                  </span>
                 </Link>
               )
             })}
