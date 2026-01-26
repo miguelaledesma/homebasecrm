@@ -29,6 +29,7 @@ import {
   Briefcase,
   DollarSign,
 } from "lucide-react";
+import { TeamPerformanceWidget } from "@/components/team-performance-widget";
 
 interface DashboardStats {
   totalLeads: number;
@@ -519,6 +520,11 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Team Performance Widget - Admin Only */}
+      {isAdmin && !isConcierge && (
+        <TeamPerformanceWidget />
       )}
 
       {/* Additional Stats Section */}
