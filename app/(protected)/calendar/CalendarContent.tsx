@@ -23,6 +23,7 @@ type CalendarEvent = EventInput & {
     leadId?: string
     customerName?: string
     salesRepName?: string
+    salesRepId?: string | null
     status?: string
     address?: string | null
     notes?: string | null
@@ -257,7 +258,7 @@ export function CalendarContent() {
       setShowAppointmentModal(true)
       setAppointmentForm({
         leadId: props.leadId || "",
-        salesRepId: "",
+        salesRepId: props.salesRepId || "",
         scheduledFor: new Date(event.start || new Date()).toISOString().slice(0, 16),
         siteAddressLine1: props.address?.split(",")[0] || "",
         city: props.address?.split(",")[1]?.trim() || "",
@@ -266,6 +267,9 @@ export function CalendarContent() {
         zip: "",
         notes: props.notes || "",
       })
+      // Clear lead search query when editing - we'll show customer name in disabled input
+      setLeadSearchQuery("")
+      setLeadSearchResults([])
     } else if (props.type === "reminder") {
       setEditingEvent(event as unknown as CalendarEvent)
       setShowReminderModal(true)
@@ -664,36 +668,14 @@ export function CalendarContent() {
                 {/* Lead Search */}
                 <div>
                   <Label htmlFor="leadSearch">Lead *</Label>
-                  <Input
-                    id="leadSearch"
-                    value={leadSearchQuery}
-                    onChange={(e) => setLeadSearchQuery(e.target.value)}
-                    placeholder="Search for lead by customer name..."
-                    required={!editingEvent}
-                    disabled={!!editingEvent}
-                  />
-                  {leadSearchResults.length > 0 && (
-                    <div className="mt-2 border rounded-md max-h-40 overflow-y-auto">
-                      {leadSearchResults.map((lead) => (
-                        <button
-                          key={lead.id}
-                          type="button"
-                          onClick={() => {
-                            setAppointmentForm({ ...appointmentForm, leadId: lead.id })
-                            setLeadSearchQuery(
-                              `${lead.customer.firstName} ${lead.customer.lastName}`
-                            )
-                            setLeadSearchResults([])
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-accent transition-colors"
-                        >
-                          {lead.customer.firstName} {lead.customer.lastName} ({lead.status})
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {editingEvent && editingEvent.extendedProps.leadId && (
-                    <div className="mt-2">
+                  {editingEvent && editingEvent.extendedProps.customerName ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="leadSearch"
+                        value={editingEvent.extendedProps.customerName}
+                        disabled
+                        className="bg-muted"
+                      />
                       <Button
                         type="button"
                         variant="outline"
@@ -706,6 +688,36 @@ export function CalendarContent() {
                         View Lead
                       </Button>
                     </div>
+                  ) : (
+                    <>
+                      <Input
+                        id="leadSearch"
+                        value={leadSearchQuery}
+                        onChange={(e) => setLeadSearchQuery(e.target.value)}
+                        placeholder="Search for lead by customer name..."
+                        required
+                      />
+                      {leadSearchResults.length > 0 && (
+                        <div className="mt-2 border rounded-md max-h-40 overflow-y-auto">
+                          {leadSearchResults.map((lead) => (
+                            <button
+                              key={lead.id}
+                              type="button"
+                              onClick={() => {
+                                setAppointmentForm({ ...appointmentForm, leadId: lead.id })
+                                setLeadSearchQuery(
+                                  `${lead.customer.firstName} ${lead.customer.lastName}`
+                                )
+                                setLeadSearchResults([])
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-accent transition-colors"
+                            >
+                              {lead.customer.firstName} {lead.customer.lastName} ({lead.status})
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 

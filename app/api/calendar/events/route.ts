@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
           leadId: appointment.lead.id,
           customerName,
           salesRepName,
+          salesRepId: appointment.salesRepId || null,
           status: appointment.status,
           address: appointment.siteAddressLine1
             ? `${appointment.siteAddressLine1}${appointment.city ? `, ${appointment.city}` : ""}`
