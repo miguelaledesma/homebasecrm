@@ -307,6 +307,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             notifications={notifications}
                             onAcknowledge={handleAcknowledge}
                             onMarkAsRead={handleMarkAsRead}
+                            pastDueAppointmentsCount={pastDueAppointmentsCount}
                           />
                         </>
                       )}

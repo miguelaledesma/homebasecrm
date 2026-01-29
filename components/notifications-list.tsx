@@ -38,12 +38,14 @@ type NotificationsListProps = {
   notifications: Notification[]
   onAcknowledge: (id: string) => Promise<void>
   onMarkAsRead: (id: string) => Promise<void>
+  pastDueAppointmentsCount?: number
 }
 
 export function NotificationsList({
   notifications,
   onAcknowledge,
   onMarkAsRead,
+  pastDueAppointmentsCount = 0,
 }: NotificationsListProps) {
   const router = useRouter()
 
@@ -115,11 +117,11 @@ export function NotificationsList({
 
   return (
     <div className="max-h-96 overflow-y-auto">
-      {notifications.length === 0 ? (
+      {notifications.length === 0 && pastDueAppointmentsCount === 0 ? (
         <div className="p-4 text-center text-sm text-muted-foreground">
           No notifications
         </div>
-      ) : (
+      ) : notifications.length > 0 ? (
         <div className="p-2">
           {unacknowledged.map((notification) => (
             <div
@@ -162,7 +164,7 @@ export function NotificationsList({
             </div>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
