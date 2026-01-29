@@ -430,6 +430,7 @@ export function CalendarContent() {
         title: "",
         description: "",
         scheduledFor: "",
+        assignedUserId: "",
       })
 
       const calendar = calendarRef.current?.getApi()
@@ -465,6 +466,7 @@ export function CalendarContent() {
         title: "",
         description: "",
         scheduledFor: "",
+        assignedUserId: "",
       })
 
       const calendar = calendarRef.current?.getApi()
@@ -990,6 +992,7 @@ export function CalendarContent() {
                         title: "",
                         description: "",
                         scheduledFor: "",
+                        assignedUserId: "",
                       })
                     }}
                   >
