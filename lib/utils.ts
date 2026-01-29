@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from "clsx"
+import { fromZonedTime, toZonedTime, format } from "date-fns-tz"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
@@ -94,3 +95,37 @@ export function formatPSTDate(date: string | Date): string {
   });
 }
 
+// Convert a datetime-local string (treated as PST/PDT) to UTC ISO string
+// This handles the case where datetime-local inputs don't include timezone info
+// and we need to treat them as PST/PDT timezone
+export function convertPSTToUTC(datetimeLocal: string): string {
+  if (!datetimeLocal) return datetimeLocal;
+  
+  // Parse the datetime-local string (format: "YYYY-MM-DDTHH:mm")
+  const [datePart, timePart] = datetimeLocal.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hours, minutes] = (timePart || '').split(':').map(Number);
+  
+  // Create a date object in PST/PDT timezone
+  const pstDate = new Date(year, month - 1, day, hours, minutes);
+  
+  // Convert from PST/PDT timezone to UTC using date-fns-tz
+  const utcDate = fromZonedTime(pstDate, "America/Los_Angeles");
+  
+  return utcDate.toISOString();
+}
+
+// Convert a UTC ISO string to PST/PDT datetime-local string format
+// This is used to display UTC dates in datetime-local inputs as PST time
+export function convertUTCToPSTLocal(utcISOString: string): string {
+  if (!utcISOString) return utcISOString;
+  
+  // Parse the UTC date
+  const utcDate = new Date(utcISOString);
+  
+  // Convert UTC to PST/PDT timezone
+  const pstDate = toZonedTime(utcDate, "America/Los_Angeles");
+  
+  // Format as datetime-local string (YYYY-MM-DDTHH:mm)
+  return format(pstDate, "yyyy-MM-dd'T'HH:mm");
+}

@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select } from "@/components/ui/select"
 import { X, ExternalLink, Info } from "lucide-react"
 import type { EventInput } from "@fullcalendar/core"
+import { convertPSTToUTC, convertUTCToPSTLocal } from "@/lib/utils"
 
 type CalendarEvent = EventInput & {
   extendedProps: {
@@ -64,6 +65,7 @@ type ReminderFormData = {
   title: string
   description: string
   scheduledFor: string
+  assignedUserId: string
 }
 
 export function CalendarContent() {
@@ -96,6 +98,7 @@ export function CalendarContent() {
     title: "",
     description: "",
     scheduledFor: "",
+    assignedUserId: "",
   })
   
   // Search states
@@ -237,7 +240,8 @@ export function CalendarContent() {
     setReminderForm({
       title: "",
       description: "",
-      scheduledFor: selectedDate.toISOString().slice(0, 16),
+      scheduledFor: convertUTCToPSTLocal(selectedDate.toISOString()),
+      assignedUserId: "",
     })
   }
 
@@ -259,7 +263,7 @@ export function CalendarContent() {
       setAppointmentForm({
         leadId: props.leadId || "",
         salesRepId: props.salesRepId || "",
-        scheduledFor: new Date(event.start || new Date()).toISOString().slice(0, 16),
+        scheduledFor: convertUTCToPSTLocal(new Date(event.start || new Date()).toISOString()),
         siteAddressLine1: props.address?.split(",")[0] || "",
         city: props.address?.split(",")[1]?.trim() || "",
         siteAddressLine2: "",
@@ -276,7 +280,8 @@ export function CalendarContent() {
       setReminderForm({
         title: event.title || "",
         description: props.description || "",
-        scheduledFor: new Date(event.start || new Date()).toISOString().slice(0, 16),
+        scheduledFor: convertUTCToPSTLocal(new Date(event.start || new Date()).toISOString()),
+        assignedUserId: props.assignedUserId || "",
       })
     }
   }
@@ -344,7 +349,7 @@ export function CalendarContent() {
         body: JSON.stringify({
           leadId: appointmentForm.leadId,
           salesRepId: appointmentForm.salesRepId,
-          scheduledFor: appointmentForm.scheduledFor,
+          scheduledFor: convertPSTToUTC(appointmentForm.scheduledFor),
           siteAddressLine1: appointmentForm.siteAddressLine1 || null,
           siteAddressLine2: appointmentForm.siteAddressLine2 || null,
           city: appointmentForm.city || null,
@@ -408,7 +413,8 @@ export function CalendarContent() {
         body: JSON.stringify({
           title: reminderForm.title,
           description: reminderForm.description || null,
-          scheduledFor: reminderForm.scheduledFor,
+          scheduledFor: convertPSTToUTC(reminderForm.scheduledFor),
+          assignedUserId: reminderForm.assignedUserId || null,
         }),
       })
 
@@ -508,8 +514,15 @@ export function CalendarContent() {
                 <div className="flex items-start gap-2">
                   <div className="w-4 h-4 rounded mt-0.5" style={{ backgroundColor: "#f97316" }} />
                   <div className="text-sm">
-                    <div className="font-medium">Reminders/Tasks</div>
-                    <div className="text-muted-foreground text-xs">Calendar reminders</div>
+                    <div className="font-medium">Personal Reminders</div>
+                    <div className="text-muted-foreground text-xs">Your personal calendar reminders</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-4 h-4 rounded mt-0.5" style={{ backgroundColor: "#3b82f6" }} />
+                  <div className="text-sm">
+                    <div className="font-medium">Assigned Tasks</div>
+                    <div className="text-muted-foreground text-xs">Tasks assigned to team members</div>
                   </div>
                 </div>
               </div>
@@ -882,6 +895,7 @@ export function CalendarContent() {
                       title: "",
                       description: "",
                       scheduledFor: "",
+                      assignedUserId: "",
                     })
                   }}
                 >
@@ -931,6 +945,28 @@ export function CalendarContent() {
                     }
                     required
                   />
+                </div>
+
+                {/* Assign To */}
+                <div>
+                  <Label htmlFor="reminderAssignedUser">Assign To (Optional)</Label>
+                  <Select
+                    id="reminderAssignedUser"
+                    value={reminderForm.assignedUserId}
+                    onChange={(e) =>
+                      setReminderForm({ ...reminderForm, assignedUserId: e.target.value })
+                    }
+                  >
+                    <option value="">No assignment (personal reminder)</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name || user.email}
+                      </option>
+                    ))}
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    If assigned, the user will receive a notification
+                  </p>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">

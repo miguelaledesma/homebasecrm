@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Bell, MessageSquare, AlertCircle, X, Check, UserPlus } from "lucide-react"
+import { Bell, MessageSquare, AlertCircle, X, Check, UserPlus, Calendar } from "lucide-react"
 import Link from "next/link"
 
 type Notification = {
   id: string
-  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT" | "CONCIERGE_LEAD"
+  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT" | "CONCIERGE_LEAD" | "CALENDAR_TASK"
   read: boolean
   acknowledged: boolean
   createdAt: string
@@ -58,8 +58,10 @@ export function NotificationsList({
       await onAcknowledge(notification.id)
     }
 
-    // Navigate to lead if available
-    if (notification.lead) {
+    // Navigate based on notification type
+    if (notification.type === "CALENDAR_TASK") {
+      router.push("/calendar")
+    } else if (notification.lead) {
       router.push(`/leads/${notification.lead.id}`)
     }
   }
@@ -72,6 +74,8 @@ export function NotificationsList({
         return <MessageSquare className="h-4 w-4 text-blue-500" />
       case "CONCIERGE_LEAD":
         return <UserPlus className="h-4 w-4 text-green-500" />
+      case "CALENDAR_TASK":
+        return <Calendar className="h-4 w-4 text-purple-500" />
       default:
         return <Bell className="h-4 w-4" />
     }
@@ -98,6 +102,8 @@ export function NotificationsList({
         notification.lead?.createdByUser?.email ||
         "Deleted User"
       return `New lead from ${conciergeName}: ${customerName}`
+    } else if (notification.type === "CALENDAR_TASK") {
+      return "You have been assigned a calendar task"
     }
     return "New notification"
   }

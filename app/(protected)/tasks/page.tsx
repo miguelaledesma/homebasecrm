@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { AlertCircle, Check, X, Clock, User, Trash2 } from "lucide-react"
+import { AlertCircle, Check, X, Clock, User, Trash2, Calendar } from "lucide-react"
 import { TaskStatus } from "@prisma/client"
 
 type Task = {
@@ -35,10 +35,30 @@ type Task = {
   }
 }
 
+type CalendarTaskNotification = {
+  id: string
+  type: "CALENDAR_TASK"
+  createdAt: string
+  calendarReminder: {
+    id: string
+    title: string
+    description: string | null
+    scheduledFor: string
+    user: {
+      id: string
+      name: string | null
+      email: string
+    }
+  }
+}
+
+type CombinedTask = Task | CalendarTaskNotification
+
 export default function TasksPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [tasks, setTasks] = useState<Task[]>([])
+  const [calendarTaskNotifications, setCalendarTaskNotifications] = useState<CalendarTaskNotification[]>([])
   const [loading, setLoading] = useState(true)
   const [salesRepFilter, setSalesRepFilter] = useState<string>("all")
   const [salesReps, setSalesReps] = useState<Array<{ id: string; name: string | null; email: string }>>([])
@@ -50,6 +70,7 @@ export default function TasksPage() {
   const fetchTasks = useCallback(async () => {
     setLoading(true)
     try {
+      // Fetch regular tasks
       const params = new URLSearchParams()
       
       // Pagination
@@ -64,14 +85,24 @@ export default function TasksPage() {
         params.append("userId", salesRepFilter)
       }
 
-      const response = await fetch(`/api/tasks?${params.toString()}`)
-      if (!response.ok) throw new Error("Failed to fetch tasks")
+      const tasksResponse = await fetch(`/api/tasks?${params.toString()}`)
+      if (!tasksResponse.ok) throw new Error("Failed to fetch tasks")
 
-      const data = await response.json()
-      const filteredTasks = data.tasks || []
+      const tasksData = await tasksResponse.json()
+      const filteredTasks = tasksData.tasks || []
       
       setTasks(filteredTasks)
-      setTotalTasks(data.pagination?.total || 0)
+      setTotalTasks(tasksData.pagination?.total || 0)
+
+      // Fetch calendar task notifications
+      const notificationsResponse = await fetch("/api/notifications?unacknowledgedOnly=true")
+      if (notificationsResponse.ok) {
+        const notificationsData = await notificationsResponse.json()
+        const calendarTasks = (notificationsData.notifications || []).filter(
+          (n: any) => n.type === "CALENDAR_TASK" && n.calendarReminder
+        ) as CalendarTaskNotification[]
+        setCalendarTaskNotifications(calendarTasks)
+      }
     } catch (error) {
       console.error("Error fetching tasks:", error)
     } finally {
@@ -111,6 +142,19 @@ export default function TasksPage() {
       await fetchTasks()
     } catch (error) {
       console.error("Error acknowledging task:", error)
+      alert("Failed to acknowledge task")
+    }
+  }
+
+  const handleAcknowledgeNotification = async (notificationId: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${notificationId}/acknowledge`, {
+        method: "PATCH",
+      })
+      if (!response.ok) throw new Error("Failed to acknowledge notification")
+      await fetchTasks() // Refetch to update the list
+    } catch (error) {
+      console.error("Error acknowledging notification:", error)
       alert("Failed to acknowledge task")
     }
   }
@@ -168,13 +212,87 @@ export default function TasksPage() {
       </div>
 
       {/* Tasks List */}
-      {tasks.length === 0 ? (
+      {tasks.length === 0 && calendarTaskNotifications.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           No tasks found
         </div>
       ) : (
         <>
           <div className="space-y-4">
+            {/* Calendar Task Notifications */}
+            {calendarTaskNotifications.map((notification) => {
+              const reminder = notification.calendarReminder
+              const assignedBy = reminder.user.name || reminder.user.email
+              
+              return (
+                <div
+                  key={notification.id}
+                  className="border rounded-lg p-3 md:p-4 hover:bg-accent transition-colors bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800"
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <Calendar className="h-4 w-4 md:h-5 md:w-5 text-blue-500 flex-shrink-0" />
+                        <h3 className="font-semibold text-sm md:text-base break-words">
+                          {reminder.title}
+                        </h3>
+                      </div>
+
+                      <div className="text-xs md:text-sm text-muted-foreground space-y-1">
+                        {reminder.description && (
+                          <div className="break-words">{reminder.description}</div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+                          <span className="break-words">
+                            Scheduled for: {new Date(reminder.scheduledFor).toLocaleString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <User className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+                          <span className="break-words">Assigned by: {assignedBy}</span>
+                        </div>
+                        <div className="text-xs">
+                          Created: {new Date(notification.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 md:flex-nowrap md:flex-shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAcknowledgeNotification(notification.id)}
+                        className="flex-1 sm:flex-initial text-xs md:text-sm"
+                      >
+                        <X className="h-3 w-3 md:h-4 md:w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Dismiss</span>
+                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push("/calendar")}
+                          className="flex-1 sm:flex-initial text-xs md:text-sm"
+                        >
+                          <span className="sm:hidden">View</span>
+                          <span className="hidden sm:inline">View Calendar</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Regular Tasks */}
             {tasks.map((task) => {
             const customerName = `${task.lead.customer.firstName} ${task.lead.customer.lastName}`
             const hoursInactive = task.hoursInactive ?? 0

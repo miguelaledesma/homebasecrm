@@ -39,7 +39,7 @@ const navigation: Array<{
   { name: "Appointments", href: "/appointments", icon: Calendar },
   { name: "Calendar", href: "/calendar", icon: Calendar, adminOnly: true, beta: true },
   { name: "Quotes", href: "/quotes", icon: FileText },
-  // { name: "Tasks", href: "/tasks", icon: CheckSquare }, // Hidden for now
+  { name: "Tasks", href: "/tasks", icon: CheckSquare },
   { name: "Jobs", href: "/jobs", icon: Briefcase, adminOnly: true },
   { name: "Crews", href: "/crews", icon: UserCog, adminOnly: true },
   { name: "Won & Lost", href: "/won-lost", icon: TrendingUp },

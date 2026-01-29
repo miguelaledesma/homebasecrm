@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { UserRole } from "@prisma/client"
+import { UserRole, NotificationType } from "@prisma/client"
 import { logError, logAction } from "@/lib/utils"
 
 // GET /api/calendar/reminders - List reminders with optional date filtering
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, scheduledFor } = body
+    const { title, description, scheduledFor, assignedUserId } = body
 
     // Validate required fields
     if (!title || !scheduledFor) {
@@ -87,12 +87,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // If assignedUserId is provided, verify the user exists
+    if (assignedUserId) {
+      const assignedUser = await prisma.user.findUnique({
+        where: { id: assignedUserId },
+      })
+      if (!assignedUser) {
+        return NextResponse.json(
+          { error: "Assigned user not found" },
+          { status: 400 }
+        )
+      }
+    }
+
     const reminder = await prisma.calendarReminder.create({
       data: {
         title,
         description: description || null,
         scheduledFor: new Date(scheduledFor),
         userId: session.user.id,
+        assignedUserId: assignedUserId || null,
       },
       include: {
         user: {
@@ -102,8 +116,34 @@ export async function POST(request: NextRequest) {
             email: true,
           },
         },
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     })
+
+    // If a user is assigned, create a notification for them
+    if (assignedUserId && assignedUserId !== session.user.id) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: assignedUserId,
+            type: NotificationType.CALENDAR_TASK,
+            calendarReminderId: reminder.id,
+          },
+        })
+      } catch (notificationError: any) {
+        // Log error but don't fail reminder creation
+        logError("Error creating calendar task notification", notificationError, {
+          reminderId: reminder.id,
+          assignedUserId,
+        })
+      }
+    }
 
     logAction(
       "Calendar reminder created",

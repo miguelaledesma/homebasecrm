@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { UserRole } from "@prisma/client"
+import { UserRole, NotificationType } from "@prisma/client"
 import { logError, logAction } from "@/lib/utils"
 
 // PATCH /api/calendar/reminders/[id] - Update calendar reminder
@@ -22,11 +22,14 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { title, description, scheduledFor } = body
+    const { title, description, scheduledFor, assignedUserId } = body
 
     // Check if reminder exists
     const existingReminder = await prisma.calendarReminder.findUnique({
       where: { id: params.id },
+      include: {
+        notifications: true,
+      },
     })
 
     if (!existingReminder) {
@@ -34,6 +37,19 @@ export async function PATCH(
         { error: "Reminder not found" },
         { status: 404 }
       )
+    }
+
+    // If assignedUserId is provided, verify the user exists
+    if (assignedUserId !== undefined && assignedUserId !== null) {
+      const assignedUser = await prisma.user.findUnique({
+        where: { id: assignedUserId },
+      })
+      if (!assignedUser) {
+        return NextResponse.json(
+          { error: "Assigned user not found" },
+          { status: 400 }
+        )
+      }
     }
 
     const updateData: any = {}
@@ -45,6 +61,9 @@ export async function PATCH(
     }
     if (scheduledFor !== undefined) {
       updateData.scheduledFor = new Date(scheduledFor)
+    }
+    if (assignedUserId !== undefined) {
+      updateData.assignedUserId = assignedUserId || null
     }
 
     const reminder = await prisma.calendarReminder.update({
@@ -58,8 +77,58 @@ export async function PATCH(
             email: true,
           },
         },
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     })
+
+    // Handle notification creation/update for assigned user
+    if (assignedUserId && assignedUserId !== session.user.id) {
+      // Check if notification already exists
+      const existingNotification = await prisma.notification.findFirst({
+        where: {
+          calendarReminderId: reminder.id,
+          userId: assignedUserId,
+        },
+      })
+
+      if (!existingNotification) {
+        // Create new notification
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: assignedUserId,
+              type: NotificationType.CALENDAR_TASK,
+              calendarReminderId: reminder.id,
+            },
+          })
+        } catch (notificationError: any) {
+          logError("Error creating calendar task notification", notificationError, {
+            reminderId: reminder.id,
+            assignedUserId,
+          })
+        }
+      }
+    } else if (assignedUserId === null && existingReminder.assignedUserId) {
+      // If assignment was removed, delete the notification
+      try {
+        await prisma.notification.deleteMany({
+          where: {
+            calendarReminderId: reminder.id,
+            type: NotificationType.CALENDAR_TASK,
+          },
+        })
+      } catch (notificationError: any) {
+        logError("Error deleting calendar task notification", notificationError, {
+          reminderId: reminder.id,
+        })
+      }
+    }
 
     logAction(
       "Calendar reminder updated",

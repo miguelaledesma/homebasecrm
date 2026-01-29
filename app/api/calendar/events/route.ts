@@ -111,6 +111,13 @@ export async function GET(request: NextRequest) {
             email: true,
           },
         },
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
       orderBy: {
         scheduledFor: "asc",
@@ -175,15 +182,19 @@ export async function GET(request: NextRequest) {
     for (const reminder of reminders) {
       events.push({
         id: `reminder-${reminder.id}`,
-        title: reminder.title,
+        title: reminder.assignedUser 
+          ? `📋 ${reminder.title} (Assigned to ${reminder.assignedUser.name || reminder.assignedUser.email})`
+          : reminder.title,
         start: reminder.scheduledFor.toISOString(),
-        backgroundColor: "#f97316", // Orange
-        borderColor: "#ea580c",
+        backgroundColor: reminder.assignedUser ? "#3b82f6" : "#f97316", // Blue if assigned (matches appointments), Orange if personal reminder
+        borderColor: reminder.assignedUser ? "#2563eb" : "#ea580c",
         extendedProps: {
           type: "reminder",
           originalId: reminder.id,
           description: reminder.description,
           createdBy: reminder.user.name || reminder.user.email,
+          assignedUserId: reminder.assignedUserId || null,
+          assignedUserName: reminder.assignedUser?.name || reminder.assignedUser?.email || null,
         },
       })
     }

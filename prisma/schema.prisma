@@ -83,6 +83,7 @@ enum NotificationType {
   LEAD_INACTIVITY
   ADMIN_COMMENT
   CONCIERGE_LEAD
+  CALENDAR_TASK
 }
 
 enum TaskType {
@@ -105,17 +106,18 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  assignedLeads       Lead[]               @relation("AssignedSalesRep")
-  createdLeads        Lead[]               @relation("LeadCreator")
-  appointments        Appointment[]
-  quotes              Quote[]
-  uploadedQuoteFiles  QuoteFile[]
-  leadNotes           LeadNote[]           @relation("LeadNoteCreator")
-  notifications       Notification[]
-  tasks               Task[]
-  passwordResetTokens PasswordResetToken[]
-  crewMemberships     CrewMember[]
-  calendarReminders   CalendarReminder[]
+  assignedLeads             Lead[]               @relation("AssignedSalesRep")
+  createdLeads              Lead[]               @relation("LeadCreator")
+  appointments              Appointment[]
+  quotes                    Quote[]
+  uploadedQuoteFiles        QuoteFile[]
+  leadNotes                 LeadNote[]           @relation("LeadNoteCreator")
+  notifications             Notification[]
+  tasks                     Task[]
+  passwordResetTokens       PasswordResetToken[]
+  crewMemberships           CrewMember[]
+  calendarReminders         CalendarReminder[]   @relation("CalendarReminderCreator")
+  assignedCalendarReminders CalendarReminder[]   @relation("CalendarReminderAssignee")
 
   @@map("users")
 }
@@ -209,10 +211,10 @@ model Lead {
   hearAboutUsOther String? // Free text when hearAboutUs is OTHER
 
   // Relations
-  customer         Customer       @relation("CustomerLeads", fields: [customerId], references: [id], onDelete: Cascade)
-  assignedSalesRep User?          @relation("AssignedSalesRep", fields: [assignedSalesRepId], references: [id])
-  createdByUser    User?          @relation("LeadCreator", fields: [createdBy], references: [id], onDelete: SetNull)
-  referrerCustomer Customer?      @relation("ReferrerCustomer", fields: [referrerCustomerId], references: [id], onDelete: SetNull)
+  customer         Customer            @relation("CustomerLeads", fields: [customerId], references: [id], onDelete: Cascade)
+  assignedSalesRep User?               @relation("AssignedSalesRep", fields: [assignedSalesRepId], references: [id])
+  createdByUser    User?               @relation("LeadCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  referrerCustomer Customer?           @relation("ReferrerCustomer", fields: [referrerCustomerId], references: [id], onDelete: SetNull)
   appointments     Appointment[]
   quotes           Quote[]
   notes            LeadNote[]
@@ -268,7 +270,7 @@ model Quote {
   sentAt        DateTime?
   expiresAt     DateTime?
   status        QuoteStatus @default(DRAFT)
-  expenses      Json?       // Flexible JSON object for expense tracking: { "category": amount }
+  expenses      Json? // Flexible JSON object for expense tracking: { "category": amount }
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -330,15 +332,17 @@ model Notification {
   createdAt      DateTime         @default(now())
 
   // Context data
-  leadId String? // Lead this notification is about
-  noteId String? // Note that triggered admin comment notification
-  taskId String? @unique // Link to related task
+  leadId             String? // Lead this notification is about
+  noteId             String? // Note that triggered admin comment notification
+  taskId             String? @unique // Link to related task
+  calendarReminderId String? @unique // Link to calendar reminder/task
 
   // Relations
-  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lead Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  note LeadNote? @relation(fields: [noteId], references: [id], onDelete: SetNull)
-  task Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead             Lead?             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  note             LeadNote?         @relation(fields: [noteId], references: [id], onDelete: SetNull)
+  task             Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  calendarReminder CalendarReminder? @relation(fields: [calendarReminderId], references: [id], onDelete: Cascade)
 
   @@index([userId, read])
   @@index([userId, acknowledged])
@@ -372,7 +376,7 @@ model Crew {
   id          String   @id @default(cuid())
   name        String
   description String?
-  memberNames Json?    // Array of external member names: ["John Doe", "Jane Smith"]
+  memberNames Json? // Array of external member names: ["John Doe", "Jane Smith"]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -399,10 +403,10 @@ model CrewMember {
 
 model JobCrewAssignment {
   id         String   @id @default(cuid())
-  leadId     String   // References Lead (job)
+  leadId     String // References Lead (job)
   crewId     String
   assignedAt DateTime @default(now())
-  assignedBy String?  // User ID who made the assignment
+  assignedBy String? // User ID who made the assignment
 
   // Relations
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -415,18 +419,22 @@ model JobCrewAssignment {
 }
 
 model CalendarReminder {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  scheduledFor DateTime
-  userId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  title          String
+  description    String?
+  scheduledFor   DateTime
+  userId         String // Creator of the reminder
+  assignedUserId String? // User assigned to complete the task (optional)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User           @relation("CalendarReminderCreator", fields: [userId], references: [id], onDelete: Cascade)
+  assignedUser  User?          @relation("CalendarReminderAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  notifications Notification[]
 
   @@index([userId])
+  @@index([assignedUserId])
   @@index([scheduledFor])
   @@map("calendar_reminders")
 }

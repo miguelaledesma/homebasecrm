@@ -86,6 +86,8 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unacknowledgedCount, setUnacknowledgedCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -128,6 +130,28 @@ export default function DashboardPage() {
     }
 
     fetchNotifications();
+  }, [session?.user]);
+
+  // Fetch assigned calendar tasks for admins
+  useEffect(() => {
+    async function fetchAssignedTasks() {
+      if (!session?.user || session.user.role !== "ADMIN") return;
+
+      try {
+        setLoadingTasks(true);
+        const response = await fetch("/api/calendar/assigned-tasks?upcomingOnly=true&limit=5");
+        if (!response.ok) throw new Error("Failed to fetch assigned tasks");
+
+        const data = await response.json();
+        setAssignedTasks(data.tasks || []);
+      } catch (error) {
+        console.error("Error fetching assigned tasks:", error);
+      } finally {
+        setLoadingTasks(false);
+      }
+    }
+
+    fetchAssignedTasks();
   }, [session?.user]);
 
   const userName = session?.user?.name || "there";
@@ -525,6 +549,100 @@ export default function DashboardPage() {
       {/* Team Performance Widget - Admin Only */}
       {isAdmin && !isConcierge && (
         <TeamPerformanceWidget />
+      )}
+
+      {/* Assigned Calendar Tasks - Admin Only */}
+      {isAdmin && !isConcierge && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                <CardTitle className="text-base">My Assigned Tasks</CardTitle>
+                {assignedTasks.length > 0 && (
+                  <span className="h-5 w-5 rounded-full bg-purple-500 text-white text-xs flex items-center justify-center">
+                    {assignedTasks.length > 9 ? "9+" : assignedTasks.length}
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/calendar")}
+                className="text-xs"
+              >
+                View Calendar
+                <ArrowRight className="h-3 w-3 ml-1" />
+              </Button>
+            </div>
+            <CardDescription>
+              {assignedTasks.length > 0
+                ? `You have ${assignedTasks.length} upcoming task${assignedTasks.length !== 1 ? "s" : ""}`
+                : "No assigned tasks"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingTasks ? (
+              <div className="text-center text-sm text-muted-foreground py-4">
+                Loading tasks...
+              </div>
+            ) : assignedTasks.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-4">
+                No tasks assigned to you
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {assignedTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="p-3 border rounded-md cursor-pointer hover:bg-accent transition-colors bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800"
+                    onClick={() => router.push("/calendar")}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="mt-0.5">
+                        <Calendar className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium">{task.title}</div>
+                        {task.description && (
+                          <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {task.description}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {new Date(task.scheduledFor).toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          })}
+                        </div>
+                        {task.user && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Assigned by: {task.user.name || task.user.email}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {assignedTasks.length >= 5 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => router.push("/calendar")}
+                  >
+                    View All Tasks
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Additional Stats Section */}

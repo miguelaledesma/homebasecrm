@@ -62,6 +62,17 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        calendarReminder: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [
         { acknowledged: "asc" }, // Unacknowledged first
