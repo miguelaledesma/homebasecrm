@@ -22,7 +22,16 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { title, description, scheduledFor, assignedUserId } = body
+    const { title, description, scheduledFor, assignedUserId, color } = body
+
+    // Validate color if provided (must be one of the allowed colors)
+    const allowedColors = ["#ef4444", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899"]
+    if (color !== undefined && color !== null && color !== "" && !allowedColors.includes(color)) {
+      return NextResponse.json(
+        { error: "Invalid color. Must be one of the predefined colors." },
+        { status: 400 }
+      )
+    }
 
     // Check if reminder exists
     const existingReminder = await prisma.calendarReminder.findUnique({
@@ -64,6 +73,9 @@ export async function PATCH(
     }
     if (assignedUserId !== undefined) {
       updateData.assignedUserId = assignedUserId || null
+    }
+    if (color !== undefined) {
+      updateData.color = color || null
     }
 
     const reminder = await prisma.calendarReminder.update({

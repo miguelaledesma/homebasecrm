@@ -77,12 +77,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, scheduledFor, assignedUserId } = body
+    const { title, description, scheduledFor, assignedUserId, color } = body
 
     // Validate required fields
     if (!title || !scheduledFor) {
       return NextResponse.json(
         { error: "Missing required fields: title, scheduledFor" },
+        { status: 400 }
+      )
+    }
+
+    // Validate color if provided (must be one of the allowed colors)
+    const allowedColors = ["#ef4444", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899"]
+    if (color && !allowedColors.includes(color)) {
+      return NextResponse.json(
+        { error: "Invalid color. Must be one of the predefined colors." },
         { status: 400 }
       )
     }
@@ -107,6 +116,7 @@ export async function POST(request: NextRequest) {
         scheduledFor: new Date(scheduledFor),
         userId: session.user.id,
         assignedUserId: assignedUserId || null,
+        color: color || null,
       },
       include: {
         user: {

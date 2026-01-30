@@ -180,14 +180,30 @@ export async function GET(request: NextRequest) {
 
     // Transform reminders
     for (const reminder of reminders) {
+      // Use custom color if provided, otherwise fall back to default colors
+      const defaultBgColor = reminder.assignedUser ? "#3b82f6" : "#f97316" // Blue if assigned, Orange if personal
+      const defaultBorderColor = reminder.assignedUser ? "#2563eb" : "#ea580c"
+      
+      const backgroundColor = reminder.color || defaultBgColor
+      // Derive border color: use default if no custom color, otherwise darken custom color slightly
+      let borderColor = defaultBorderColor
+      if (reminder.color) {
+        // Darken the color by reducing RGB values by ~15%
+        const hex = reminder.color.replace('#', '')
+        const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 20)
+        const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 20)
+        const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 20)
+        borderColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+      }
+      
       events.push({
         id: `reminder-${reminder.id}`,
         title: reminder.assignedUser 
           ? `📋 ${reminder.title} (Assigned to ${reminder.assignedUser.name || reminder.assignedUser.email})`
           : reminder.title,
         start: reminder.scheduledFor.toISOString(),
-        backgroundColor: reminder.assignedUser ? "#3b82f6" : "#f97316", // Blue if assigned (matches appointments), Orange if personal reminder
-        borderColor: reminder.assignedUser ? "#2563eb" : "#ea580c",
+        backgroundColor,
+        borderColor,
         extendedProps: {
           type: "reminder",
           originalId: reminder.id,
@@ -195,6 +211,7 @@ export async function GET(request: NextRequest) {
           createdBy: reminder.user.name || reminder.user.email,
           assignedUserId: reminder.assignedUserId || null,
           assignedUserName: reminder.assignedUser?.name || reminder.assignedUser?.email || null,
+          color: reminder.color || null,
         },
       })
     }

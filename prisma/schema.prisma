@@ -425,6 +425,7 @@ model CalendarReminder {
   scheduledFor   DateTime
   userId         String // Creator of the reminder
   assignedUserId String? // User assigned to complete the task (optional)
+  color          String? // Hex color code for calendar display (e.g., "#3b82f6")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

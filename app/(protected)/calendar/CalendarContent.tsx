@@ -31,6 +31,9 @@ type CalendarEvent = EventInput & {
     description?: string | null
     createdBy?: string
     leadTypes?: string[]
+    assignedUserId?: string | null
+    assignedUserName?: string | null
+    color?: string | null
   }
 }
 
@@ -66,6 +69,7 @@ type ReminderFormData = {
   description: string
   scheduledFor: string
   assignedUserId: string
+  color: string
 }
 
 export function CalendarContent() {
@@ -99,6 +103,7 @@ export function CalendarContent() {
     description: "",
     scheduledFor: "",
     assignedUserId: "",
+    color: "",
   })
   
   // Search states
@@ -242,6 +247,7 @@ export function CalendarContent() {
       description: "",
       scheduledFor: convertUTCToPSTLocal(selectedDate.toISOString()),
       assignedUserId: "",
+      color: "",
     })
   }
 
@@ -282,6 +288,7 @@ export function CalendarContent() {
         description: props.description || "",
         scheduledFor: convertUTCToPSTLocal(new Date(event.start || new Date()).toISOString()),
         assignedUserId: props.assignedUserId || "",
+        color: props.color || "",
       })
     }
   }
@@ -415,6 +422,7 @@ export function CalendarContent() {
           description: reminderForm.description || null,
           scheduledFor: convertPSTToUTC(reminderForm.scheduledFor),
           assignedUserId: reminderForm.assignedUserId || null,
+          color: reminderForm.color || null,
         }),
       })
 
@@ -431,6 +439,7 @@ export function CalendarContent() {
         description: "",
         scheduledFor: "",
         assignedUserId: "",
+        color: "",
       })
 
       const calendar = calendarRef.current?.getApi()
@@ -467,6 +476,7 @@ export function CalendarContent() {
         description: "",
         scheduledFor: "",
         assignedUserId: "",
+        color: "",
       })
 
       const calendar = calendarRef.current?.getApi()
@@ -891,14 +901,15 @@ export function CalendarContent() {
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setShowReminderModal(false)
-                    setEditingEvent(null)
-                    setReminderForm({
-                      title: "",
-                      description: "",
-                      scheduledFor: "",
-                      assignedUserId: "",
-                    })
+      setShowReminderModal(false)
+      setEditingEvent(null)
+      setReminderForm({
+        title: "",
+        description: "",
+        scheduledFor: "",
+        assignedUserId: "",
+        color: "",
+      })
                   }}
                 >
                   <X className="h-4 w-4" />
@@ -971,6 +982,86 @@ export function CalendarContent() {
                   </p>
                 </div>
 
+                {/* Color Picker */}
+                <div>
+                  <Label>Color (Optional)</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setReminderForm({ ...reminderForm, color: "" })}
+                      className={`w-10 h-10 rounded-md border-2 transition-all ${
+                        reminderForm.color === ""
+                          ? "border-foreground ring-2 ring-offset-2"
+                          : "border-border hover:border-foreground/50"
+                      }`}
+                      style={{
+                        background: reminderForm.assignedUserId
+                          ? "linear-gradient(135deg, #3b82f6 50%, #f97316 50%)"
+                          : "linear-gradient(135deg, #f97316 50%, #3b82f6 50%)",
+                      }}
+                      title="Default (Blue for assigned, Orange for personal)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setReminderForm({ ...reminderForm, color: "#ef4444" })}
+                      className={`w-10 h-10 rounded-md border-2 transition-all ${
+                        reminderForm.color === "#ef4444"
+                          ? "border-foreground ring-2 ring-offset-2"
+                          : "border-border hover:border-foreground/50"
+                      }`}
+                      style={{ backgroundColor: "#ef4444" }}
+                      title="Red - Urgent/Important"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setReminderForm({ ...reminderForm, color: "#f59e0b" })}
+                      className={`w-10 h-10 rounded-md border-2 transition-all ${
+                        reminderForm.color === "#f59e0b"
+                          ? "border-foreground ring-2 ring-offset-2"
+                          : "border-border hover:border-foreground/50"
+                      }`}
+                      style={{ backgroundColor: "#f59e0b" }}
+                      title="Amber - Warning/Attention"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setReminderForm({ ...reminderForm, color: "#10b981" })}
+                      className={`w-10 h-10 rounded-md border-2 transition-all ${
+                        reminderForm.color === "#10b981"
+                          ? "border-foreground ring-2 ring-offset-2"
+                          : "border-border hover:border-foreground/50"
+                      }`}
+                      style={{ backgroundColor: "#10b981" }}
+                      title="Green - Completed/Success"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setReminderForm({ ...reminderForm, color: "#8b5cf6" })}
+                      className={`w-10 h-10 rounded-md border-2 transition-all ${
+                        reminderForm.color === "#8b5cf6"
+                          ? "border-foreground ring-2 ring-offset-2"
+                          : "border-border hover:border-foreground/50"
+                      }`}
+                      style={{ backgroundColor: "#8b5cf6" }}
+                      title="Purple - Special/Event"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setReminderForm({ ...reminderForm, color: "#ec4899" })}
+                      className={`w-10 h-10 rounded-md border-2 transition-all ${
+                        reminderForm.color === "#ec4899"
+                          ? "border-foreground ring-2 ring-offset-2"
+                          : "border-border hover:border-foreground/50"
+                      }`}
+                      style={{ backgroundColor: "#ec4899" }}
+                      title="Pink - Personal/Reminder"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Select a color for this reminder. First option uses default colors.
+                  </p>
+                </div>
+
                 <div className="flex justify-end gap-2 pt-4">
                   {editingEvent && (
                     <Button
@@ -993,6 +1084,7 @@ export function CalendarContent() {
                         description: "",
                         scheduledFor: "",
                         assignedUserId: "",
+                        color: "",
                       })
                     }}
                   >
