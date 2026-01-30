@@ -585,28 +585,27 @@ export default function LeadsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 p-3 sm:p-4 border rounded-lg bg-muted/30 w-full max-w-full">
-        <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
-          <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-          <span>Filters:</span>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:max-w-[200px] text-sm [touch-action:manipulation] min-h-[44px] sm:min-h-0"
-          >
-            <option value="all">All Statuses</option>
-            <option value="NEW">New</option>
-            <option value="ASSIGNED">Assigned</option>
-            <option value="APPOINTMENT_SET">Appointment Set</option>
-            <option value="QUOTED">Quoted</option>
-            <option value="WON">Won</option>
-            <option value="LOST">Lost</option>
-          </Select>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 py-2.5 px-3 border-b border-gray-200 w-full">
+        <div className="flex items-center gap-3 flex-1 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-[140px] text-sm [touch-action:manipulation] min-h-[36px] sm:min-h-0"
+            >
+              <option value="all">All Statuses</option>
+              <option value="NEW">New</option>
+              <option value="ASSIGNED">Assigned</option>
+              <option value="APPOINTMENT_SET">Appointment Set</option>
+              <option value="QUOTED">Quoted</option>
+              <option value="WON">Won</option>
+              <option value="LOST">Lost</option>
+            </Select>
+          </div>
           {/* Show inactive filter only for admins or sales reps viewing their own leads */}
           {(isAdmin || (isSalesRep && viewMode === "my")) && (
-            <label className="flex items-center gap-2 text-xs sm:text-sm cursor-pointer hover:bg-muted/50 px-2 sm:px-3 py-2 rounded-md transition-colors [touch-action:manipulation] min-h-[44px] sm:min-h-0">
+            <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2.5 py-1.5 rounded-md transition-colors [touch-action:manipulation] min-h-[36px] sm:min-h-0">
               <input
                 type="checkbox"
                 checked={showInactiveOnly}
@@ -614,15 +613,15 @@ export default function LeadsPage() {
                   setShowInactiveOnly(e.target.checked);
                   if (e.target.checked) setDismissedAlert(true);
                 }}
-                className="rounded border-amber-300 text-amber-600 focus:ring-amber-500 w-4 h-4 sm:w-5 sm:h-5"
+                className="rounded border-amber-300 text-amber-600 focus:ring-amber-500 w-4 h-4"
               />
-              <span className="flex items-center gap-1.5 flex-1 min-w-0">
-                <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 flex-shrink-0" />
-                <span className="text-amber-900 font-medium truncate">
-                  Show only inactive leads
+              <span className="flex items-center gap-1.5 text-sm">
+                <Bell className="h-4 w-4 text-amber-600" />
+                <span className="text-amber-900 font-medium whitespace-nowrap">
+                  Inactive leads
                 </span>
                 {inactiveCount > 0 && (
-                  <Badge className="ml-1 bg-amber-100 text-amber-800 border-amber-300 text-xs flex-shrink-0">
+                  <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs px-1.5">
                     {inactiveCount}
                   </Badge>
                 )}
@@ -632,9 +631,9 @@ export default function LeadsPage() {
         </div>
         {/* Only show read-only message for SALES_REP viewing all leads, not CONCIERGE */}
         {isViewingAllLeads && session?.user.role === "SALES_REP" && (
-          <div className="text-xs text-muted-foreground sm:ml-auto pt-1 sm:pt-0 border-t sm:border-t-0">
+          <Badge variant="outline" className="text-xs text-muted-foreground border-gray-300 bg-gray-50">
             Read-only view
-          </div>
+          </Badge>
         )}
       </div>
 

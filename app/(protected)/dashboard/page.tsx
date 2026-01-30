@@ -30,6 +30,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { TeamPerformanceWidget } from "@/components/team-performance-widget";
+import { SalesRepTeamPerformance } from "@/components/sales-rep-team-performance";
 
 interface DashboardStats {
   totalLeads: number;
@@ -157,6 +158,7 @@ export default function DashboardPage() {
   const userName = session?.user?.name || "there";
   const isAdmin = session?.user?.role === "ADMIN";
   const isConcierge = session?.user?.role === "CONCIERGE";
+  const isSalesRep = session?.user?.role === "SALES_REP" || session?.user?.role === "CONCIERGE";
 
   if (loading) {
     return (
@@ -551,6 +553,11 @@ export default function DashboardPage() {
       {/* Team Performance Widget - Admin Only */}
       {isAdmin && !isConcierge && (
         <TeamPerformanceWidget />
+      )}
+
+      {/* Competitive Team Leaderboard - Sales Reps Only */}
+      {!isAdmin && (isSalesRep || isConcierge) && (
+        <SalesRepTeamPerformance />
       )}
 
       {/* Assigned Calendar Tasks - Admin Only */}
