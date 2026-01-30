@@ -51,7 +51,7 @@ interface DashboardStats {
 
 type Notification = {
   id: string;
-  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT" | "CONCIERGE_LEAD";
+  type: "LEAD_INACTIVITY" | "ADMIN_COMMENT" | "CONCIERGE_LEAD" | "CALENDAR_TASK";
   read: boolean;
   acknowledged: boolean;
   createdAt: string;
@@ -314,7 +314,9 @@ export default function DashboardPage() {
                       !notification.read ? "bg-blue-50 dark:bg-blue-950/20" : ""
                     }`}
                     onClick={() => {
-                      if (notification.lead) {
+                      if (notification.type === "CALENDAR_TASK") {
+                        router.push("/tasks");
+                      } else if (notification.lead) {
                         router.push(`/leads/${notification.lead.id}`);
                       }
                     }}

@@ -62,7 +62,7 @@ export function NotificationsList({
 
     // Navigate based on notification type
     if (notification.type === "CALENDAR_TASK") {
-      router.push("/calendar")
+      router.push("/tasks")
     } else if (notification.lead) {
       router.push(`/leads/${notification.lead.id}`)
     }
