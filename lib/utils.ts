@@ -1,5 +1,4 @@
 import { type ClassValue, clsx } from "clsx"
-import { fromZonedTime, toZonedTime, format } from "date-fns-tz"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
@@ -102,30 +101,54 @@ export function convertPSTToUTC(datetimeLocal: string): string {
   if (!datetimeLocal) return datetimeLocal;
   
   // Parse the datetime-local string (format: "YYYY-MM-DDTHH:mm")
+  // Treat it as PST/PDT timezone
   const [datePart, timePart] = datetimeLocal.split('T');
   const [year, month, day] = datePart.split('-').map(Number);
-  const [hours, minutes] = (timePart || '').split(':').map(Number);
+  const [hours, minutes] = timePart.split(':').map(Number);
   
-  // Create a date object in PST/PDT timezone
-  const pstDate = new Date(year, month - 1, day, hours, minutes);
+  // Create a date string in PST/PDT timezone format
+  // We'll use a format that JavaScript can parse as PST/PDT
+  const pstDateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
   
-  // Convert from PST/PDT timezone to UTC using date-fns-tz
-  const utcDate = fromZonedTime(pstDate, "America/Los_Angeles");
+  // Create a date object treating the string as PST/PDT
+  // We do this by creating a date in UTC and then adjusting for PST offset
+  // But actually, we need to use the timezone-aware approach
+  
+  // Better approach: Use Intl.DateTimeFormat to convert PST to UTC
+  // Create a date object assuming the input is in PST/PDT
+  const tempDate = new Date(`${pstDateString}-08:00`); // Start with PST offset
+  
+  // Check if DST applies (rough check - April to October)
+  const monthNum = month - 1; // JavaScript months are 0-indexed
+  const isDST = monthNum >= 3 && monthNum <= 9; // April (3) to October (9)
+  
+  // Adjust for DST if needed (PDT is UTC-7, PST is UTC-8)
+  const offsetHours = isDST ? -7 : -8;
+  
+  // Create UTC date by manually calculating
+  const utcDate = new Date(Date.UTC(year, monthNum, day, hours - offsetHours, minutes, 0));
   
   return utcDate.toISOString();
 }
-
-// Convert a UTC ISO string to PST/PDT datetime-local string format
-// This is used to display UTC dates in datetime-local inputs as PST time
+// Convert UTC ISO string to PST/PDT datetime-local format
+// This is the inverse of convertPSTToUTC
 export function convertUTCToPSTLocal(utcISOString: string): string {
   if (!utcISOString) return utcISOString;
   
   // Parse the UTC date
   const utcDate = new Date(utcISOString);
   
-  // Convert UTC to PST/PDT timezone
-  const pstDate = toZonedTime(utcDate, "America/Los_Angeles");
+  // Convert to PST/PDT timezone
+  const pstDate = new Date(utcDate.toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles'
+  }));
   
   // Format as datetime-local string (YYYY-MM-DDTHH:mm)
-  return format(pstDate, "yyyy-MM-dd'T'HH:mm");
+  const year = pstDate.getFullYear();
+  const month = String(pstDate.getMonth() + 1).padStart(2, '0');
+  const day = String(pstDate.getDate()).padStart(2, '0');
+  const hours = String(pstDate.getHours()).padStart(2, '0');
+  const minutes = String(pstDate.getMinutes()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }

@@ -198,11 +198,16 @@ export default function LeadsPage() {
       result = result.filter((lead) => lead.isInactive === true);
     }
 
-    // Auto-sort: inactive leads first
+    // Auto-sort: inactive leads first, then by creation date (newest first)
     result.sort((a, b) => {
+      // First, sort by inactive status
       if (a.isInactive && !b.isInactive) return -1;
       if (!a.isInactive && b.isInactive) return 1;
-      return 0;
+      
+      // Then, sort by creation date (newest first)
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA; // Descending order (newest first)
     });
 
     return result;

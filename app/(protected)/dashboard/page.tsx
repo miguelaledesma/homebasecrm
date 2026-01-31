@@ -401,7 +401,7 @@ export default function DashboardPage() {
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium">
-                Unassigned Leads
+                New Leads from Internet or Unassigned
               </CardTitle>
               <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
             </CardHeader>
