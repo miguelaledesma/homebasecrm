@@ -91,22 +91,21 @@ export default function LeadsPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode());
 
-  // Sync viewMode and statusFilter from URL on mount (in case URL changed externally)
+  // Sync viewMode and statusFilter from URL on mount only (in case URL changed externally)
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const urlViewMode = urlParams.get("view") as ViewMode | null;
       if (
         urlViewMode &&
-        ["my", "all", "unassigned"].includes(urlViewMode) &&
-        urlViewMode !== viewMode
+        ["my", "all", "unassigned"].includes(urlViewMode)
       ) {
         setViewMode(urlViewMode);
       }
 
       // Check for status parameter
       const urlStatus = urlParams.get("status");
-      if (urlStatus && urlStatus !== statusFilter) {
+      if (urlStatus) {
         setStatusFilter(urlStatus);
       }
 
@@ -117,7 +116,8 @@ export default function LeadsPage() {
         setDismissedAlert(true);
       }
     }
-  }, [viewMode, statusFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   // Update URL and localStorage when viewMode changes
   useEffect(() => {
@@ -130,7 +130,8 @@ export default function LeadsPage() {
 
       const newUrl = `/leads?${urlParams.toString()}`;
       // Only update if URL actually changed to avoid infinite loops
-      if (window.location.pathname + window.location.search !== newUrl) {
+      const currentUrl = window.location.pathname + window.location.search;
+      if (currentUrl !== newUrl) {
         router.replace(newUrl, { scroll: false });
       }
     }
@@ -143,7 +144,7 @@ export default function LeadsPage() {
       if (statusFilter !== "all") {
         params.append("status", statusFilter);
       }
-      if (viewMode === "my" && isSalesRep) {
+      if (viewMode === "my" && (isSalesRep || isAdmin)) {
         params.append("myLeads", "true");
       } else if (viewMode === "unassigned") {
         params.append("unassigned", "true");
@@ -159,7 +160,7 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, viewMode, isSalesRep]);
+  }, [statusFilter, viewMode, isSalesRep, isAdmin]);
 
   useEffect(() => {
     fetchLeads();
@@ -213,11 +214,11 @@ export default function LeadsPage() {
     return result;
   }, [leads, showInactiveOnly]);
 
-  // Fetch sales rep's own leads separately to calculate inactive count for banner
+  // Fetch user's own leads separately to calculate inactive count for banner
   const [myLeadsForCount, setMyLeadsForCount] = useState<Lead[]>([]);
 
   const fetchMyLeadsForCount = useCallback(async () => {
-    if (isSalesRep) {
+    if (isSalesRep || isAdmin) {
       try {
         const response = await fetch(`/api/leads?myLeads=true`);
         if (response.ok) {
@@ -228,18 +229,18 @@ export default function LeadsPage() {
         console.error("Error fetching my leads for count:", error);
       }
     }
-  }, [isSalesRep]);
+  }, [isSalesRep, isAdmin]);
 
   useEffect(() => {
     fetchMyLeadsForCount();
   }, [fetchMyLeadsForCount]);
 
-  // Count inactive leads - use myLeadsForCount for sales reps, otherwise use current leads
+  // Count inactive leads - use myLeadsForCount for sales reps/admins, otherwise use current leads
   const inactiveCount = useMemo(() => {
     const leadsToCount =
-      isSalesRep && myLeadsForCount.length > 0 ? myLeadsForCount : leads;
+      (isSalesRep || isAdmin) && myLeadsForCount.length > 0 ? myLeadsForCount : leads;
     return leadsToCount.filter((lead) => lead.isInactive === true).length;
-  }, [leads, myLeadsForCount, isSalesRep]);
+  }, [leads, myLeadsForCount, isSalesRep, isAdmin]);
 
   // Format time since activity
   const formatTimeSinceActivity = (
@@ -443,8 +444,8 @@ export default function LeadsPage() {
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
         render: (date: string) => new Date(date).toLocaleDateString(),
       },
-      // Only show Last Activity column for admins or sales reps viewing their own leads
-      ...(isAdmin || (isSalesRep && viewMode === "my")
+      // Only show Last Activity column for admins or sales reps/admins viewing their own leads
+      ...(isAdmin || ((isSalesRep || isAdmin) && viewMode === "my")
         ? [
             {
               title: "Last Activity",
@@ -483,16 +484,16 @@ export default function LeadsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 w-full">
         <div className="min-w-0 flex-1 w-full sm:w-auto">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold break-words">
-            {isSalesRep && viewMode === "my"
+            {(isSalesRep || isAdmin) && viewMode === "my"
               ? "My Leads"
-              : isSalesRep && viewMode === "unassigned"
+              : (isSalesRep || isAdmin) && viewMode === "unassigned"
               ? "Unassigned Leads"
               : "Leads"}
           </h1>
           <p className="text-xs sm:text-sm md:text-base text-muted-foreground mt-1 break-words">
-            {isSalesRep && viewMode === "my"
+            {(isSalesRep || isAdmin) && viewMode === "my"
               ? "Your assigned leads"
-              : isSalesRep && viewMode === "unassigned"
+              : (isSalesRep || isAdmin) && viewMode === "unassigned"
               ? "Leads available to claim"
               : "Manage and track your leads"}
           </p>
@@ -552,8 +553,8 @@ export default function LeadsPage() {
         </Card>
       )}
 
-      {/* View Mode Tabs - Only show for sales reps */}
-      {isSalesRep && (
+      {/* View Mode Tabs - Show for sales reps and admins */}
+      {(isSalesRep || isAdmin) && (
         <div className="flex gap-1 sm:gap-2 border-b overflow-x-auto w-full -mx-4 sm:mx-0 px-4 sm:px-0 scrollbar-hide">
           <button
             onClick={() => setViewMode("my")}
@@ -608,7 +609,7 @@ export default function LeadsPage() {
               <option value="LOST">Lost</option>
             </Select>
           </div>
-          {/* Show inactive filter only for admins or sales reps viewing their own leads */}
+          {/* Show inactive filter for admins always, or sales reps when viewing their own leads */}
           {(isAdmin || (isSalesRep && viewMode === "my")) && (
             <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2.5 py-1.5 rounded-md transition-colors [touch-action:manipulation] min-h-[36px] sm:min-h-0">
               <input

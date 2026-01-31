@@ -327,13 +327,13 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    // Filter by assigned sales rep if user is SALES_REP or CONCIERGE and myLeads is true
+    // Filter by assigned sales rep if user is SALES_REP, CONCIERGE, or ADMIN and myLeads is true
     // Unassigned filter takes precedence if both are set (though they shouldn't be)
     if (unassigned) {
       where.assignedSalesRepId = null;
     } else if (
       myLeads &&
-      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE")
+      (session.user.role === "SALES_REP" || session.user.role === "CONCIERGE" || session.user.role === "ADMIN")
     ) {
       where.assignedSalesRepId = session.user.id;
     }
