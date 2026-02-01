@@ -88,7 +88,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate color if provided (must be one of the allowed colors)
-    const allowedColors = ["#ef4444", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899"]
+    const allowedColors = [
+      "#ef4444", // Red
+      "#f59e0b", // Amber
+      "#10b981", // Green
+      "#8b5cf6", // Purple
+      "#ec4899", // Pink
+      "#3b82f6", // Blue
+      "#6366f1", // Indigo
+      "#14b8a6", // Teal
+      "#eab308", // Yellow
+      "#f97316", // Orange
+      "#6b7280", // Gray
+      "#64748b", // Slate
+    ]
     if (color && !allowedColors.includes(color)) {
       return NextResponse.json(
         { error: "Invalid color. Must be one of the predefined colors." },

@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
       events.push({
         id: `reminder-${reminder.id}`,
         title: reminder.assignedUser 
-          ? `📋 ${reminder.title} (Assigned to ${reminder.assignedUser.name || reminder.assignedUser.email})`
+          ? `📋 ${reminder.title} (${reminder.assignedUser.name || reminder.assignedUser.email})`
           : reminder.title,
         start: reminder.scheduledFor.toISOString(),
         backgroundColor,
@@ -207,6 +207,7 @@ export async function GET(request: NextRequest) {
         extendedProps: {
           type: "reminder",
           originalId: reminder.id,
+          originalTitle: reminder.title, // Store original title without formatting
           description: reminder.description,
           createdBy: reminder.user.name || reminder.user.email,
           assignedUserId: reminder.assignedUserId || null,

@@ -90,11 +90,11 @@ function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
  */
 async function verifyCaptcha(token: string): Promise<boolean> {
   const secretKey = process.env.CAPTCHA_SECRET_KEY;
-  const captchaEnabled = process.env.CAPTCHA_ENABLED !== "false";
+  const captchaEnabled = process.env.CAPTCHA_ENABLED === "true";
 
-  // If CAPTCHA is disabled, skip verification
+  // If CAPTCHA is not explicitly enabled, skip verification
   if (!captchaEnabled || !secretKey) {
-    logInfo("CAPTCHA verification skipped (disabled or no secret key)");
+    logInfo("CAPTCHA verification skipped (not enabled or no secret key)");
     return true;
   }
 
@@ -236,8 +236,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify CAPTCHA
-    if (captchaToken) {
+    // Verify CAPTCHA (only if explicitly enabled)
+    const captchaEnabled = process.env.CAPTCHA_ENABLED === "true";
+    if (captchaEnabled) {
+      if (!captchaToken) {
+        // CAPTCHA is enabled but token not provided
+        logInfo("CAPTCHA token missing", { ip: clientIp });
+        return NextResponse.json(
+          { error: "CAPTCHA token is required" },
+          {
+            status: 400,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+      
       const captchaValid = await verifyCaptcha(captchaToken);
       if (!captchaValid) {
         logInfo("CAPTCHA verification failed", { ip: clientIp });
@@ -251,19 +266,8 @@ export async function POST(request: NextRequest) {
           }
         );
       }
-    } else if (process.env.CAPTCHA_ENABLED !== "false") {
-      // CAPTCHA is enabled but token not provided
-      logInfo("CAPTCHA token missing", { ip: clientIp });
-      return NextResponse.json(
-        { error: "CAPTCHA token is required" },
-        {
-          status: 400,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
     }
+    // If CAPTCHA is not enabled, skip verification (optional)
 
     // Check if customer already exists (by phone or email)
     let customer = null;

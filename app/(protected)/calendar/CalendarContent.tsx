@@ -34,6 +34,7 @@ type CalendarEvent = EventInput & {
     assignedUserId?: string | null
     assignedUserName?: string | null
     color?: string | null
+    originalTitle?: string // Original title without formatting (for reminders)
   }
 }
 
@@ -284,7 +285,7 @@ export function CalendarContent() {
       setEditingEvent(event as unknown as CalendarEvent)
       setShowReminderModal(true)
       setReminderForm({
-        title: event.title || "",
+        title: props.originalTitle || event.title || "", // Use original title without formatting
         description: props.description || "",
         scheduledFor: convertUTCToPSTLocal(new Date(event.start || new Date()).toISOString()),
         assignedUserId: props.assignedUserId || "",
@@ -985,77 +986,160 @@ export function CalendarContent() {
                 {/* Color Picker */}
                 <div>
                   <Label>Color (Optional)</Label>
-                  <div className="flex items-center gap-2 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setReminderForm({ ...reminderForm, color: "" })}
-                      className={`w-10 h-10 rounded-md border-2 transition-all ${
-                        reminderForm.color === ""
-                          ? "border-foreground ring-2 ring-offset-2"
-                          : "border-border hover:border-foreground/50"
-                      }`}
-                      style={{
-                        background: reminderForm.assignedUserId
-                          ? "linear-gradient(135deg, #3b82f6 50%, #f97316 50%)"
-                          : "linear-gradient(135deg, #f97316 50%, #3b82f6 50%)",
-                      }}
-                      title="Default (Blue for assigned, Orange for personal)"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setReminderForm({ ...reminderForm, color: "#ef4444" })}
-                      className={`w-10 h-10 rounded-md border-2 transition-all ${
-                        reminderForm.color === "#ef4444"
-                          ? "border-foreground ring-2 ring-offset-2"
-                          : "border-border hover:border-foreground/50"
-                      }`}
-                      style={{ backgroundColor: "#ef4444" }}
-                      title="Red - Urgent/Important"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setReminderForm({ ...reminderForm, color: "#f59e0b" })}
-                      className={`w-10 h-10 rounded-md border-2 transition-all ${
-                        reminderForm.color === "#f59e0b"
-                          ? "border-foreground ring-2 ring-offset-2"
-                          : "border-border hover:border-foreground/50"
-                      }`}
-                      style={{ backgroundColor: "#f59e0b" }}
-                      title="Amber - Warning/Attention"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setReminderForm({ ...reminderForm, color: "#10b981" })}
-                      className={`w-10 h-10 rounded-md border-2 transition-all ${
-                        reminderForm.color === "#10b981"
-                          ? "border-foreground ring-2 ring-offset-2"
-                          : "border-border hover:border-foreground/50"
-                      }`}
-                      style={{ backgroundColor: "#10b981" }}
-                      title="Green - Completed/Success"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setReminderForm({ ...reminderForm, color: "#8b5cf6" })}
-                      className={`w-10 h-10 rounded-md border-2 transition-all ${
-                        reminderForm.color === "#8b5cf6"
-                          ? "border-foreground ring-2 ring-offset-2"
-                          : "border-border hover:border-foreground/50"
-                      }`}
-                      style={{ backgroundColor: "#8b5cf6" }}
-                      title="Purple - Special/Event"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setReminderForm({ ...reminderForm, color: "#ec4899" })}
-                      className={`w-10 h-10 rounded-md border-2 transition-all ${
-                        reminderForm.color === "#ec4899"
-                          ? "border-foreground ring-2 ring-offset-2"
-                          : "border-border hover:border-foreground/50"
-                      }`}
-                      style={{ backgroundColor: "#ec4899" }}
-                      title="Pink - Personal/Reminder"
-                    />
+                  <div className="space-y-2 mt-2">
+                    {/* First Row */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === ""
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{
+                          background: reminderForm.assignedUserId
+                            ? "linear-gradient(135deg, #3b82f6 50%, #f97316 50%)"
+                            : "linear-gradient(135deg, #f97316 50%, #3b82f6 50%)",
+                        }}
+                        title="Default (Blue for assigned, Orange for personal)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#ef4444" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#ef4444"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#ef4444" }}
+                        title="Red - Urgent/Important"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#f59e0b" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#f59e0b"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#f59e0b" }}
+                        title="Amber - Warning/Attention"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#10b981" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#10b981"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#10b981" }}
+                        title="Green - Completed/Success"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#8b5cf6" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#8b5cf6"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#8b5cf6" }}
+                        title="Purple - Special/Event"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#ec4899" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#ec4899"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#ec4899" }}
+                        title="Pink - Personal/Reminder"
+                      />
+                    </div>
+                    {/* Second Row */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#3b82f6" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#3b82f6"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#3b82f6" }}
+                        title="Blue - Standard/Info"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#6366f1" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#6366f1"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#6366f1" }}
+                        title="Indigo - Professional"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#14b8a6" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#14b8a6"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#14b8a6" }}
+                        title="Teal - Calm/Neutral"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#eab308" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#eab308"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#eab308" }}
+                        title="Yellow - Highlight/Note"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#f97316" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#f97316"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#f97316" }}
+                        title="Orange - Active/In Progress"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#6b7280" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#6b7280"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#6b7280" }}
+                        title="Gray - Neutral/Low Priority"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReminderForm({ ...reminderForm, color: "#64748b" })}
+                        className={`w-10 h-10 rounded-md border-2 transition-all ${
+                          reminderForm.color === "#64748b"
+                            ? "border-foreground ring-2 ring-offset-2"
+                            : "border-border hover:border-foreground/50"
+                        }`}
+                        style={{ backgroundColor: "#64748b" }}
+                        title="Slate - Muted/Background"
+                      />
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
                     Select a color for this reminder. First option uses default colors.
