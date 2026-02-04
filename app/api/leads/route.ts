@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
             prisma.notification.create({
               data: {
                 userId: admin.id,
-                leadId: lead.id,
+                leadId: (lead.id as unknown) as string,
                 type: NotificationType.CONCIERGE_LEAD,
               },
             })
@@ -444,10 +444,12 @@ export async function GET(request: NextRequest) {
       leadsWithInactivity = await Promise.all(
         leads.map(async (lead) => {
           // Only calculate for assigned leads not in terminal states
+          const leadStatus = (lead.status as unknown) as string
+          const leadAssignedSalesRepId = (lead.assignedSalesRepId as unknown) as string | null
           if (
-            !lead.assignedSalesRepId ||
-            lead.status === "WON" ||
-            lead.status === "LOST"
+            !leadAssignedSalesRepId ||
+            leadStatus === "WON" ||
+            leadStatus === "LOST"
           ) {
             return {
               ...lead,
@@ -459,7 +461,8 @@ export async function GET(request: NextRequest) {
           }
 
           try {
-            const lastActivity = await getLastActivityTimestamp(lead.id);
+            const leadId = (lead.id as unknown) as string
+            const lastActivity = await getLastActivityTimestamp(leadId);
             const hoursSinceActivity = lastActivity
               ? (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60)
               : null;

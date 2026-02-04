@@ -77,9 +77,10 @@ export async function GET(
 
     // SALES_REP can view any lead, but with limited data if not assigned to them
     // CONCIERGE can view all leads with full data
+    const leadAssignedSalesRepId = (lead.assignedSalesRepId as unknown) as string | null
     if (
       session.user.role === "SALES_REP" &&
-      lead.assignedSalesRepId !== session.user.id
+      leadAssignedSalesRepId !== session.user.id
     ) {
       // Return limited lead data for read-only viewing
       // Type assertion: customer is always included as a single object (not an array)
