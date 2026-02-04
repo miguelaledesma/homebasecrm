@@ -225,9 +225,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const includeObj: any = {
+    // Use select instead of include to avoid creditScore column that doesn't exist in database
+    const selectObj: any = {
+      id: true,
+      leadId: true,
+      salesRepId: true,
+      scheduledFor: true,
+      siteAddressLine1: true,
+      siteAddressLine2: true,
+      city: true,
+      state: true,
+      zip: true,
+      status: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
       lead: {
-        include: {
+        select: {
+          id: true,
+          customerNumber: true,
+          customerId: true,
+          leadTypes: true,
+          description: true,
+          status: true,
+          closedDate: true,
+          jobStatus: true,
+          jobScheduledDate: true,
+          jobCompletedDate: true,
+          assignedSalesRepId: true,
+          createdBy: true,
+          createdAt: true,
+          updatedAt: true,
+          // Exclude creditScore - column doesn't exist in database yet
           customer: true, // Always include full customer, we'll filter in response
           assignedSalesRep: {
             select: {
@@ -249,7 +278,7 @@ export async function GET(request: NextRequest) {
 
     const appointments = await prisma.appointment.findMany({
       where,
-      include: includeObj,
+      select: selectObj,
       orderBy: {
         scheduledFor: "asc",
       },
