@@ -97,6 +97,7 @@ type Lead = {
   contractorLicenseNumber: string | null;
   hearAboutUs: string | null;
   hearAboutUsOther: string | null;
+  creditScore: string | null;
   customer: {
     id: string;
     firstName: string;
@@ -2046,6 +2047,17 @@ export default function LeadDetailPage() {
                       {lead.hearAboutUs === "RETURNING_CUSTOMER" && "Returning Customer"}
                       {lead.hearAboutUs === "OTHER" &&
                         (lead.hearAboutUsOther || "Other")}
+                    </p>
+                  </div>
+                )}
+
+                {lead.creditScore && (
+                  <div className="pt-3 border-t">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Credit Score
+                    </p>
+                    <p className="text-sm">
+                      {lead.creditScore}
                     </p>
                   </div>
                 )}

@@ -207,6 +207,7 @@ export async function POST(request: NextRequest) {
       hearAboutUs,
       hearAboutUsOther,
       isMilitaryFirstResponder,
+      creditScore,
       captchaToken,
     } = body;
 
@@ -338,6 +339,8 @@ export async function POST(request: NextRequest) {
           hearAboutUs === "OTHER" && hearAboutUsOther?.trim()
             ? hearAboutUsOther.trim()
             : null,
+        // Credit score (optional - frontend enforces requirement)
+        creditScore: creditScore || null,
         // No createdBy since this is a public submission
         createdBy: null,
       },

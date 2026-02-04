@@ -210,6 +210,9 @@ model Lead {
   hearAboutUs      HearAboutUs?
   hearAboutUsOther String? // Free text when hearAboutUs is OTHER
 
+  // Credit score (collected from public landing page submissions)
+  creditScore      String?
+
   // Relations
   customer         Customer            @relation("CustomerLeads", fields: [customerId], references: [id], onDelete: Cascade)
   assignedSalesRep User?               @relation("AssignedSalesRep", fields: [assignedSalesRepId], references: [id])
