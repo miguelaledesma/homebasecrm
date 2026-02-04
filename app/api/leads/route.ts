@@ -202,7 +202,33 @@ export async function POST(request: NextRequest) {
         // Track who created the lead - using type assertion since Prisma types may be out of sync
         ...({ createdBy: session.user.id } as any),
       },
-      include: {
+      select: {
+        id: true,
+        customerNumber: true,
+        customerId: true,
+        leadTypes: true,
+        description: true,
+        status: true,
+        closedDate: true,
+        jobStatus: true,
+        jobScheduledDate: true,
+        jobCompletedDate: true,
+        assignedSalesRepId: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
+        referrerFirstName: true,
+        referrerLastName: true,
+        referrerPhone: true,
+        referrerEmail: true,
+        referrerCustomerId: true,
+        referrerIsCustomer: true,
+        isMilitaryFirstResponder: true,
+        isContractor: true,
+        contractorLicenseNumber: true,
+        hearAboutUs: true,
+        hearAboutUsOther: true,
+        // Exclude creditScore - column doesn't exist in database yet
         customer: true,
         assignedSalesRep: {
           select: {
@@ -220,7 +246,6 @@ export async function POST(request: NextRequest) {
             email: true,
           },
         },
-        // Include createdByUser relation - using type assertion since Prisma types may be out of sync during build
         createdByUser: {
           select: {
             id: true,
@@ -341,7 +366,34 @@ export async function GET(request: NextRequest) {
     // ADMIN can see all leads, SALES_REP can see all leads (with limited data)
     // No filtering needed for sales reps - they can see all leads in read-only mode
 
-    const includeObj: any = {
+    // Use select instead of include to avoid creditScore column that doesn't exist in database
+    const selectObj: any = {
+      id: true,
+      customerNumber: true,
+      customerId: true,
+      leadTypes: true,
+      description: true,
+      status: true,
+      closedDate: true,
+      jobStatus: true,
+      jobScheduledDate: true,
+      jobCompletedDate: true,
+      assignedSalesRepId: true,
+      createdBy: true,
+      createdAt: true,
+      updatedAt: true,
+      referrerFirstName: true,
+      referrerLastName: true,
+      referrerPhone: true,
+      referrerEmail: true,
+      referrerCustomerId: true,
+      referrerIsCustomer: true,
+      isMilitaryFirstResponder: true,
+      isContractor: true,
+      contractorLicenseNumber: true,
+      hearAboutUs: true,
+      hearAboutUsOther: true,
+      // Exclude creditScore - column doesn't exist in database yet
       customer: true, // Always include full customer, we'll filter in response
       assignedSalesRep: {
         select: {
@@ -359,7 +411,7 @@ export async function GET(request: NextRequest) {
         session.user.role === UserRole.CONCIERGE) &&
         (myLeads || unassigned))
     ) {
-      includeObj.referrerCustomer = {
+      selectObj.referrerCustomer = {
         select: {
           id: true,
           firstName: true,
@@ -372,7 +424,7 @@ export async function GET(request: NextRequest) {
 
     const leads = await prisma.lead.findMany({
       where,
-      include: includeObj,
+      select: selectObj,
       orderBy: {
         createdAt: "desc",
       },

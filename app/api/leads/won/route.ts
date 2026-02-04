@@ -98,7 +98,14 @@ export async function GET(request: NextRequest) {
 
     const leads = await prisma.lead.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        status: true,
+        closedDate: true,
+        createdAt: true,
+        leadTypes: true,
+        jobStatus: true,
+        // Exclude creditScore - column doesn't exist in database yet
         customer: true,
         assignedSalesRep: {
           select: { id: true, name: true, email: true },

@@ -17,7 +17,33 @@ export async function GET(
 
     const lead = await prisma.lead.findUnique({
       where: { id: params.id },
-      include: {
+      select: {
+        id: true,
+        customerNumber: true,
+        customerId: true,
+        leadTypes: true,
+        description: true,
+        status: true,
+        closedDate: true,
+        jobStatus: true,
+        jobScheduledDate: true,
+        jobCompletedDate: true,
+        assignedSalesRepId: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
+        referrerFirstName: true,
+        referrerLastName: true,
+        referrerPhone: true,
+        referrerEmail: true,
+        referrerCustomerId: true,
+        referrerIsCustomer: true,
+        isMilitaryFirstResponder: true,
+        isContractor: true,
+        contractorLicenseNumber: true,
+        hearAboutUs: true,
+        hearAboutUsOther: true,
+        // Exclude creditScore - column doesn't exist in database yet
         customer: true,
         assignedSalesRep: {
           select: {
@@ -35,7 +61,6 @@ export async function GET(
             email: true,
           },
         },
-        // Include createdByUser relation - using type assertion since Prisma types may be out of sync during build
         createdByUser: {
           select: {
             id: true,
