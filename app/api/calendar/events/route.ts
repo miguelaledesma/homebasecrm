@@ -24,9 +24,21 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get("end")
 
     // Default to current month if no dates provided
+    // Use UTC dates to avoid timezone issues
     const now = new Date()
-    const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1)
-    const end = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+    let start: Date
+    let end: Date
+    
+    if (startDate && endDate) {
+      start = new Date(startDate)
+      end = new Date(endDate)
+    } else {
+      // Get current month in UTC
+      const year = now.getUTCFullYear()
+      const month = now.getUTCMonth()
+      start = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0))
+      end = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999))
+    }
 
     // Fetch appointments
     const appointments = await prisma.appointment.findMany({
@@ -36,9 +48,17 @@ export async function GET(request: NextRequest) {
           lte: end,
         },
       },
-      include: {
+      select: {
+        id: true,
+        scheduledFor: true,
+        status: true,
+        siteAddressLine1: true,
+        city: true,
+        notes: true,
+        salesRepId: true,
         lead: {
-          include: {
+          select: {
+            id: true,
             customer: {
               select: {
                 id: true,

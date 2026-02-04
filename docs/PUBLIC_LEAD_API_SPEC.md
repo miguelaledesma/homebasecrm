@@ -48,6 +48,7 @@ All fields should be sent as JSON in the request body.
 | `hearAboutUs` | string | How customer heard about you (see Hear About Us options below) |
 | `hearAboutUsOther` | string | Custom text when `hearAboutUs` is "OTHER" |
 | `isMilitaryFirstResponder` | boolean | Whether customer is military/first responder |
+| `creditScore` | string | Customer's credit score (optional in API, but should be required by frontend) |
 
 ### Lead Types
 
@@ -97,6 +98,7 @@ The `hearAboutUs` field accepts one of the following values:
   "description": "Need landscaping for backyard renovation",
   "hearAboutUs": "FACEBOOK",
   "isMilitaryFirstResponder": false,
+  "creditScore": "750",
   "captchaToken": "03AGdBq25..."
 }
 ```
@@ -338,6 +340,7 @@ curl -X POST https://your-crm-domain.com/api/public/leads \
     "email": "test@example.com",
     "phone": "555-1234",
     "leadTypes": ["LANDSCAPING"],
+    "creditScore": "750",
     "captchaToken": "test-token"
   }'
 ```
