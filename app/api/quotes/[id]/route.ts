@@ -18,9 +18,37 @@ export async function GET(
 
     const quote = await prisma.quote.findUnique({
       where: { id: params.id },
-      include: {
+      select: {
+        id: true,
+        quoteNumber: true,
+        leadId: true,
+        appointmentId: true,
+        salesRepId: true,
+        amount: true,
+        currency: true,
+        sentAt: true,
+        expiresAt: true,
+        status: true,
+        expenses: true,
+        createdAt: true,
+        updatedAt: true,
         lead: {
-          include: {
+          select: {
+            id: true,
+            customerNumber: true,
+            customerId: true,
+            leadTypes: true,
+            description: true,
+            status: true,
+            closedDate: true,
+            jobStatus: true,
+            jobScheduledDate: true,
+            jobCompletedDate: true,
+            assignedSalesRepId: true,
+            createdBy: true,
+            createdAt: true,
+            updatedAt: true,
+            // Exclude creditScore - column doesn't exist in database yet
             customer: true,
           },
         },
@@ -36,7 +64,14 @@ export async function GET(
           where: {
             isProfitLoss: false, // Exclude P&L files from regular files list
           },
-          include: {
+          select: {
+            id: true,
+            quoteId: true,
+            fileUrl: true,
+            fileType: true,
+            isProfitLoss: true,
+            uploadedByUserId: true,
+            uploadedAt: true,
             uploadedBy: {
               select: {
                 id: true,
@@ -217,9 +252,37 @@ export async function PATCH(
         const updatedQuote = await tx.quote.update({
           where: { id: params.id },
           data: updateData,
-          include: {
+          select: {
+            id: true,
+            quoteNumber: true,
+            leadId: true,
+            appointmentId: true,
+            salesRepId: true,
+            amount: true,
+            currency: true,
+            sentAt: true,
+            expiresAt: true,
+            status: true,
+            expenses: true,
+            createdAt: true,
+            updatedAt: true,
             lead: {
-              include: {
+              select: {
+                id: true,
+                customerNumber: true,
+                customerId: true,
+                leadTypes: true,
+                description: true,
+                status: true,
+                closedDate: true,
+                jobStatus: true,
+                jobScheduledDate: true,
+                jobCompletedDate: true,
+                assignedSalesRepId: true,
+                createdBy: true,
+                createdAt: true,
+                updatedAt: true,
+                // Exclude creditScore - column doesn't exist in database yet
                 customer: true,
               },
             },
@@ -232,7 +295,14 @@ export async function PATCH(
               },
             },
             files: {
-              include: {
+              select: {
+                id: true,
+                quoteId: true,
+                fileUrl: true,
+                fileType: true,
+                isProfitLoss: true,
+                uploadedByUserId: true,
+                uploadedAt: true,
                 uploadedBy: {
                   select: {
                     id: true,
@@ -282,9 +352,37 @@ export async function PATCH(
     const quote = await prisma.quote.update({
       where: { id: params.id },
       data: updateData,
-      include: {
+      select: {
+        id: true,
+        quoteNumber: true,
+        leadId: true,
+        appointmentId: true,
+        salesRepId: true,
+        amount: true,
+        currency: true,
+        sentAt: true,
+        expiresAt: true,
+        status: true,
+        expenses: true,
+        createdAt: true,
+        updatedAt: true,
         lead: {
-          include: {
+          select: {
+            id: true,
+            customerNumber: true,
+            customerId: true,
+            leadTypes: true,
+            description: true,
+            status: true,
+            closedDate: true,
+            jobStatus: true,
+            jobScheduledDate: true,
+            jobCompletedDate: true,
+            assignedSalesRepId: true,
+            createdBy: true,
+            createdAt: true,
+            updatedAt: true,
+            // Exclude creditScore - column doesn't exist in database yet
             customer: true,
           },
         },
@@ -297,7 +395,14 @@ export async function PATCH(
           },
         },
         files: {
-          include: {
+          select: {
+            id: true,
+            quoteId: true,
+            fileUrl: true,
+            fileType: true,
+            isProfitLoss: true,
+            uploadedByUserId: true,
+            uploadedAt: true,
             uploadedBy: {
               select: {
                 id: true,
@@ -349,7 +454,11 @@ export async function DELETE(
     // Check if quote exists
     const existingQuote = await prisma.quote.findUnique({
       where: { id: params.id },
-      include: {
+      select: {
+        id: true,
+        leadId: true,
+        amount: true,
+        status: true,
         lead: {
           select: {
             id: true,
