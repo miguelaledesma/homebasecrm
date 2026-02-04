@@ -39,6 +39,11 @@ export async function POST(request: NextRequest) {
     // Verify lead exists
     const lead = await prisma.lead.findUnique({
       where: { id: bodyLeadId },
+      select: {
+        id: true,
+        assignedSalesRepId: true,
+        // Exclude creditScore - column doesn't exist in database yet
+      },
     });
 
     if (!lead) {

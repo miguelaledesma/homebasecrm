@@ -37,6 +37,12 @@ export async function POST(request: NextRequest) {
     // Verify lead exists
     const lead = await prisma.lead.findUnique({
       where: { id: bodyLeadId },
+      select: {
+        id: true,
+        assignedSalesRepId: true,
+        status: true,
+        // Exclude creditScore - column doesn't exist in database yet
+      },
     })
 
     if (!lead) {
@@ -105,9 +111,37 @@ export async function POST(request: NextRequest) {
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         status: (status as QuoteStatus) || "DRAFT",
       },
-      include: {
+      select: {
+        id: true,
+        quoteNumber: true,
+        leadId: true,
+        appointmentId: true,
+        salesRepId: true,
+        amount: true,
+        currency: true,
+        sentAt: true,
+        expiresAt: true,
+        status: true,
+        expenses: true,
+        createdAt: true,
+        updatedAt: true,
         lead: {
-          include: {
+          select: {
+            id: true,
+            customerNumber: true,
+            customerId: true,
+            leadTypes: true,
+            description: true,
+            status: true,
+            closedDate: true,
+            jobStatus: true,
+            jobScheduledDate: true,
+            jobCompletedDate: true,
+            assignedSalesRepId: true,
+            createdBy: true,
+            createdAt: true,
+            updatedAt: true,
+            // Exclude creditScore - column doesn't exist in database yet
             customer: true,
           },
         },

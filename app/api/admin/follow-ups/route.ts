@@ -38,7 +38,10 @@ export async function GET(request: NextRequest) {
 
     const leads = await prisma.lead.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        assignedSalesRepId: true,
+        // Exclude creditScore - column doesn't exist in database yet
         customer: {
           select: {
             id: true,

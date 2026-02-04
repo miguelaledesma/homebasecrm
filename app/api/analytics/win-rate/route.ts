@@ -36,13 +36,23 @@ export async function GET(request: NextRequest) {
     const [wonLeads, lostLeads] = await Promise.all([
       prisma.lead.findMany({
         where: { status: LeadStatus.WON },
-        include: {
+        select: {
+          id: true,
+          closedDate: true,
+          createdAt: true,
+          leadTypes: true,
+          // Exclude creditScore - column doesn't exist in database yet
           quotes: { select: { amount: true } },
         },
       }),
       prisma.lead.findMany({
         where: { status: LeadStatus.LOST },
-        include: {
+        select: {
+          id: true,
+          closedDate: true,
+          createdAt: true,
+          leadTypes: true,
+          // Exclude creditScore - column doesn't exist in database yet
           quotes: { select: { amount: true } },
         },
       }),
