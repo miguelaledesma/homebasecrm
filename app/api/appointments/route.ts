@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         assignedSalesRepId: true,
+        status: true,
         // Exclude creditScore - column doesn't exist in database yet
       },
     });
@@ -90,9 +91,37 @@ export async function POST(request: NextRequest) {
         status: "SCHEDULED",
         notes: notes || null,
       },
-      include: {
+      select: {
+        id: true,
+        leadId: true,
+        salesRepId: true,
+        scheduledFor: true,
+        siteAddressLine1: true,
+        siteAddressLine2: true,
+        city: true,
+        state: true,
+        zip: true,
+        status: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
         lead: {
-          include: {
+          select: {
+            id: true,
+            customerNumber: true,
+            customerId: true,
+            leadTypes: true,
+            description: true,
+            status: true,
+            closedDate: true,
+            jobStatus: true,
+            jobScheduledDate: true,
+            jobCompletedDate: true,
+            assignedSalesRepId: true,
+            createdBy: true,
+            createdAt: true,
+            updatedAt: true,
+            // Exclude creditScore - column doesn't exist in database yet
             customer: true,
           },
         },
