@@ -452,7 +452,7 @@ export async function GET(request: NextRequest) {
       contractorLicenseNumber: true,
       hearAboutUs: true,
       hearAboutUsOther: true,
-      // Exclude creditScore - column doesn't exist in database yet
+      creditScore: true,
       customer: true, // Always include full customer, we'll filter in response
       assignedSalesRep: {
         select: {
