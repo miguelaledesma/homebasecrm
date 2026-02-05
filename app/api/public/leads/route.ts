@@ -339,12 +339,27 @@ export async function POST(request: NextRequest) {
           hearAboutUs === "OTHER" && hearAboutUsOther?.trim()
             ? hearAboutUsOther.trim()
             : null,
-        // Credit score (optional - frontend enforces requirement)
-        creditScore: creditScore || null,
+        // Credit score - column doesn't exist in database yet, so we skip it for now
+        // creditScore: creditScore || null,
         // No createdBy since this is a public submission
         createdBy: null,
       },
-      include: {
+      select: {
+        id: true,
+        customerNumber: true,
+        customerId: true,
+        leadTypes: true,
+        description: true,
+        status: true,
+        closedDate: true,
+        jobStatus: true,
+        jobScheduledDate: true,
+        jobCompletedDate: true,
+        assignedSalesRepId: true,
+        createdBy: true,
+        createdAt: true,
+        updatedAt: true,
+        // Exclude creditScore - column doesn't exist in database yet
         customer: true,
       },
     });
