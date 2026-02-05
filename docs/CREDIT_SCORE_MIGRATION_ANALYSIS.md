@@ -2,19 +2,20 @@
 
 ## Why This Issue Happened
 
-### Root Cause
-1. **Schema-Database Mismatch**: The Prisma schema (`schema.prisma`) defined `creditScore String?` in the Lead model, but the actual PostgreSQL database did NOT have this column.
+### Root Cause (Simple Explanation)
 
-2. **Prisma `include` Behavior**: When using `include` in Prisma queries, Prisma automatically tries to fetch ALL fields defined in the schema for that model, including `creditScore`.
+Think of it like this: We had a blueprint (schema) that said "this building should have a credit score room," but the actual building (database) didn't have that room built yet.
 
-3. **SQL Generation**: Prisma generated SQL like:
-   ```sql
-   SELECT leads.id, leads.customerNumber, ..., leads.creditScore, ...
-   FROM leads
-   ```
-   But the `creditScore` column didn't exist, causing: `The column leads.creditScore does not exist in the current database`
+**What Happened:**
+1. **The Blueprint vs. The Building**: Our code blueprint said we wanted to store credit scores, but the actual database table didn't have a column for it yet.
 
-4. **Why `select` Works**: Using explicit `select` allows us to specify exactly which fields to fetch, avoiding non-existent columns.
+2. **Automatic Fetching**: When our code tried to get lead information using a method called `include`, it automatically tried to grab ALL the information listed in the blueprint - including the credit score that didn't exist in the database yet.
+
+3. **The Error**: It's like asking someone to bring you something from a room that doesn't exist - the database said "I don't have that column!" and threw an error.
+
+4. **The Fix**: We changed our code to explicitly list only the information we want to fetch (using `select`), which lets us skip the credit score field until the database column is actually created.
+
+**In Simple Terms**: We were trying to use something before it was built. Now we've built it (migration), and we're being more careful about what we ask for (using `select`).
 
 ## The Fix
 
