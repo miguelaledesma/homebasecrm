@@ -360,24 +360,24 @@ export async function POST(request: NextRequest) {
         lead = await prisma.lead.create({
           data: {
             customerNumber,
-        customerId: customer.id,
-        leadTypes: leadTypes as LeadType[],
-        description: description || null,
-        status: LeadStatus.NEW,
-        assignedSalesRepId: null, // Unassigned - admins will assign
-        // Customer classification
-        isMilitaryFirstResponder: isMilitaryFirstResponder || false,
-        // Marketing attribution
-        hearAboutUs: hearAboutUs || null,
-        hearAboutUsOther:
-          hearAboutUs === "OTHER" && hearAboutUsOther?.trim()
-            ? hearAboutUsOther.trim()
-            : null,
-        // Credit score - column doesn't exist in database yet, so we skip it for now
-        // creditScore: creditScore || null,
-        // No createdBy since this is a public submission
-        createdBy: null,
-      },
+            customerId: customer.id,
+            leadTypes: leadTypes as LeadType[],
+            description: description || null,
+            status: LeadStatus.NEW,
+            assignedSalesRepId: null, // Unassigned - admins will assign
+            // Customer classification
+            isMilitaryFirstResponder: isMilitaryFirstResponder || false,
+            // Marketing attribution
+            hearAboutUs: hearAboutUs || null,
+            hearAboutUsOther:
+              hearAboutUs === "OTHER" && hearAboutUsOther?.trim()
+                ? hearAboutUsOther.trim()
+                : null,
+            // Credit score - column doesn't exist in database yet, so we skip it for now
+            // creditScore: creditScore || null,
+            // No createdBy since this is a public submission
+            createdBy: null,
+          },
       select: {
         id: true,
         customerNumber: true,

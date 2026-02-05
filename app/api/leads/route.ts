@@ -205,36 +205,36 @@ export async function POST(request: NextRequest) {
         lead = await prisma.lead.create({
           data: {
             customerNumber,
-        customerId: customer.id,
-        leadTypes: leadTypes as LeadType[],
-        description: description || null,
-        status: initialStatus,
-        assignedSalesRepId: assignedSalesRepId, // Auto-assign to creator
-        // Referral fields
-        referrerFirstName:
-          sourceType === "REFERRAL" ? referrerFirstName || null : null,
-        referrerLastName:
-          sourceType === "REFERRAL" ? referrerLastName || null : null,
-        referrerPhone: sourceType === "REFERRAL" ? referrerPhone || null : null,
-        referrerEmail: sourceType === "REFERRAL" ? referrerEmail || null : null,
-        referrerCustomerId: referrerCustomerId,
-        referrerIsCustomer: referrerIsCustomer,
-        // Customer classification
-        isMilitaryFirstResponder: isMilitaryFirstResponder || false,
-        isContractor: isContractor || false,
-        contractorLicenseNumber:
-          isContractor && contractorLicenseNumber?.trim()
-            ? contractorLicenseNumber.trim()
-            : null,
-        // Marketing attribution
-        hearAboutUs: hearAboutUs || null,
-        hearAboutUsOther:
-          hearAboutUs === "OTHER" && hearAboutUsOther?.trim()
-            ? hearAboutUsOther.trim()
-            : null,
-        // Track who created the lead - using type assertion since Prisma types may be out of sync
-        ...({ createdBy: session.user.id } as any),
-      },
+            customerId: customer.id,
+            leadTypes: leadTypes as LeadType[],
+            description: description || null,
+            status: initialStatus,
+            assignedSalesRepId: assignedSalesRepId, // Auto-assign to creator
+            // Referral fields
+            referrerFirstName:
+              sourceType === "REFERRAL" ? referrerFirstName || null : null,
+            referrerLastName:
+              sourceType === "REFERRAL" ? referrerLastName || null : null,
+            referrerPhone: sourceType === "REFERRAL" ? referrerPhone || null : null,
+            referrerEmail: sourceType === "REFERRAL" ? referrerEmail || null : null,
+            referrerCustomerId: referrerCustomerId,
+            referrerIsCustomer: referrerIsCustomer,
+            // Customer classification
+            isMilitaryFirstResponder: isMilitaryFirstResponder || false,
+            isContractor: isContractor || false,
+            contractorLicenseNumber:
+              isContractor && contractorLicenseNumber?.trim()
+                ? contractorLicenseNumber.trim()
+                : null,
+            // Marketing attribution
+            hearAboutUs: hearAboutUs || null,
+            hearAboutUsOther:
+              hearAboutUs === "OTHER" && hearAboutUsOther?.trim()
+                ? hearAboutUsOther.trim()
+                : null,
+            // Track who created the lead - using type assertion since Prisma types may be out of sync
+            ...({ createdBy: session.user.id } as any),
+          },
       select: {
         id: true,
         customerNumber: true,
