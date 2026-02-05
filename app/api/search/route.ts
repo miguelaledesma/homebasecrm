@@ -97,7 +97,17 @@ export async function GET(request: NextRequest) {
       where: {
         OR: searchConditions,
       },
-      include: {
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        email: true,
+        addressLine1: true,
+        city: true,
+        state: true,
+        zip: true,
+        createdAt: true,
         leads: {
           orderBy: {
             createdAt: "desc",
@@ -109,6 +119,7 @@ export async function GET(request: NextRequest) {
             status: true,
             leadTypes: true,
             createdAt: true,
+            // Exclude creditScore - column doesn't exist in database yet
           },
         },
       },

@@ -163,15 +163,48 @@ export async function POST(request: NextRequest) {
     // Set status to ASSIGNED if auto-assigned, otherwise NEW
     const initialStatus: LeadStatus = assignedSalesRepId ? "ASSIGNED" : "NEW";
 
-    // Generate customer number: 105-XXXXXX (using timestamp + random to ensure uniqueness)
-    // Get the count of existing leads for sequential numbering
-    const leadCount = await prisma.lead.count();
-    const customerNumber = `105-${String(leadCount + 1).padStart(6, '0')}`;
+    // Generate customer number: 105-XXXXXX
+    // Find the highest existing customer number to ensure sequential numbering
+    // and avoid race conditions
+    const generateCustomerNumber = async (): Promise<string> => {
+      // Find the lead with the highest customer number
+      const leadWithHighestNumber = await prisma.lead.findFirst({
+        where: {
+          customerNumber: { not: null },
+        },
+        orderBy: {
+          customerNumber: "desc",
+        },
+        select: {
+          customerNumber: true,
+        },
+      });
 
-    // Create lead
-    const lead = await prisma.lead.create({
-      data: {
-        customerNumber,
+      let nextNumber = 1;
+      if (leadWithHighestNumber?.customerNumber) {
+        // Extract the numeric part from the customer number (e.g., "105-000123" -> 123)
+        const match = leadWithHighestNumber.customerNumber.match(/105-(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1], 10) + 1;
+        }
+      }
+
+      return `105-${String(nextNumber).padStart(6, "0")}`;
+    };
+
+    // Retry logic to handle race conditions
+    let lead;
+    let retries = 0;
+    const maxRetries = 5;
+    
+    while (retries < maxRetries) {
+      try {
+        const customerNumber = await generateCustomerNumber();
+        
+        // Create lead
+        lead = await prisma.lead.create({
+          data: {
+            customerNumber,
         customerId: customer.id,
         leadTypes: leadTypes as LeadType[],
         description: description || null,
@@ -254,7 +287,33 @@ export async function POST(request: NextRequest) {
           },
         },
       } as any,
-    });
+        });
+        
+        // Successfully created, break out of retry loop
+        break;
+      } catch (error: any) {
+        // Check if it's a unique constraint violation on customerNumber
+        if (
+          error.code === "P2002" &&
+          error.meta?.target?.includes("customerNumber") &&
+          retries < maxRetries - 1
+        ) {
+          // Race condition detected, retry with a new number
+          retries++;
+          // Small random delay to reduce collision probability
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.random() * 100)
+          );
+          continue;
+        }
+        // Re-throw if it's not a unique constraint error or we've exhausted retries
+        throw error;
+      }
+    }
+    
+    if (!lead) {
+      throw new Error("Failed to create lead after retries");
+    }
 
     logAction("Lead created", session.user.id, session.user.role, {
       leadId: lead.id,

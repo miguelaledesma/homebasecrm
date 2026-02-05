@@ -229,12 +229,26 @@ export async function GET(request: NextRequest) {
 
     const quotes = await prisma.quote.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        quoteNumber: true,
+        leadId: true,
+        appointmentId: true,
+        salesRepId: true,
+        amount: true,
+        currency: true,
+        sentAt: true,
+        expiresAt: true,
+        status: true,
+        expenses: true,
+        createdAt: true,
+        updatedAt: true,
         lead: {
           select: {
             id: true,
             leadTypes: true,
             jobStatus: true,
+            // Exclude creditScore - column doesn't exist in database yet
             customer: {
               select: {
                 id: true,
@@ -256,7 +270,14 @@ export async function GET(request: NextRequest) {
           where: {
             isProfitLoss: false, // Exclude P&L files from regular files list
           },
-          include: {
+          select: {
+            id: true,
+            quoteId: true,
+            fileUrl: true,
+            fileType: true,
+            isProfitLoss: true,
+            uploadedByUserId: true,
+            uploadedAt: true,
             uploadedBy: {
               select: {
                 id: true,

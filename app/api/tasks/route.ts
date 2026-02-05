@@ -38,9 +38,32 @@ export async function GET(request: NextRequest) {
 
     const tasks = await prisma.task.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        type: true,
+        status: true,
+        leadId: true,
+        createdAt: true,
+        acknowledgedAt: true,
+        resolvedAt: true,
         lead: {
-          include: {
+          select: {
+            id: true,
+            customerNumber: true,
+            customerId: true,
+            leadTypes: true,
+            description: true,
+            status: true,
+            closedDate: true,
+            jobStatus: true,
+            jobScheduledDate: true,
+            jobCompletedDate: true,
+            assignedSalesRepId: true,
+            createdBy: true,
+            createdAt: true,
+            updatedAt: true,
+            // Exclude creditScore - column doesn't exist in database yet
             customer: {
               select: {
                 id: true,
