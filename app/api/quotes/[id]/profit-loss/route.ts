@@ -29,7 +29,7 @@ export async function POST(
           select: {
             id: true,
             jobStatus: true,
-            // Exclude creditScore - column doesn't exist in database yet
+            creditScore: true,
           },
         },
       },

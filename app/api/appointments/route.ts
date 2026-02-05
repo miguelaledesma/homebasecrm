@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         id: true,
         assignedSalesRepId: true,
         status: true,
-        // Exclude creditScore - column doesn't exist in database yet
+        creditScore: true,
       },
     });
 
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
             createdBy: true,
             createdAt: true,
             updatedAt: true,
-            // Exclude creditScore - column doesn't exist in database yet
+            creditScore: true,
             customer: true,
           },
         },
@@ -225,7 +225,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Use select instead of include to avoid creditScore column that doesn't exist in database
+    // Use select for explicit field control
     const selectObj: any = {
       id: true,
       leadId: true,
@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
           createdBy: true,
           createdAt: true,
           updatedAt: true,
-          // Exclude creditScore - column doesn't exist in database yet
+          creditScore: true,
           customer: true, // Always include full customer, we'll filter in response
           assignedSalesRep: {
             select: {

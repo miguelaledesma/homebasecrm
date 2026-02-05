@@ -367,16 +367,16 @@ export async function POST(request: NextRequest) {
             assignedSalesRepId: null, // Unassigned - admins will assign
             // Customer classification
             isMilitaryFirstResponder: isMilitaryFirstResponder || false,
-            // Marketing attribution
-            hearAboutUs: hearAboutUs || null,
-            hearAboutUsOther:
-              hearAboutUs === "OTHER" && hearAboutUsOther?.trim()
-                ? hearAboutUsOther.trim()
-                : null,
-            // Credit score - column doesn't exist in database yet, so we skip it for now
-            // creditScore: creditScore || null,
-            // No createdBy since this is a public submission
-            createdBy: null,
+        // Marketing attribution
+        hearAboutUs: hearAboutUs || null,
+        hearAboutUsOther:
+          hearAboutUs === "OTHER" && hearAboutUsOther?.trim()
+            ? hearAboutUsOther.trim()
+            : null,
+        // Credit score (collected from public landing page submissions)
+        creditScore: creditScore || null,
+        // No createdBy since this is a public submission
+        createdBy: null,
           },
       select: {
         id: true,
@@ -393,7 +393,7 @@ export async function POST(request: NextRequest) {
         createdBy: true,
         createdAt: true,
         updatedAt: true,
-        // Exclude creditScore - column doesn't exist in database yet
+        creditScore: true,
         customer: true,
       },
         });

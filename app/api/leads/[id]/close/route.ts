@@ -131,7 +131,7 @@ export async function PATCH(
           contractorLicenseNumber: true,
           hearAboutUs: true,
           hearAboutUsOther: true,
-          // Exclude creditScore - column doesn't exist in database yet
+          creditScore: true,
           customer: true,
           assignedSalesRep: {
             select: { id: true, name: true, email: true },

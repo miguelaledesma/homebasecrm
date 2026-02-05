@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
             status: true,
             leadTypes: true,
             createdAt: true,
-            // Exclude creditScore - column doesn't exist in database yet
+            creditScore: true,
           },
         },
       },

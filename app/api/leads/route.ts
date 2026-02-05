@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
         contractorLicenseNumber: true,
         hearAboutUs: true,
         hearAboutUsOther: true,
-        // Exclude creditScore - column doesn't exist in database yet
+        creditScore: true,
         customer: true,
         assignedSalesRep: {
           select: {
@@ -425,7 +425,7 @@ export async function GET(request: NextRequest) {
     // ADMIN can see all leads, SALES_REP can see all leads (with limited data)
     // No filtering needed for sales reps - they can see all leads in read-only mode
 
-    // Use select instead of include to avoid creditScore column that doesn't exist in database
+    // Use select for explicit field control
     const selectObj: any = {
       id: true,
       customerNumber: true,

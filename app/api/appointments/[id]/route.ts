@@ -47,7 +47,7 @@ export async function GET(
             createdBy: true,
             createdAt: true,
             updatedAt: true,
-            // Exclude creditScore - column doesn't exist in database yet
+            creditScore: true,
             customer: true,
             assignedSalesRep: {
               select: {
@@ -212,7 +212,7 @@ export async function PATCH(
             createdBy: true,
             createdAt: true,
             updatedAt: true,
-            // Exclude creditScore - column doesn't exist in database yet
+            creditScore: true,
             customer: true,
           },
         },

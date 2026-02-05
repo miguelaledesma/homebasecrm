@@ -67,7 +67,7 @@ export async function POST(
             createdBy: true,
             createdAt: true,
             updatedAt: true,
-            // Exclude creditScore - column doesn't exist in database yet
+            creditScore: true,
             customer: true,
           },
         },

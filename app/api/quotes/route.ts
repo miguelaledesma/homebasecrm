@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
         id: true,
         assignedSalesRepId: true,
         status: true,
-        // Exclude creditScore - column doesn't exist in database yet
       },
     })
 
@@ -141,7 +140,7 @@ export async function POST(request: NextRequest) {
             createdBy: true,
             createdAt: true,
             updatedAt: true,
-            // Exclude creditScore - column doesn't exist in database yet
+            creditScore: true,
             customer: true,
           },
         },
@@ -248,7 +247,7 @@ export async function GET(request: NextRequest) {
             id: true,
             leadTypes: true,
             jobStatus: true,
-            // Exclude creditScore - column doesn't exist in database yet
+            creditScore: true,
             customer: {
               select: {
                 id: true,

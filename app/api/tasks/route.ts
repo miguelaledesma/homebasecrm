@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
             createdBy: true,
             createdAt: true,
             updatedAt: true,
-            // Exclude creditScore - column doesn't exist in database yet
+            creditScore: true,
             customer: {
               select: {
                 id: true,

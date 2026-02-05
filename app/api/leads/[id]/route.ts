@@ -43,7 +43,7 @@ export async function GET(
         contractorLicenseNumber: true,
         hearAboutUs: true,
         hearAboutUsOther: true,
-        // Exclude creditScore - column doesn't exist in database yet
+        creditScore: true,
         customer: true,
         assignedSalesRep: {
           select: {

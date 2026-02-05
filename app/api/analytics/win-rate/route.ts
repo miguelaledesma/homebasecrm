@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
           closedDate: true,
           createdAt: true,
           leadTypes: true,
-          // Exclude creditScore - column doesn't exist in database yet
+          creditScore: true,
           quotes: { select: { amount: true } },
         },
       }),
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
           closedDate: true,
           createdAt: true,
           leadTypes: true,
-          // Exclude creditScore - column doesn't exist in database yet
+          creditScore: true,
           quotes: { select: { amount: true } },
         },
       }),
