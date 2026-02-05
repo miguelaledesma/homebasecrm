@@ -37,9 +37,37 @@ export async function POST(
         sentAt: new Date(),
         status: "SENT",
       },
-      include: {
+      select: {
+        id: true,
+        quoteNumber: true,
+        leadId: true,
+        appointmentId: true,
+        salesRepId: true,
+        amount: true,
+        currency: true,
+        sentAt: true,
+        expiresAt: true,
+        status: true,
+        expenses: true,
+        createdAt: true,
+        updatedAt: true,
         lead: {
-          include: {
+          select: {
+            id: true,
+            customerNumber: true,
+            customerId: true,
+            leadTypes: true,
+            description: true,
+            status: true,
+            closedDate: true,
+            jobStatus: true,
+            jobScheduledDate: true,
+            jobCompletedDate: true,
+            assignedSalesRepId: true,
+            createdBy: true,
+            createdAt: true,
+            updatedAt: true,
+            // Exclude creditScore - column doesn't exist in database yet
             customer: true,
           },
         },
@@ -51,7 +79,17 @@ export async function POST(
             email: true,
           },
         },
-        files: true,
+        files: {
+          select: {
+            id: true,
+            quoteId: true,
+            fileUrl: true,
+            fileType: true,
+            isProfitLoss: true,
+            uploadedByUserId: true,
+            uploadedAt: true,
+          },
+        },
       },
     })
 

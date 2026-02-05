@@ -22,10 +22,14 @@ export async function POST(
     // Check if quote exists
     const quote = await prisma.quote.findUnique({
       where: { id: params.id },
-      include: {
+      select: {
+        id: true,
+        status: true,
         lead: {
           select: {
+            id: true,
             jobStatus: true,
+            // Exclude creditScore - column doesn't exist in database yet
           },
         },
       },
