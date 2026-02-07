@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { Logo } from "@/components/logo"
 import { NotificationsList } from "@/components/notifications-list"
 import { GlobalSearch } from "@/components/global-search"
-import { MessagesPanel } from "@/components/messages-panel"
 import {
   LayoutDashboard,
   Users,
@@ -42,6 +41,7 @@ const navigation: Array<{
   { name: "Calendar", href: "/calendar", icon: Calendar, adminOnly: true, beta: true },
   { name: "Quotes", href: "/quotes", icon: FileText },
   { name: "Tasks", href: "/tasks", icon: CheckSquare },
+  { name: "Messages", href: "/messages", icon: MessageSquare },
   { name: "Jobs", href: "/jobs", icon: Briefcase, adminOnly: true },
   { name: "Crews", href: "/crews", icon: UserCog, adminOnly: true },
   { name: "Won & Lost", href: "/won-lost", icon: TrendingUp },
@@ -81,9 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [messagesOpen, setMessagesOpen] = useState(false)
   const notificationsRef = useRef<HTMLDivElement>(null)
-  const messagesRef = useRef<HTMLDivElement>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [unacknowledgedCount, setUnacknowledgedCount] = useState(0)
@@ -199,26 +197,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [notificationsOpen])
 
-  // Close messages panel when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        messagesRef.current &&
-        !messagesRef.current.contains(event.target as Node)
-      ) {
-        setMessagesOpen(false)
-      }
-    }
-
-    if (messagesOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [messagesOpen])
-
   // Filter navigation based on user role:
   // - Admin, Jobs, and Won & Lost only for ADMIN
   // - CONCIERGE should not see Admin, Jobs, Won & Lost
@@ -258,33 +236,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <Search className="h-5 w-5" />
                 </Button>
-                {/* Messages Button */}
-                <div className="relative hidden md:block" ref={messagesRef}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setMessagesOpen(!messagesOpen)
-                      setNotificationsOpen(false) // Close notifications if open
-                    }}
-                    className="relative"
-                    title="Messages"
-                  >
-                    <MessageSquare className="h-5 w-5" />
-                  </Button>
-                  {messagesOpen && (
-                    <MessagesPanel onClose={() => setMessagesOpen(false)} />
-                  )}
-                </div>
                 {/* Notifications Button */}
                 <div className="relative hidden md:block" ref={notificationsRef}>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      setNotificationsOpen(!notificationsOpen)
-                      setMessagesOpen(false) // Close messages if open
-                    }}
+                    onClick={() => setNotificationsOpen(!notificationsOpen)}
                     className="relative"
                     title="Notifications"
                   >
