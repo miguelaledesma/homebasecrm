@@ -88,6 +88,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [pastDueAppointmentsCount, setPastDueAppointmentsCount] = useState(0)
   const [loadingNotifications, setLoadingNotifications] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
+
+  // Fetch unread messages count
+  const fetchUnreadMessages = useCallback(async () => {
+    if (!session?.user) return
+
+    try {
+      const response = await fetch("/api/messages")
+      if (response.ok) {
+        const data = await response.json()
+        const total = (data.conversations || []).reduce(
+          (sum: number, c: { unreadCount: number }) => sum + c.unreadCount,
+          0
+        )
+        setUnreadMessagesCount(total)
+      }
+    } catch (error) {
+      console.error("Error fetching unread messages:", error)
+    }
+  }, [session?.user])
 
   // Fetch notifications and past-due appointments count
   const fetchNotifications = useCallback(async () => {
@@ -150,6 +170,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
   }, [session?.user, notificationsOpen, fetchNotifications])
+
+  // Poll for unread messages count
+  useEffect(() => {
+    if (!session?.user) return
+
+    fetchUnreadMessages()
+    const interval = setInterval(fetchUnreadMessages, 30000)
+
+    return () => clearInterval(interval)
+  }, [session?.user, fetchUnreadMessages])
 
   // Handle acknowledge notification
   const handleAcknowledge = async (id: string) => {
@@ -392,7 +422,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       }`}
                     >
                       <Icon className="h-5 w-5" />
-                      <span className="flex items-center gap-2">
+                      <span className="flex-1 flex items-center gap-2">
                         {item.href === "/quotes" && session?.user?.role === "ADMIN"
                           ? "Financials & Quotes"
                           : item.name}
@@ -402,6 +432,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           </Badge>
                         )}
                       </span>
+                      {item.href === "/messages" && unreadMessagesCount > 0 && (
+                        <span className="ml-auto h-5 min-w-[20px] rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center px-1.5">
+                          {unreadMessagesCount > 9 ? "9+" : unreadMessagesCount}
+                        </span>
+                      )}
                     </Link>
                   )
                 })}
@@ -427,7 +462,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   }`}
                 >
                   <Icon className="h-5 w-5" />
-                  <span className="flex items-center gap-2">
+                  <span className="flex-1 flex items-center gap-2">
                     {item.href === "/quotes" && session?.user?.role === "ADMIN"
                       ? "Financials & Quotes"
                       : item.name}
@@ -437,6 +472,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       </Badge>
                     )}
                   </span>
+                  {item.href === "/messages" && unreadMessagesCount > 0 && (
+                    <span className="ml-auto h-5 min-w-[20px] rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center px-1.5">
+                      {unreadMessagesCount > 9 ? "9+" : unreadMessagesCount}
+                    </span>
+                  )}
                 </Link>
               )
             })}

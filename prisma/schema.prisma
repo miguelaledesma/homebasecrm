@@ -96,28 +96,36 @@ enum TaskStatus {
   RESOLVED
 }
 
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
 model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String   @unique
-  password  String? // Hashed password (nullable for existing users, required for new invites)
-  role      UserRole @default(SALES_REP)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String?
+  email              String   @unique
+  password           String? // Hashed password (nullable for existing users, required for new invites)
+  role               UserRole @default(SALES_REP)
+  emailNotifications Boolean  @default(true) // Toggle for email notifications
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   // Relations
-  assignedLeads             Lead[]               @relation("AssignedSalesRep")
-  createdLeads              Lead[]               @relation("LeadCreator")
+  assignedLeads             Lead[]                    @relation("AssignedSalesRep")
+  createdLeads              Lead[]                    @relation("LeadCreator")
   appointments              Appointment[]
   quotes                    Quote[]
   uploadedQuoteFiles        QuoteFile[]
-  leadNotes                 LeadNote[]           @relation("LeadNoteCreator")
+  leadNotes                 LeadNote[]                @relation("LeadNoteCreator")
   notifications             Notification[]
   tasks                     Task[]
   passwordResetTokens       PasswordResetToken[]
   crewMemberships           CrewMember[]
-  calendarReminders         CalendarReminder[]   @relation("CalendarReminderCreator")
-  assignedCalendarReminders CalendarReminder[]   @relation("CalendarReminderAssignee")
+  calendarReminders         CalendarReminder[]        @relation("CalendarReminderCreator")
+  assignedCalendarReminders CalendarReminder[]        @relation("CalendarReminderAssignee")
+  conversationParticipants  ConversationParticipant[]
+  sentMessages              Message[]                  @relation("MessageSender")
 
   @@map("users")
 }
@@ -441,4 +449,50 @@ model CalendarReminder {
   @@index([assignedUserId])
   @@index([scheduledFor])
   @@map("calendar_reminders")
+}
+
+model Conversation {
+  id           String             @id @default(cuid())
+  name         String?            // For group conversations
+  type         ConversationType   @default(DIRECT)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  // Relations
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime     @default(now())
+  lastReadAt     DateTime?    // For read receipts
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  createdAt      DateTime     @default(now())
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
 }
