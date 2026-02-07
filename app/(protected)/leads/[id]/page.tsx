@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { JobCompletionBadge } from "@/components/job-completion-badge";
 import {
   formatLeadTypes,
   formatLeadType,
@@ -165,6 +166,7 @@ type Quote = {
   expiresAt: string | null;
   createdAt: string;
   appointmentId: string | null;
+  hasProfitLossFile?: boolean;
   files: Array<{
     id: string;
     fileUrl: string;
@@ -1840,9 +1842,14 @@ export default function LeadDetailPage() {
                         <p className="text-sm font-medium text-muted-foreground">
                           Job Status
                         </p>
-                        <p>
-                          {jobStatus ? jobStatus.replace("_", " ") : "Not set"}
-                        </p>
+                        <div className="mt-1">
+                          <JobCompletionBadge
+                            jobStatus={jobStatus}
+                            hasProfitLossFile={quotes.some(
+                              (q) => q.status === "ACCEPTED" && q.hasProfitLossFile
+                            )}
+                          />
+                        </div>
                       </div>
                     )}
                   </>

@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { JobCompletionBadge } from "@/components/job-completion-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Filter, Briefcase, UserCog, Plus, X } from "lucide-react";
@@ -75,6 +76,7 @@ type Lead = {
       name: string;
     };
   }>;
+  hasProfitLossFile?: boolean;
 };
 
 type Crew = {
@@ -311,20 +313,6 @@ export default function JobsPage() {
     }
   };
 
-  const getJobStatusColor = (status: JobStatus | null) => {
-    if (!status) return "bg-gray-100 text-gray-800";
-    switch (status) {
-      case "SCHEDULED":
-        return "bg-blue-100 text-blue-800";
-      case "IN_PROGRESS":
-        return "bg-yellow-100 text-yellow-800";
-      case "DONE":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   const formatAddress = useCallback((customer: Lead["customer"]) => {
     const parts = [];
     if (customer.addressLine1) parts.push(customer.addressLine1);
@@ -446,29 +434,27 @@ export default function JobsPage() {
           { text: "Scheduled", value: "SCHEDULED" },
           { text: "In Progress", value: "IN_PROGRESS" },
           { text: "Done", value: "DONE" },
+          { text: "Fully Complete", value: "fully_complete" },
+          { text: "Needs Financials", value: "needs_financials" },
         ],
         onFilter: (value: any, record: Lead) => {
           if (value === "not_set") {
             return record.jobStatus === null;
           }
+          if (value === "fully_complete") {
+            return record.jobStatus === "DONE" && record.hasProfitLossFile === true;
+          }
+          if (value === "needs_financials") {
+            return record.jobStatus === "DONE" && record.hasProfitLossFile !== true;
+          }
           return record.jobStatus === value;
         },
-        render: (status: JobStatus | null) => {
-          if (!status) {
-            return (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-                Not Set
-              </span>
-            );
-          }
+        render: (_: any, record: Lead) => {
           return (
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getJobStatusColor(
-                status
-              )}`}
-            >
-              {status.replace("_", " ")}
-            </span>
+            <JobCompletionBadge
+              jobStatus={record.jobStatus}
+              hasProfitLossFile={record.hasProfitLossFile}
+            />
           );
         },
       },

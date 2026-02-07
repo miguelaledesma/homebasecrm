@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { JobCompletionBadge } from "@/components/job-completion-badge"
 import {
   DollarSign,
   FileText,
@@ -17,7 +18,6 @@ import {
   ChevronRight,
   Filter,
   Loader2,
-  AlertTriangle,
 } from "lucide-react"
 import { QuoteStatus } from "@prisma/client"
 import { formatLeadTypes } from "@/lib/utils"
@@ -250,15 +250,14 @@ export default function QuotesPage() {
                               >
                                 {quote.status}
                               </Badge>
-                              {/* Show Needs Financials badge for ACCEPTED quotes with DONE job status but no P&L file */}
+                              {/* Show job completion badge for ACCEPTED quotes with job status */}
                               {quote.status === "ACCEPTED" &&
-                                quote.lead.jobStatus === "DONE" &&
-                                !quote.hasProfitLossFile &&
+                                quote.lead.jobStatus &&
                                 session?.user.role === "ADMIN" && (
-                                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700">
-                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                    Needs Financials
-                                  </Badge>
+                                  <JobCompletionBadge
+                                    jobStatus={quote.lead.jobStatus as any}
+                                    hasProfitLossFile={quote.hasProfitLossFile}
+                                  />
                                 )}
                             </div>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">

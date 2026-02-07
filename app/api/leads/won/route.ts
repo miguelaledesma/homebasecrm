@@ -111,7 +111,18 @@ export async function GET(request: NextRequest) {
           select: { id: true, name: true, email: true },
         },
         quotes: {
-          select: { amount: true, status: true },
+          select: {
+            amount: true,
+            status: true,
+            files: {
+              where: {
+                isProfitLoss: true,
+              },
+              select: {
+                id: true,
+              },
+            },
+          },
         },
       },
       orderBy: {
@@ -123,6 +134,10 @@ export async function GET(request: NextRequest) {
       const dealValue = getDealValue(lead.quotes || [])
       const closedDate = lead.closedDate
       const daysToClose = getDaysToClose(lead.createdAt, closedDate)
+      // Check if any accepted quote has a P&L file
+      const hasProfitLossFile = (lead.quotes || []).some(
+        (q) => q.status === QuoteStatus.ACCEPTED && q.files && q.files.length > 0
+      )
 
       return {
         id: lead.id,
@@ -146,6 +161,7 @@ export async function GET(request: NextRequest) {
         assignedSalesRep: lead.assignedSalesRep,
         dealValue,
         jobStatus: lead.jobStatus,
+        hasProfitLossFile,
       }
     })
 

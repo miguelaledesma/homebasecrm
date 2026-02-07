@@ -5,11 +5,13 @@ import Link from "next/link"
 import { Search, ArrowRight, ChevronLeft, ChevronRight, Clock3 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { JobCompletionBadge } from "@/components/job-completion-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatLeadType, formatPhoneNumber } from "@/lib/utils"
+import { JobStatus } from "@prisma/client"
 
 type LeadTypeValue =
   | "FLOOR"
@@ -51,6 +53,7 @@ type ClosedLead = {
   dealValue: number
   lossReason?: string | null
   jobStatus?: string | null
+  hasProfitLossFile?: boolean
 }
 
 const formatCurrency = (value: number) =>
@@ -249,27 +252,13 @@ export function WonLostContent() {
               <p className="text-xs text-muted-foreground">Lead Source</p>
               <p className="font-medium">{lead.customer.sourceType.replace("_", " ")}</p>
             </div>
-            {lead.status === "WON" && lead.jobStatus && (
+            {lead.status === "WON" && (
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Job Status</p>
-                <Badge
-                  variant={
-                    lead.jobStatus === "DONE"
-                      ? "default"
-                      : lead.jobStatus === "IN_PROGRESS"
-                      ? "secondary"
-                      : "outline"
-                  }
-                  className={
-                    lead.jobStatus === "DONE"
-                      ? "bg-green-100 text-green-700 border-green-200"
-                      : lead.jobStatus === "IN_PROGRESS"
-                      ? "bg-blue-100 text-blue-700 border-blue-200"
-                      : ""
-                  }
-                >
-                  {lead.jobStatus.replace("_", " ")}
-                </Badge>
+                <JobCompletionBadge
+                  jobStatus={lead.jobStatus as JobStatus | null}
+                  hasProfitLossFile={lead.hasProfitLossFile}
+                />
               </div>
             )}
             {lead.lossReason && (

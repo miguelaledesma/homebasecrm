@@ -56,10 +56,21 @@ export async function GET(request: NextRequest) {
           },
         },
         quotes: {
+          where: {
+            status: "ACCEPTED", // Only check accepted quotes for P&L files
+          },
           select: {
             id: true,
             quoteNumber: true,
             status: true,
+            files: {
+              where: {
+                isProfitLoss: true,
+              },
+              select: {
+                id: true,
+              },
+            },
           },
           orderBy: {
             createdAt: "desc", // Get most recent quote first
@@ -81,7 +92,19 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ jobs }, { status: 200 });
+    // Add hasProfitLossFile flag to each job
+    const jobsWithPLFlag = jobs.map(job => {
+      // Check if any accepted quote has a P&L file
+      const hasProfitLossFile = job.quotes.some(quote => quote.files.length > 0);
+      return {
+        ...job,
+        hasProfitLossFile,
+        // Clean up the files array from quotes to keep response clean
+        quotes: job.quotes.map(({ files, ...quote }) => quote),
+      };
+    });
+
+    return NextResponse.json({ jobs: jobsWithPLFlag }, { status: 200 });
   } catch (error: any) {
     console.error("Error fetching jobs:", error);
     return NextResponse.json(
