@@ -60,6 +60,7 @@ type TeamMemberStat = {
   userId: string;
   userName: string | null;
   userEmail: string;
+  userRole?: string;
   totalLeads: number;
   wonLeads: number;
   winRate: number;

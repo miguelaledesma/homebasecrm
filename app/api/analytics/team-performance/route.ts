@@ -10,6 +10,7 @@ type TeamPerformanceStat = {
   userId: string
   userName: string | null
   userEmail: string
+  userRole: UserRole
   totalLeads: number
   wonLeads: number
   winRate: number
@@ -26,17 +27,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get all sales reps (SALES_REP and CONCIERGE roles)
+    // For admins, show all users. For others, show only sales reps and concierges
+    const isAdmin = session.user.role === UserRole.ADMIN
     const salesReps = await prisma.user.findMany({
-      where: {
-        role: {
-          in: [UserRole.SALES_REP, UserRole.CONCIERGE],
-        },
-      },
+      where: isAdmin
+        ? {} // No filter - get all users
+        : {
+            role: {
+              in: [UserRole.SALES_REP, UserRole.CONCIERGE],
+            },
+          },
       select: {
         id: true,
         name: true,
         email: true,
+        role: true,
       },
     })
 
@@ -115,6 +120,7 @@ export async function GET(request: NextRequest) {
         userId: rep.id,
         userName: rep.name,
         userEmail: rep.email,
+        userRole: rep.role,
         totalLeads,
         wonLeads,
         winRate,
