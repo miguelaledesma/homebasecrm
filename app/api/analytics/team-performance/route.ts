@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { UserRole, LeadStatus } from "@prisma/client"
 import { logError, logInfo } from "@/lib/utils"
+import { getLastActivityTimestamp } from "@/lib/lead-activity"
 
 type TeamPerformanceStat = {
   userId: string
@@ -15,6 +16,7 @@ type TeamPerformanceStat = {
   appointmentSetLeads: number
   conversionRate: number
   totalAppointments: number
+  overdueFollowUps: number
 }
 
 export async function GET(request: NextRequest) {
@@ -45,6 +47,7 @@ export async function GET(request: NextRequest) {
         wonLeads,
         appointmentSetLeads,
         totalAppointments,
+        activeAssignedLeads,
       ] = await Promise.all([
         // Total assigned leads
         prisma.lead.count({
@@ -68,7 +71,36 @@ export async function GET(request: NextRequest) {
         prisma.appointment.count({
           where: { salesRepId: rep.id },
         }),
+        // Active assigned leads for overdue calculation
+        prisma.lead.findMany({
+          where: {
+            assignedSalesRepId: rep.id,
+            status: { notIn: [LeadStatus.WON, LeadStatus.LOST] },
+          },
+          select: { id: true },
+        }),
       ])
+
+      // Calculate overdue follow-ups (48+ hours inactive)
+      let overdueFollowUps = 0
+      try {
+        const inactivityResults = await Promise.all(
+          activeAssignedLeads.map(async (lead) => {
+            try {
+              const lastActivity = await getLastActivityTimestamp(lead.id)
+              const hoursSinceActivity = lastActivity
+                ? (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60)
+                : null
+              return hoursSinceActivity !== null && hoursSinceActivity > 48
+            } catch {
+              return false
+            }
+          })
+        )
+        overdueFollowUps = inactivityResults.filter(Boolean).length
+      } catch {
+        overdueFollowUps = 0
+      }
 
       // Calculate rates
       const winRate =
@@ -89,6 +121,7 @@ export async function GET(request: NextRequest) {
         appointmentSetLeads,
         conversionRate,
         totalAppointments,
+        overdueFollowUps,
       } as TeamPerformanceStat
     })
 

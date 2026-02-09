@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
         unassignedLeads,
         assignedActiveLeadsForInactivity,
         jobsPendingFinancials,
+        wonLeadsWithDates,
       ] = await Promise.all([
         // Total leads
         prisma.lead.count(),
@@ -113,6 +114,12 @@ export async function GET(request: NextRequest) {
             id: true,
           }
         }),
+
+        // Won leads with dates for avg days to close calculation
+        prisma.lead.findMany({
+          where: { status: LeadStatus.WON },
+          select: { createdAt: true, closedDate: true }
+        }),
       ])
 
       // Calculate inactive leads count (leads with 48+ hours of no activity)
@@ -154,6 +161,20 @@ export async function GET(request: NextRequest) {
         return !quotesWithPL.has(quote.id)
       }).length
 
+      // Calculate avg days to close from won leads
+      const daysToCloseValues = wonLeadsWithDates
+        .map((lead) => {
+          if (!lead.closedDate) return null
+          const diff = lead.closedDate.getTime() - lead.createdAt.getTime()
+          const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
+          return days < 0 ? 0 : days
+        })
+        .filter((v): v is number => typeof v === "number")
+      const avgDaysToClose =
+        daysToCloseValues.length > 0
+          ? Number((daysToCloseValues.reduce((a, b) => a + b, 0) / daysToCloseValues.length).toFixed(1))
+          : null
+
       // Calculate conversion rates
       const leadToAppointmentRate =
         totalLeads > 0
@@ -180,6 +201,7 @@ export async function GET(request: NextRequest) {
             jobsPendingFinancials: jobsPendingFinancialsCount,
             leadToAppointmentRate: parseFloat(leadToAppointmentRate),
             winRate: parseFloat(winRate),
+            avgDaysToClose,
           },
         },
         { status: 200 }
