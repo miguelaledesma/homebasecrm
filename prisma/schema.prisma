@@ -492,7 +492,24 @@ model Message {
   // Relations
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  attachments  MessageAttachment[]
 
   @@index([conversationId, createdAt])
   @@map("messages")
+}
+
+model MessageAttachment {
+  id        String   @id @default(cuid())
+  messageId String
+  fileName  String
+  fileType  String
+  fileSize  Int
+  filePath  String   // S3 key or data URL for mock storage
+  createdAt DateTime @default(now())
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("message_attachments")
 }

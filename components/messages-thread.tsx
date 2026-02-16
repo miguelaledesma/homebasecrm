@@ -1,13 +1,22 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, ArrowLeft, Users, Hash, X, Pencil, Check } from "lucide-react"
+import { Send, ArrowLeft, Users, Hash, X, Pencil, Check, Paperclip, FileText, Image as ImageIcon, Film, FileSpreadsheet, File, Download, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 type Participant = {
   id: string
   name: string | null
   email: string
+}
+
+type Attachment = {
+  id: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  filePath: string
+  downloadUrl?: string
 }
 
 type Message = {
@@ -21,6 +30,7 @@ type Message = {
     name: string | null
     email: string
   }
+  attachments?: Attachment[]
 }
 
 type MessagesThreadProps = {
@@ -30,9 +40,10 @@ type MessagesThreadProps = {
   participants: Participant[]
   messages: Message[]
   currentUserId: string
-  onSendMessage: (content: string) => void
+  onSendMessage: (content: string, files?: File[]) => void
   onBack: () => void
   onRenameConversation?: (name: string) => void
+  onDeleteConversation?: () => void
   loading: boolean
   sending: boolean
 }
@@ -129,6 +140,27 @@ function shouldShowSender(
   return diffMs > 300000
 }
 
+function getFileIcon(fileType: string) {
+  if (fileType.startsWith("image/")) return <ImageIcon className="h-4 w-4" />
+  if (fileType.startsWith("video/")) return <Film className="h-4 w-4" />
+  if (fileType.includes("pdf")) return <FileText className="h-4 w-4" />
+  if (fileType.includes("sheet") || fileType.includes("excel") || fileType.includes("csv"))
+    return <FileSpreadsheet className="h-4 w-4" />
+  if (fileType.includes("word") || fileType.includes("document"))
+    return <FileText className="h-4 w-4" />
+  return <File className="h-4 w-4" />
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function isImageType(fileType: string): boolean {
+  return fileType.startsWith("image/")
+}
+
 export function MessagesThread({
   conversationId,
   conversationName,
@@ -139,16 +171,21 @@ export function MessagesThread({
   onSendMessage,
   onBack,
   onRenameConversation,
+  onDeleteConversation,
   loading,
   sending,
 }: MessagesThreadProps) {
   const [input, setInput] = useState("")
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(conversationName)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -176,9 +213,20 @@ export function MessagesThread({
   }, [editingName])
 
   const handleSend = () => {
-    if (!input.trim() || sending) return
-    onSendMessage(input.trim())
+    if ((!input.trim() && pendingFiles.length === 0) || sending) return
+    
+    // Validate content length (max 5000 chars)
+    const trimmedInput = input.trim()
+    if (trimmedInput.length > 5000) {
+      alert("Message content cannot exceed 5000 characters")
+      return
+    }
+    
+    onSendMessage(trimmedInput, pendingFiles.length > 0 ? pendingFiles : undefined)
     setInput("")
+    setPendingFiles([])
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = ""
     inputRef.current?.focus()
   }
 
@@ -187,6 +235,72 @@ export function MessagesThread({
       e.preventDefault()
       handleSend()
     }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    // Limit to 5 total files
+    const remaining = 5 - pendingFiles.length
+    const newFiles = files.slice(0, remaining)
+
+    // Validate files before adding
+    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+    const ALLOWED_EXTENSIONS = ["pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg", "png", "gif", "webp", "txt", "csv", "mp4", "mov"]
+    
+    const validFiles: File[] = []
+    const errors: string[] = []
+
+    for (const file of newFiles) {
+      // Check file size
+      if (file.size > MAX_FILE_SIZE) {
+        errors.push(`${file.name} exceeds 10MB limit`)
+        continue
+      }
+
+      if (file.size === 0) {
+        errors.push(`${file.name} is empty`)
+        continue
+      }
+
+      // Check file extension
+      const extension = file.name.split(".").pop()?.toLowerCase()
+      if (!extension || !ALLOWED_EXTENSIONS.includes(extension)) {
+        errors.push(`${file.name} is not an allowed file type`)
+        continue
+      }
+
+      // Check file name
+      if (!file.name || file.name.length === 0 || file.name.length > 255) {
+        errors.push(`${file.name} has an invalid name`)
+        continue
+      }
+
+      // Check for path traversal
+      if (file.name.includes("..") || file.name.includes("/") || file.name.includes("\\")) {
+        errors.push(`${file.name} has an invalid name`)
+        continue
+      }
+
+      validFiles.push(file)
+    }
+
+    // Show errors if any
+    if (errors.length > 0) {
+      alert(`Some files were rejected:\n${errors.join("\n")}`)
+    }
+
+    if (validFiles.length > 0) {
+      setPendingFiles((prev) => [...prev, ...validFiles])
+    }
+
+    // Reset the file input so the same file can be selected again
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleSaveName = () => {
@@ -274,6 +388,7 @@ export function MessagesThread({
             onClick={() => {
               setDetailsOpen(false)
               setEditingName(false)
+              setShowDeleteConfirm(false)
             }}
           />
 
@@ -285,10 +400,11 @@ export function MessagesThread({
                 {conversationType === "GROUP" ? "Group Details" : "Conversation Details"}
               </h3>
               <button
-                onClick={() => {
-                  setDetailsOpen(false)
-                  setEditingName(false)
-                }}
+            onClick={() => {
+              setDetailsOpen(false)
+              setEditingName(false)
+              setShowDeleteConfirm(false)
+            }}
                 className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
               >
                 <X className="h-5 w-5" />
@@ -349,7 +465,7 @@ export function MessagesThread({
               )}
 
               {/* Members Section */}
-              <div className="p-4">
+              <div className="p-4 border-b">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Members ({participants.length})
                 </span>
@@ -403,6 +519,71 @@ export function MessagesThread({
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Delete Conversation Section */}
+              {onDeleteConversation && (
+                <div className="p-4">
+                  <div className="border-t pt-4">
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={deleting}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-destructive/50 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="text-sm font-medium">Delete Conversation</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !deleting && setShowDeleteConfirm(false)}
+          />
+
+          {/* Confirmation Modal */}
+          <div className="relative w-full max-w-sm mx-4 bg-background rounded-lg shadow-xl border overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-2">Delete Conversation</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Are you sure you want to delete this conversation? This action cannot be undone and will permanently delete all messages and attachments.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 text-sm border rounded-md hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setDeleting(true)
+                    try {
+                      await onDeleteConversation?.()
+                      setShowDeleteConfirm(false)
+                      setDetailsOpen(false)
+                    } catch (error) {
+                      console.error("Error deleting conversation:", error)
+                      alert("Failed to delete conversation. Please try again.")
+                    } finally {
+                      setDeleting(false)
+                    }
+                  }}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 text-sm bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
               </div>
             </div>
           </div>
@@ -486,9 +667,57 @@ export function MessagesThread({
                           </span>
                         </div>
                       )}
-                      <p className="text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
-                        {message.content}
-                      </p>
+                      {/* Message text (hide if it's just the auto-generated attachment label) */}
+                      {message.content && !(message.attachments && message.attachments.length > 0 && message.content.startsWith("📎")) && (
+                        <p className="text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
+                          {message.content}
+                        </p>
+                      )}
+
+                      {/* Attachments */}
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {message.attachments.map((att) => (
+                            <div key={att.id}>
+                              {isImageType(att.fileType) && att.downloadUrl ? (
+                                <a
+                                  href={att.downloadUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block rounded-lg overflow-hidden border hover:border-blue-400 transition-colors max-w-[280px]"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={att.downloadUrl}
+                                    alt={att.fileName}
+                                    className="max-h-[200px] object-contain bg-muted/30"
+                                  />
+                                  <div className="px-2 py-1.5 text-[11px] text-muted-foreground truncate bg-muted/20">
+                                    {att.fileName}
+                                  </div>
+                                </a>
+                              ) : (
+                                <a
+                                  href={att.downloadUrl || att.filePath}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download={att.fileName}
+                                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg border hover:border-blue-400 hover:bg-muted/50 transition-colors max-w-[280px] group/file"
+                                >
+                                  <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center flex-shrink-0 text-muted-foreground">
+                                    {getFileIcon(att.fileType)}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{att.fileName}</p>
+                                    <p className="text-[11px] text-muted-foreground">{formatFileSize(att.fileSize)}</p>
+                                  </div>
+                                  <Download className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover/file:opacity-100 transition-opacity flex-shrink-0" />
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Hover timestamp for messages without sender header */}
@@ -508,7 +737,51 @@ export function MessagesThread({
 
       {/* Input Area */}
       <div className="p-4 border-t flex-shrink-0 bg-background">
+        {/* Pending file previews */}
+        {pendingFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2 px-1">
+            {pendingFiles.map((file, index) => (
+              <div
+                key={`${file.name}-${index}`}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border bg-muted/30 text-sm max-w-[200px] group/pending"
+              >
+                <div className="text-muted-foreground flex-shrink-0">
+                  {getFileIcon(file.type)}
+                </div>
+                <span className="truncate text-xs">{file.name}</span>
+                <button
+                  onClick={() => removePendingFile(index)}
+                  className="h-4 w-4 flex items-center justify-center rounded-full hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-end gap-2 border rounded-lg bg-muted/30 p-2 focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent transition-all">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt,.csv,.mp4,.mov"
+            onChange={handleFileSelect}
+          />
+
+          {/* Attachment button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={pendingFiles.length >= 5 || sending}
+            className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Attach files (max 5)"
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+
           <textarea
             ref={inputRef}
             value={input}
@@ -530,7 +803,7 @@ export function MessagesThread({
           <Button
             size="sm"
             onClick={handleSend}
-            disabled={!input.trim() || sending}
+            disabled={(!input.trim() && pendingFiles.length === 0) || sending}
             className="h-9 w-9 p-0 rounded-lg flex-shrink-0"
           >
             <Send className="h-4 w-4" />

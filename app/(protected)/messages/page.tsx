@@ -28,6 +28,15 @@ type Conversation = {
   updatedAt: string
 }
 
+type Attachment = {
+  id: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  filePath: string
+  downloadUrl?: string
+}
+
 type Message = {
   id: string
   content: string
@@ -39,6 +48,7 @@ type Message = {
     name: string | null
     email: string
   }
+  attachments?: Attachment[]
 }
 
 export default function MessagesPage() {
@@ -146,20 +156,40 @@ export default function MessagesPage() {
     )
   }
 
-  // Handle sending a message
-  const handleSendMessage = async (content: string) => {
+  // Handle sending a message (with optional file attachments)
+  const handleSendMessage = async (content: string, files?: File[]) => {
     if (!activeConversationId || sending) return
 
     setSending(true)
     try {
-      const response = await fetch(
-        `/api/messages/${activeConversationId}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content }),
+      let response: Response
+
+      if (files && files.length > 0) {
+        // Send with attachments via FormData
+        const formData = new FormData()
+        formData.append("content", content)
+        for (const file of files) {
+          formData.append("files", file)
         }
-      )
+
+        response = await fetch(
+          `/api/messages/${activeConversationId}/attachments`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        )
+      } else {
+        // Send text-only message
+        response = await fetch(
+          `/api/messages/${activeConversationId}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content }),
+          }
+        )
+      }
 
       if (response.ok) {
         const data = await response.json()
@@ -194,9 +224,14 @@ export default function MessagesPage() {
 
         // Mark as read
         await markAsRead(activeConversationId)
+      } else {
+        // Handle error response
+        const errorData = await response.json().catch(() => ({ error: "Failed to send message" }))
+        alert(errorData.error || "Failed to send message. Please try again.")
       }
     } catch (error) {
       console.error("Error sending message:", error)
+      alert("An error occurred while sending your message. Please try again.")
     } finally {
       setSending(false)
     }
@@ -257,6 +292,42 @@ export default function MessagesPage() {
     }
   }
 
+  // Handle deleting a conversation
+  const handleDeleteConversation = async (conversationId?: string) => {
+    const idToDelete = conversationId || activeConversationId
+    if (!idToDelete) return
+
+    try {
+      const response = await fetch(
+        `/api/messages/${idToDelete}`,
+        {
+          method: "DELETE",
+        }
+      )
+
+      if (response.ok) {
+        // Remove conversation from list
+        setConversations((prev) =>
+          prev.filter((c) => c.id !== idToDelete)
+        )
+
+        // Clear active conversation if it was the deleted one
+        if (idToDelete === activeConversationId) {
+          setActiveConversationId(null)
+          setMessages([])
+          setMobileShowThread(false)
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ error: "Failed to delete conversation" }))
+        alert(errorData.error || "Failed to delete conversation. Please try again.")
+        throw new Error(errorData.error || "Failed to delete conversation")
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error)
+      throw error // Re-throw so UI can handle it
+    }
+  }
+
   // Handle going back from thread (mobile)
   const handleBack = () => {
     setMobileShowThread(false)
@@ -284,6 +355,7 @@ export default function MessagesPage() {
             currentUserId={currentUserId}
             onSelectConversation={handleSelectConversation}
             onNewChat={() => setNewChatOpen(true)}
+            onDeleteConversation={handleDeleteConversation}
             loading={loadingConversations}
           />
         </div>
@@ -307,6 +379,7 @@ export default function MessagesPage() {
               onSendMessage={handleSendMessage}
               onBack={handleBack}
               onRenameConversation={handleRenameConversation}
+              onDeleteConversation={handleDeleteConversation}
               loading={loadingMessages}
               sending={sending}
             />

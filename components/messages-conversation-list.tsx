@@ -1,7 +1,7 @@
 "use client"
 
-import { Search, Plus } from "lucide-react"
-import { useState } from "react"
+import { Search, Plus, MoreVertical, Trash2 } from "lucide-react"
+import { useState, useRef, useEffect } from "react"
 
 type Participant = {
   id: string
@@ -30,6 +30,7 @@ type MessagesConversationListProps = {
   currentUserId: string
   onSelectConversation: (id: string) => void
   onNewChat: () => void
+  onDeleteConversation?: (id: string) => void
   loading: boolean
 }
 
@@ -86,9 +87,28 @@ export function MessagesConversationList({
   currentUserId,
   onSelectConversation,
   onNewChat,
+  onDeleteConversation,
   loading,
 }: MessagesConversationListProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMenuId) {
+        const menuElement = menuRefs.current[openMenuId]
+        if (menuElement && !menuElement.contains(event.target as Node)) {
+          setOpenMenuId(null)
+        }
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [openMenuId])
 
   const filtered = searchQuery.trim()
     ? conversations.filter((c) =>
@@ -154,15 +174,16 @@ export function MessagesConversationList({
             )
 
             return (
-              <button
+              <div
                 key={conversation.id}
-                onClick={() => onSelectConversation(conversation.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-border/40 ${
-                  isActive
-                    ? "bg-accent"
-                    : "hover:bg-muted/50"
+                className={`group relative w-full flex items-center gap-3 px-4 py-3 transition-colors border-b border-border/40 ${
+                  isActive ? "bg-accent" : "hover:bg-muted/50"
                 } ${hasUnread ? "font-medium" : ""}`}
               >
+                <button
+                  onClick={() => onSelectConversation(conversation.id)}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                >
                 {/* Avatar */}
                 <div
                   className={`h-10 w-10 rounded-md bg-gradient-to-br ${getAvatarColor(
@@ -222,11 +243,90 @@ export function MessagesConversationList({
                       : conversation.unreadCount}
                   </div>
                 )}
-              </button>
+                </button>
+
+                {/* Actions Menu (three-dot menu) */}
+                {onDeleteConversation && (
+                  <div className="relative flex-shrink-0" ref={(el) => { menuRefs.current[conversation.id] = el }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenMenuId(openMenuId === conversation.id ? null : conversation.id)
+                      }}
+                      className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                      title="More options"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {openMenuId === conversation.id && (
+                      <div className="absolute right-0 top-8 z-50 w-48 bg-background border rounded-md shadow-lg py-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setOpenMenuId(null)
+                            setShowDeleteConfirm(conversation.id)
+                          }}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors text-left"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Delete Conversation</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )
           })
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowDeleteConfirm(null)}
+          />
+
+          {/* Confirmation Modal */}
+          <div className="relative w-full max-w-sm mx-4 bg-background rounded-lg shadow-xl border overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-2">Delete Conversation</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Are you sure you want to delete this conversation? This action cannot be undone and will permanently delete all messages and attachments.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="flex-1 px-4 py-2 text-sm border rounded-md hover:bg-accent transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (showDeleteConfirm && onDeleteConversation) {
+                      try {
+                        await onDeleteConversation(showDeleteConfirm)
+                        setShowDeleteConfirm(null)
+                      } catch (error) {
+                        console.error("Error deleting conversation:", error)
+                        alert("Failed to delete conversation. Please try again.")
+                      }
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 text-sm bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

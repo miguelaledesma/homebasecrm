@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { storage } from "@/lib/storage"
 
 // GET /api/messages/[conversationId] - Get messages for a conversation
 export async function GET(
@@ -36,7 +37,7 @@ export async function GET(
       )
     }
 
-    // Get messages
+    // Get messages with attachments
     const messages = await prisma.message.findMany({
       where: {
         conversationId,
@@ -49,6 +50,7 @@ export async function GET(
             email: true,
           },
         },
+        attachments: true,
       },
       orderBy: {
         createdAt: "asc",
@@ -56,6 +58,28 @@ export async function GET(
       take: limit,
       skip: offset,
     })
+
+    // Generate download URLs for attachments
+    const messagesWithUrls = await Promise.all(
+      messages.map(async (msg) => {
+        if (msg.attachments.length === 0) return { ...msg, attachments: [] }
+
+        const attachmentsWithUrls = await Promise.all(
+          msg.attachments.map(async (att) => {
+            let downloadUrl = att.filePath
+            try {
+              if (storage.getFileUrl) {
+                downloadUrl = await storage.getFileUrl(att.filePath, 3600)
+              }
+            } catch {
+              // fallback to path
+            }
+            return { ...att, downloadUrl }
+          })
+        )
+        return { ...msg, attachments: attachmentsWithUrls }
+      })
+    )
 
     // Get total count
     const total = await prisma.message.count({
@@ -66,7 +90,7 @@ export async function GET(
 
     return NextResponse.json(
       {
-        messages,
+        messages: messagesWithUrls,
         pagination: {
           total,
           limit,
@@ -186,6 +210,15 @@ export async function POST(
       )
     }
 
+    // Validate content length (max 5000 chars)
+    const trimmedContent = content.trim()
+    if (trimmedContent.length > 5000) {
+      return NextResponse.json(
+        { error: "Message content cannot exceed 5000 characters" },
+        { status: 400 }
+      )
+    }
+
     // Verify user is a participant
     const participant = await prisma.conversationParticipant.findUnique({
       where: {
@@ -208,7 +241,7 @@ export async function POST(
       data: {
         conversationId,
         senderId: session.user.id,
-        content: content.trim(),
+        content: trimmedContent,
       },
       include: {
         sender: {
@@ -218,6 +251,7 @@ export async function POST(
             email: true,
           },
         },
+        attachments: true,
       },
     })
 
@@ -241,6 +275,112 @@ export async function POST(
     console.error("Error sending message:", error)
     return NextResponse.json(
       { error: error.message || "Failed to send message" },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE /api/messages/[conversationId] - Delete a conversation
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { conversationId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { conversationId } = params
+
+    // Verify user is a participant
+    const participant = await prisma.conversationParticipant.findUnique({
+      where: {
+        conversationId_userId: {
+          conversationId,
+          userId: session.user.id,
+        },
+      },
+    })
+
+    if (!participant) {
+      return NextResponse.json(
+        { error: "Conversation not found or access denied" },
+        { status: 404 }
+      )
+    }
+
+    // Get conversation info to check participants
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        participants: true,
+        messages: {
+          include: { attachments: true },
+        },
+      },
+    })
+
+    if (!conversation) {
+      return NextResponse.json(
+        { error: "Conversation not found" },
+        { status: 404 }
+      )
+    }
+
+    // Remove this user from the conversation (soft delete - just remove their participation)
+    // The conversation and messages remain for other participants
+    await prisma.conversationParticipant.delete({
+      where: {
+        conversationId_userId: {
+          conversationId,
+          userId: session.user.id,
+        },
+      },
+    })
+
+    // Check if there are any participants left
+    const remainingParticipants = await prisma.conversationParticipant.count({
+      where: { conversationId },
+    })
+
+    // If no participants remain, delete the entire conversation and all its data
+    if (remainingParticipants === 0) {
+      // Get all attachments to delete files from storage
+      const filePathsToDelete: string[] = []
+      for (const message of conversation.messages) {
+        for (const attachment of message.attachments) {
+          // Only delete if it's not a data URL (mock storage)
+          if (!attachment.filePath.includes("data:")) {
+            filePathsToDelete.push(attachment.filePath)
+          }
+        }
+      }
+
+      // Delete files from storage
+      for (const filePath of filePathsToDelete) {
+        try {
+          await storage.deleteFile(filePath)
+        } catch (error) {
+          // Log but don't fail - file might already be deleted or not exist
+          console.error(`Failed to delete file ${filePath}:`, error)
+        }
+      }
+
+      // Delete the entire conversation (cascade will delete messages and attachments)
+      await prisma.conversation.delete({
+        where: { id: conversationId },
+      })
+    }
+
+    return NextResponse.json(
+      { message: "Conversation deleted successfully" },
+      { status: 200 }
+    )
+  } catch (error: any) {
+    console.error("Error deleting conversation:", error)
+    return NextResponse.json(
+      { error: error.message || "Failed to delete conversation" },
       { status: 500 }
     )
   }
