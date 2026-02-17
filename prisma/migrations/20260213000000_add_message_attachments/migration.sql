@@ -1,5 +1,5 @@
--- CreateTable
-CREATE TABLE "message_attachments" (
+-- CreateTable (with IF NOT EXISTS for idempotency)
+CREATE TABLE IF NOT EXISTS "message_attachments" (
     "id" TEXT NOT NULL,
     "messageId" TEXT NOT NULL,
     "fileName" TEXT NOT NULL,
@@ -11,8 +11,21 @@ CREATE TABLE "message_attachments" (
     CONSTRAINT "message_attachments_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE INDEX "message_attachments_messageId_idx" ON "message_attachments"("messageId");
+-- CreateIndex (with IF NOT EXISTS for idempotency)
+CREATE INDEX IF NOT EXISTS "message_attachments_messageId_idx" ON "message_attachments"("messageId");
 
--- AddForeignKey
-ALTER TABLE "message_attachments" ADD CONSTRAINT "message_attachments_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "messages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- AddForeignKey (check if constraint exists first)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'message_attachments_messageId_fkey'
+    ) THEN
+        ALTER TABLE "message_attachments" 
+        ADD CONSTRAINT "message_attachments_messageId_fkey" 
+        FOREIGN KEY ("messageId") 
+        REFERENCES "messages"("id") 
+        ON DELETE CASCADE 
+        ON UPDATE CASCADE;
+    END IF;
+END $$;
