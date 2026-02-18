@@ -145,12 +145,12 @@ export async function PATCH(
       )
     }
 
-    // SALES_REP can only update their own appointments
-    if (
-      session.user.role === "SALES_REP" &&
-      existingAppointment.salesRepId !== session.user.id
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    // Only the assigned sales rep can edit this appointment.
+    if (existingAppointment.salesRepId !== session.user.id) {
+      return NextResponse.json(
+        { error: "Forbidden: only the assigned sales rep can edit this appointment" },
+        { status: 403 }
+      )
     }
 
     const updateData: any = {}

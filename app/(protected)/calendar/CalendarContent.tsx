@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import FullCalendar from "@fullcalendar/react"
 import dayGridPlugin from "@fullcalendar/daygrid"
 import timeGridPlugin from "@fullcalendar/timegrid"
@@ -13,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select } from "@/components/ui/select"
-import { X, ExternalLink, Info } from "lucide-react"
+import { X, ExternalLink } from "lucide-react"
 import type { EventInput } from "@fullcalendar/core"
 import { convertPSTToUTC, convertUTCToPSTLocal } from "@/lib/utils"
 
@@ -30,7 +31,8 @@ type CalendarEvent = EventInput & {
     notes?: string | null
     description?: string | null
     createdBy?: string
-    leadTypes?: string[]
+    createdById?: string
+    leadTypes?: string[] | string
     assignedUserId?: string | null
     assignedUserName?: string | null
     color?: string | null
@@ -75,6 +77,7 @@ type ReminderFormData = {
 
 export function CalendarContent() {
   const router = useRouter()
+  const { data: session } = useSession()
   const calendarRef = useRef<FullCalendar>(null)
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -82,8 +85,8 @@ export function CalendarContent() {
   // Modal states
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
   const [showReminderModal, setShowReminderModal] = useState(false)
+  const [showJobModal, setShowJobModal] = useState(false)
   const [showEventTypeModal, setShowEventTypeModal] = useState(false)
-  const [showLegend, setShowLegend] = useState(false)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   
@@ -212,6 +215,29 @@ export function CalendarContent() {
     fetchEvents()
   }, [fetchEvents])
 
+  const canEditEvent = useCallback((props: CalendarEvent["extendedProps"]) => {
+    const userId = session?.user?.id
+    if (!userId) return false
+
+    if (props.type === "appointment") {
+      return props.salesRepId === userId
+    }
+    if (props.type === "reminder") {
+      return props.createdById === userId
+    }
+    return false
+  }, [session?.user?.id])
+
+  const isAppointmentReadOnly =
+    !!editingEvent &&
+    editingEvent.extendedProps.type === "appointment" &&
+    !canEditEvent(editingEvent.extendedProps)
+
+  const isReminderReadOnly =
+    !!editingEvent &&
+    editingEvent.extendedProps.type === "reminder" &&
+    !canEditEvent(editingEvent.extendedProps)
+
   // Handle date selection (create new event)
   const handleDateSelect = (selectInfo: DateSelectArg) => {
     setSelectedDate(selectInfo.start)
@@ -257,9 +283,10 @@ export function CalendarContent() {
     const event = clickInfo.event
     const props = event.extendedProps as CalendarEvent["extendedProps"]
 
-    // Job start dates navigate to lead page
+    // Job start dates open a read-only modal
     if (props.type === "job" && props.leadId) {
-      router.push(`/leads/${props.leadId}`)
+      setEditingEvent(event as unknown as CalendarEvent)
+      setShowJobModal(true)
       return
     }
 
@@ -301,6 +328,12 @@ export function CalendarContent() {
     const newDate = dropInfo.event.start
     if (!newDate) return
 
+    if (!canEditEvent(props)) {
+      alert("You can view this event, but only the owner can edit it.")
+      dropInfo.revert()
+      return
+    }
+
     try {
       if (props.type === "appointment") {
         const response = await fetch(`/api/appointments/${props.originalId}`, {
@@ -339,6 +372,11 @@ export function CalendarContent() {
   // Handle appointment form submit
   const handleAppointmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (editingEvent && !canEditEvent(editingEvent.extendedProps)) {
+      alert("You can view this event, but only the owner can edit it.")
+      return
+    }
 
     if (!appointmentForm.leadId || !appointmentForm.salesRepId || !appointmentForm.scheduledFor) {
       alert("Please fill in all required fields")
@@ -404,6 +442,11 @@ export function CalendarContent() {
   const handleReminderSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (editingEvent && !canEditEvent(editingEvent.extendedProps)) {
+      alert("You can view this event, but only the owner can edit it.")
+      return
+    }
+
     if (!reminderForm.title || !reminderForm.scheduledFor) {
       alert("Please fill in all required fields")
       return
@@ -457,6 +500,10 @@ export function CalendarContent() {
   // Handle delete reminder
   const handleDeleteReminder = async () => {
     if (!editingEvent || editingEvent.extendedProps.type !== "reminder") return
+    if (!canEditEvent(editingEvent.extendedProps)) {
+      alert("You can view this event, but only the owner can edit it.")
+      return
+    }
 
     if (!confirm("Are you sure you want to delete this reminder?")) return
 
@@ -493,56 +540,44 @@ export function CalendarContent() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Legend Info Icon - Above Calendar */}
-      <div className="flex justify-end">
-        <div className="relative">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onMouseEnter={() => setShowLegend(true)}
-            onMouseLeave={() => setShowLegend(false)}
-            onClick={() => setShowLegend(!showLegend)}
-          >
-            <Info className="h-4 w-4" />
-          </Button>
-          {showLegend && (
-            <div className="absolute top-10 right-0 bg-popover border border-border rounded-md shadow-lg p-4 min-w-[280px] z-30">
-              <div className="space-y-3">
-                <div className="font-semibold text-sm mb-2">Event Legend</div>
-                <div className="flex items-start gap-2">
-                  <div className="w-4 h-4 rounded mt-0.5" style={{ backgroundColor: "#3b82f6" }} />
-                  <div className="text-sm">
-                    <div className="font-medium">Appointments</div>
-                    <div className="text-muted-foreground text-xs">All scheduled appointments</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="w-4 h-4 rounded mt-0.5" style={{ backgroundColor: "#10b981" }} />
-                  <div className="text-sm">
-                    <div className="font-medium">Job Start Dates</div>
-                    <div className="text-muted-foreground text-xs">WON leads with scheduled start dates</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="w-4 h-4 rounded mt-0.5" style={{ backgroundColor: "#f97316" }} />
-                  <div className="text-sm">
-                    <div className="font-medium">Personal Reminders</div>
-                    <div className="text-muted-foreground text-xs">Your personal calendar reminders</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="w-4 h-4 rounded mt-0.5" style={{ backgroundColor: "#3b82f6" }} />
-                  <div className="text-sm">
-                    <div className="font-medium">Assigned Tasks</div>
-                    <div className="text-muted-foreground text-xs">Tasks assigned to team members</div>
-                  </div>
-                </div>
-              </div>
+      {/* Always-visible legend */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Calendar Legend</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: "#ec4899" }} />
+              <span className="text-sm">Interior Jobs</span>
             </div>
-          )}
-        </div>
-      </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: "#8b5cf6" }} />
+              <span className="text-sm">Off Days</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: "#10b981" }} />
+              <span className="text-sm">Landscaping/Yard Services</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: "#f97316" }} />
+              <span className="text-sm">Store Warehouse</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: "#6b7280" }} />
+              <span className="text-sm">Accounting</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: "#3b82f6" }} />
+              <span className="text-sm">Appointments</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: "#eab308" }} />
+              <span className="text-sm">Ricardo Sr</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Calendar */}
       <Card className="w-full">
@@ -655,6 +690,95 @@ export function CalendarContent() {
         </div>
       )}
 
+      {/* Job Details Modal (Read-only) */}
+      {showJobModal && editingEvent && editingEvent.extendedProps.type === "job" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-lg m-4">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Job Start Details</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowJobModal(false)
+                    setEditingEvent(null)
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="font-medium">Customer:</span>{" "}
+                  {editingEvent.extendedProps.customerName || "Unknown"}
+                </div>
+                <div>
+                  <span className="font-medium">Start Date:</span>{" "}
+                  {editingEvent.start
+                    ? (() => {
+                        // Job start dates are date-only (all-day events), so display without time
+                        // Convert DateInput to Date safely
+                        const dateValue = editingEvent.start instanceof Date 
+                          ? editingEvent.start 
+                          : typeof editingEvent.start === 'string' 
+                            ? new Date(editingEvent.start)
+                            : new Date(editingEvent.start as any);
+                        return dateValue.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        });
+                      })()
+                    : "Not scheduled"}
+                </div>
+                <div>
+                  <span className="font-medium">Service Type:</span>{" "}
+                  {Array.isArray(editingEvent.extendedProps.leadTypes)
+                    ? editingEvent.extendedProps.leadTypes.join(", ")
+                    : editingEvent.extendedProps.leadTypes || "Not specified"}
+                </div>
+                <div>
+                  <span className="font-medium">Sales Rep:</span>{" "}
+                  {editingEvent.extendedProps.salesRepName || "Unassigned"}
+                </div>
+                <div>
+                  <span className="font-medium">Created by:</span>{" "}
+                  {editingEvent.extendedProps.createdBy || "System"}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowJobModal(false)
+                    setEditingEvent(null)
+                  }}
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const leadId = editingEvent.extendedProps.leadId
+                    if (!leadId) return
+                    setShowJobModal(false)
+                    setEditingEvent(null)
+                    router.push(`/leads/${leadId}`)
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open Lead
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Appointment Modal */}
       {showAppointmentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -662,7 +786,11 @@ export function CalendarContent() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>
-                  {editingEvent ? "Edit Appointment" : "Create Appointment"}
+                  {editingEvent
+                    ? isAppointmentReadOnly
+                      ? "View Appointment"
+                      : "Edit Appointment"
+                    : "Create Appointment"}
                 </CardTitle>
                 <Button
                   variant="ghost"
@@ -691,6 +819,11 @@ export function CalendarContent() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAppointmentSubmit} className="space-y-4">
+                {isAppointmentReadOnly && (
+                  <div className="text-sm text-muted-foreground">
+                    You can view this appointment, but only the assigned sales rep can edit it.
+                  </div>
+                )}
                 {/* Lead Search */}
                 <div>
                   <Label htmlFor="leadSearch">Lead *</Label>
@@ -756,6 +889,7 @@ export function CalendarContent() {
                     onChange={(e) =>
                       setAppointmentForm({ ...appointmentForm, salesRepId: e.target.value })
                     }
+                    disabled={isAppointmentReadOnly}
                     required
                   >
                     <option value="">Select sales rep</option>
@@ -777,6 +911,7 @@ export function CalendarContent() {
                     onChange={(e) =>
                       setAppointmentForm({ ...appointmentForm, scheduledFor: e.target.value })
                     }
+                    disabled={isAppointmentReadOnly}
                     required
                   />
                 </div>
@@ -793,6 +928,7 @@ export function CalendarContent() {
                         siteAddressLine1: e.target.value,
                       })
                     }
+                    disabled={isAppointmentReadOnly}
                   />
                 </div>
 
@@ -807,6 +943,7 @@ export function CalendarContent() {
                         siteAddressLine2: e.target.value,
                       })
                     }
+                    disabled={isAppointmentReadOnly}
                   />
                 </div>
 
@@ -819,6 +956,7 @@ export function CalendarContent() {
                       onChange={(e) =>
                         setAppointmentForm({ ...appointmentForm, city: e.target.value })
                       }
+                      disabled={isAppointmentReadOnly}
                     />
                   </div>
                   <div>
@@ -829,6 +967,7 @@ export function CalendarContent() {
                       onChange={(e) =>
                         setAppointmentForm({ ...appointmentForm, state: e.target.value })
                       }
+                      disabled={isAppointmentReadOnly}
                     />
                   </div>
                   <div>
@@ -839,6 +978,7 @@ export function CalendarContent() {
                       onChange={(e) =>
                         setAppointmentForm({ ...appointmentForm, zip: e.target.value })
                       }
+                      disabled={isAppointmentReadOnly}
                     />
                   </div>
                 </div>
@@ -852,6 +992,7 @@ export function CalendarContent() {
                     onChange={(e) =>
                       setAppointmentForm({ ...appointmentForm, notes: e.target.value })
                     }
+                    disabled={isAppointmentReadOnly}
                     rows={3}
                   />
                 </div>
@@ -881,7 +1022,9 @@ export function CalendarContent() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">{editingEvent ? "Update" : "Create"}</Button>
+                  {!isAppointmentReadOnly && (
+                    <Button type="submit">{editingEvent ? "Update" : "Create"}</Button>
+                  )}
                 </div>
               </form>
             </CardContent>
@@ -896,7 +1039,11 @@ export function CalendarContent() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>
-                  {editingEvent ? "Edit Reminder" : "Create Reminder"}
+                  {editingEvent
+                    ? isReminderReadOnly
+                      ? "View Reminder"
+                      : "Edit Reminder"
+                    : "Create Reminder"}
                 </CardTitle>
                 <Button
                   variant="ghost"
@@ -919,6 +1066,11 @@ export function CalendarContent() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleReminderSubmit} className="space-y-4">
+                {isReminderReadOnly && (
+                  <div className="text-sm text-muted-foreground">
+                    You can view this reminder, but only the user who created it can edit it.
+                  </div>
+                )}
                 {/* Title */}
                 <div>
                   <Label htmlFor="reminderTitle">Title *</Label>
@@ -928,6 +1080,7 @@ export function CalendarContent() {
                     onChange={(e) =>
                       setReminderForm({ ...reminderForm, title: e.target.value })
                     }
+                    disabled={isReminderReadOnly}
                     required
                     placeholder="e.g., Follow up with customer"
                   />
@@ -942,6 +1095,7 @@ export function CalendarContent() {
                     onChange={(e) =>
                       setReminderForm({ ...reminderForm, description: e.target.value })
                     }
+                    disabled={isReminderReadOnly}
                     rows={3}
                     placeholder="Optional details..."
                   />
@@ -957,6 +1111,7 @@ export function CalendarContent() {
                     onChange={(e) =>
                       setReminderForm({ ...reminderForm, scheduledFor: e.target.value })
                     }
+                    disabled={isReminderReadOnly}
                     required
                   />
                 </div>
@@ -970,6 +1125,7 @@ export function CalendarContent() {
                     onChange={(e) =>
                       setReminderForm({ ...reminderForm, assignedUserId: e.target.value })
                     }
+                    disabled={isReminderReadOnly}
                   >
                     <option value="">No assignment (personal reminder)</option>
                     {users.map((user) => (
@@ -986,7 +1142,9 @@ export function CalendarContent() {
                 {/* Color Picker */}
                 <div>
                   <Label>Color (Optional)</Label>
-                  <div className="space-y-2 mt-2">
+                  <div
+                    className={`space-y-2 mt-2 ${isReminderReadOnly ? "pointer-events-none opacity-60" : ""}`}
+                  >
                     {/* First Row */}
                     <div className="flex items-center gap-2">
                       <button
@@ -1147,7 +1305,7 @@ export function CalendarContent() {
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">
-                  {editingEvent && (
+                  {editingEvent && !isReminderReadOnly && (
                     <Button
                       type="button"
                       variant="destructive"
@@ -1174,7 +1332,9 @@ export function CalendarContent() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">{editingEvent ? "Update" : "Create"}</Button>
+                  {!isReminderReadOnly && (
+                    <Button type="submit">{editingEvent ? "Update" : "Create"}</Button>
+                  )}
                 </div>
               </form>
             </CardContent>

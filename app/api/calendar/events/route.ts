@@ -193,6 +193,8 @@ export async function GET(request: NextRequest) {
           leadId: job.id,
           customerName,
           leadTypes,
+          createdBy: "System",
+          createdById: "system",
           salesRepName: job.assignedSalesRep?.name || job.assignedSalesRep?.email || "Unassigned",
         },
       })
@@ -230,6 +232,7 @@ export async function GET(request: NextRequest) {
           originalTitle: reminder.title, // Store original title without formatting
           description: reminder.description,
           createdBy: reminder.user.name || reminder.user.email,
+          createdById: reminder.userId,
           assignedUserId: reminder.assignedUserId || null,
           assignedUserName: reminder.assignedUser?.name || reminder.assignedUser?.email || null,
           color: reminder.color || null,

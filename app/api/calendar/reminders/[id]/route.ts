@@ -61,6 +61,14 @@ export async function PATCH(
       )
     }
 
+    // Only the creator can edit this reminder.
+    if (existingReminder.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: "Forbidden: only the creator can edit this reminder" },
+        { status: 403 }
+      )
+    }
+
     // If assignedUserId is provided, verify the user exists
     if (assignedUserId !== undefined && assignedUserId !== null) {
       const assignedUser = await prisma.user.findUnique({
@@ -204,6 +212,14 @@ export async function DELETE(
       return NextResponse.json(
         { error: "Reminder not found" },
         { status: 404 }
+      )
+    }
+
+    // Only the creator can delete this reminder.
+    if (existingReminder.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: "Forbidden: only the creator can delete this reminder" },
+        { status: 403 }
       )
     }
 

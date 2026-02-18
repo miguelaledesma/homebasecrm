@@ -354,14 +354,23 @@ export default function LeadDetailPage() {
       setSelectedLeadTypes(data.lead.leadTypes || []);
       setJobStatus(data.lead.jobStatus || null);
       // Set jobScheduledDate if it exists
+      // Use local date conversion to avoid timezone issues
       if (data.lead.jobScheduledDate) {
-        setJobScheduledDate(new Date(data.lead.jobScheduledDate).toISOString().split("T")[0]);
+        const date = new Date(data.lead.jobScheduledDate);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        setJobScheduledDate(`${year}-${month}-${day}`);
       } else {
         setJobScheduledDate("");
       }
       // Set jobCompletedDate if it exists (for editing)
       if (data.lead.jobCompletedDate) {
-        setJobCompletedDate(new Date(data.lead.jobCompletedDate).toISOString().split("T")[0]);
+        const date = new Date(data.lead.jobCompletedDate);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        setJobCompletedDate(`${year}-${month}-${day}`);
       } else {
         setJobCompletedDate("");
       }
@@ -851,29 +860,60 @@ export default function LeadDetailPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Validate: SCHEDULED jobs must have a start date
+      if (status === "WON" && jobStatus === "SCHEDULED" && !jobScheduledDate) {
+        alert("Please enter a job start date for scheduled jobs.");
+        setSaving(false);
+        return;
+      }
+
+      // Validate: DONE jobs must have a completion date
+      if (status === "WON" && jobStatus === "DONE" && !jobCompletedDate) {
+        alert("Please enter a completion date for completed jobs.");
+        setSaving(false);
+        return;
+      }
+
+      // Build request body with clear, maintainable logic
+      const requestBody: any = {
+        status,
+        assignedSalesRepId: assignedSalesRepId || null,
+        description: description || null,
+        leadTypes: selectedLeadTypes,
+        // Customer fields
+        firstName: customerFirstName,
+        lastName: customerLastName,
+        phone: customerPhone || null,
+        email: customerEmail || null,
+        addressLine1: customerAddressLine1 || null,
+        addressLine2: customerAddressLine2 || null,
+        city: customerCity || null,
+        state: customerState || null,
+        zip: customerZip || null,
+        sourceType: customerSourceType,
+      };
+
+      // Handle job-related fields for WON leads
+      if (status === "WON") {
+        // Always send jobStatus for WON leads (null if not set)
+        requestBody.jobStatus = jobStatus || null;
+
+        // Send jobScheduledDate when jobStatus is SCHEDULED
+        // This allows editing the date even when jobStatus isn't being changed
+        if (jobStatus === "SCHEDULED" && jobScheduledDate) {
+          requestBody.jobScheduledDate = jobScheduledDate;
+        }
+
+        // Send jobCompletedDate when jobStatus is DONE
+        if (jobStatus === "DONE" && jobCompletedDate) {
+          requestBody.jobCompletedDate = jobCompletedDate;
+        }
+      }
+
       const response = await fetch(`/api/leads/${leadId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status,
-          assignedSalesRepId: assignedSalesRepId || null,
-          description: description || null,
-          leadTypes: selectedLeadTypes,
-          jobStatus: status === "WON" ? (jobStatus || null) : undefined,
-          jobScheduledDate: jobStatus === "SCHEDULED" && jobScheduledDate ? jobScheduledDate : undefined,
-          jobCompletedDate: jobStatus === "DONE" && jobCompletedDate ? jobCompletedDate : undefined,
-          // Customer fields
-          firstName: customerFirstName,
-          lastName: customerLastName,
-          phone: customerPhone || null,
-          email: customerEmail || null,
-          addressLine1: customerAddressLine1 || null,
-          addressLine2: customerAddressLine2 || null,
-          city: customerCity || null,
-          state: customerState || null,
-          zip: customerZip || null,
-          sourceType: customerSourceType,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -886,13 +926,22 @@ export default function LeadDetailPage() {
       // Update local state to match saved data
       setStatus(data.lead.status);
       setJobStatus(data.lead.jobStatus || null);
+      // Use local date conversion to avoid timezone issues
       if (data.lead.jobScheduledDate) {
-        setJobScheduledDate(new Date(data.lead.jobScheduledDate).toISOString().split("T")[0]);
+        const date = new Date(data.lead.jobScheduledDate);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        setJobScheduledDate(`${year}-${month}-${day}`);
       } else {
         setJobScheduledDate("");
       }
       if (data.lead.jobCompletedDate) {
-        setJobCompletedDate(new Date(data.lead.jobCompletedDate).toISOString().split("T")[0]);
+        const date = new Date(data.lead.jobCompletedDate);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        setJobCompletedDate(`${year}-${month}-${day}`);
       } else {
         setJobCompletedDate("");
       }
@@ -961,8 +1010,13 @@ export default function LeadDetailPage() {
       const data = await response.json();
       setLead(data.lead);
       setJobStatus(pendingJobStatus);
+      // Use local date conversion to avoid timezone issues
       if (data.lead.jobScheduledDate) {
-        setJobScheduledDate(new Date(data.lead.jobScheduledDate).toISOString().split("T")[0]);
+        const date = new Date(data.lead.jobScheduledDate);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        setJobScheduledDate(`${year}-${month}-${day}`);
       }
 
       setShowSchedulingModal(false);
@@ -1163,6 +1217,28 @@ export default function LeadDetailPage() {
     (session?.user?.role === "SALES_REP" &&
       lead.assignedSalesRepId !== session?.user?.id);
 
+  // Helper function to normalize date strings for comparison
+  // Uses local date conversion to avoid timezone issues
+  const normalizeDate = (date: string | Date | null | undefined): string => {
+    if (!date) return "";
+    if (typeof date === "string") {
+      // If it's already a YYYY-MM-DD string, return it as-is
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+      // Otherwise parse it
+      const d = new Date(date);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+    // For Date objects, use local date components
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const hasChanges =
     status !== lead.status ||
     assignedSalesRepId !== (lead.assignedSalesRepId || "") ||
@@ -1170,6 +1246,14 @@ export default function LeadDetailPage() {
     JSON.stringify(selectedLeadTypes.sort()) !==
       JSON.stringify((lead.leadTypes || []).sort()) ||
     (status === "WON" && String(jobStatus || "") !== String(lead.jobStatus || "")) ||
+    // Check job scheduled date changes
+    (status === "WON" &&
+      jobStatus === "SCHEDULED" &&
+      normalizeDate(jobScheduledDate) !== normalizeDate(lead.jobScheduledDate)) ||
+    // Check job completed date changes
+    (status === "WON" &&
+      jobStatus === "DONE" &&
+      normalizeDate(jobCompletedDate) !== normalizeDate(lead.jobCompletedDate)) ||
     customerFirstName !== (lead.customer.firstName || "") ||
     customerLastName !== (lead.customer.lastName || "") ||
     customerPhone !== (lead.customer.phone || "") ||
@@ -1777,6 +1861,26 @@ export default function LeadDetailPage() {
                       </div>
                     )}
 
+                    {/* Job Start Date - Show when WON, SCHEDULED, and in edit mode */}
+                    {status === "WON" && jobStatus === "SCHEDULED" && isEditMode && (
+                      <div className="mt-4">
+                        <Label
+                          htmlFor="jobScheduledDateEdit"
+                          className="text-sm font-medium text-muted-foreground mb-2"
+                        >
+                          Job Start Date
+                        </Label>
+                        <Input
+                          id="jobScheduledDateEdit"
+                          type="date"
+                          value={jobScheduledDate || ""}
+                          onChange={(e) => setJobScheduledDate(e.target.value)}
+                          min={new Date().toISOString().split("T")[0]}
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+
                     {/* Close Lead Section - Only show when editing and status is not WON or LOST */}
                     {status !== "WON" && status !== "LOST" && (
                       <div className="pt-3 border-t">
@@ -1850,6 +1954,21 @@ export default function LeadDetailPage() {
                             )}
                           />
                         </div>
+                        {jobStatus === "SCHEDULED" && jobScheduledDate && (
+                          <div className="mt-3">
+                            <p className="text-sm font-medium text-muted-foreground">
+                              Job Start Date
+                            </p>
+                            <p className="text-sm">
+                              {(() => {
+                                // Parse date string (YYYY-MM-DD) and format using local date
+                                const [year, month, day] = jobScheduledDate.split("-").map(Number);
+                                const date = new Date(year, month - 1, day);
+                                return date.toLocaleDateString();
+                              })()}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </>
